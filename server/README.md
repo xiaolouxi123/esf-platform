@@ -38,10 +38,12 @@ npm test             # 11 项接口测试
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
 | GET | `/api/health` | — | `{ version, env, db, uptimeSec }` |
+| GET | `/api/config` | — | 公告 / 维护 / 最低版本 / `db` 状态 / `inviteRequired` |
 | POST | `/api/auth/register` | — | `{username, password, gameName?, inviteCode?}` |
 | POST | `/api/auth/login` | — | → `{accessToken, expiresIn, user}` |
 | POST | `/api/auth/logout` | JWT | `token_version + 1`，所有旧 JWT 立即失效 |
 | GET | `/api/me` | JWT | 当前用户（启动器自动登录探针） |
+| GET | `/api/me/stats` | JWT | 进场次数 / 累计时长 / 最近一次（来自 `play_sessions`） |
 | PATCH | `/api/me` | JWT | 改昵称 / 改密码（需旧密码） |
 | POST | `/api/launch-token` | JWT | `{serverKey}` → 32 位 hex Token，TTL 120s |
 | GET | `/api/servers` | JWT | 服务器 + A2S 状态缓存 |

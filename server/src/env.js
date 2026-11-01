@@ -32,6 +32,11 @@ const env = {
   launchTokenTtlSeconds: num(process.env.LAUNCH_TOKEN_TTL_SECONDS, 120),
   bcryptRounds: num(process.env.BCRYPT_ROUNDS, 10),
 
+  // 启动器公告位（先留空，运营时填）
+  notice: str(process.env.NOTICE),
+  maintenance: str(process.env.MAINTENANCE, '0') === '1',
+  minLauncherVersion: str(process.env.MIN_LAUNCHER_VERSION, '0.0.0'),
+
   db: {
     host: str(process.env.DB_HOST, '127.0.0.1'),
     port: num(process.env.DB_PORT, 3306),

@@ -31,13 +31,28 @@ npm run dev            # vite + electron
 
 | 模块 | 状态 |
 |---|---|
-| 启动器 UI / 地图 / 本地开图 / 一键连服 | ✅ 第一步完成 |
-| 后端骨架 + 数据库 + 账号 + 连服 Token | ✅ 第二步 M2.1~M2.3 |
+| 启动器 UI / 地图 / 本地开图 / 一键连服 | ✅ |
+| 后端骨架 + 数据库 + 账号 + 连服 Token | ✅ |
 | AMXX 服务端校验（查库、消费 Token、踢人） | ✅ 本机 listen server 已验证 |
-| 启动器接入真实登录 / Token | ⬜ 下一步 |
+| 启动器接入真实登录 / Token / 自动登录 | ✅ 主进程 IPC + safeStorage |
+| 界面重做（导航、按钮、图标、状态位） | ✅ 见 `shots/` |
 | 打包分发（electron-builder） | ⬜ 第四步 |
 
 详见 `Desktop\存档\第一步.md`、`Desktop\存档\第二步.md`。
+
+## 界面预览
+
+```bash
+cd esf-launcher
+npm run build
+node_modules\.bin\electron scripts/shot.cjs --state=dashboard
+node_modules\.bin\electron scripts/shot.cjs --state=servers --click=".nav-item:nth-child(2)"
+node_modules\.bin\electron scripts/shot.cjs --state=settings --click=".nav-item:nth-child(3)"
+node_modules\.bin\electron scripts/shot.cjs --state=login
+# 输出到 shots/*.png
+```
+
+> 需要先执行 `Remove-Item Env:\ELECTRON_RUN_AS_NODE`，否则 electron 会以纯 Node 方式运行。
 
 ## 常用命令
 

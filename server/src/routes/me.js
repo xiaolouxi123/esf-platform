@@ -25,6 +25,31 @@ router.get('/me', requireAuth, (req, res) => {
   });
 });
 
+// 个人战绩：大厅右侧面板用。数据来自 AMXX 写的 play_sessions
+router.get('/me/stats', requireAuth, async (req, res, next) => {
+  try {
+    const rows = await q(
+      `SELECT COUNT(*)                          AS sessions,
+              COALESCE(SUM(duration_sec), 0)    AS total_seconds,
+              MAX(started_at)                   AS last_played
+         FROM play_sessions
+        WHERE user_id = ?`,
+      [req.user.id]
+    );
+    const row = rows[0] || {};
+    res.json({
+      ok: true,
+      data: {
+        sessions: Number(row.sessions || 0),
+        totalSeconds: Number(row.total_seconds || 0),
+        lastPlayedAt: row.last_played || null,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 const patchSchema = z
   .object({
     gameName: z.string().trim().min(1).max(16).optional(),

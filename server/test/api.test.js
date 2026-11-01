@@ -154,6 +154,25 @@ test('连服 Token：签发 32 位 hex，重复请求复用同一条', async () 
   assert.equal(rows[0].server_key, 'fcx-1v1-1');
 });
 
+test('GET /api/config 返回公告与数据库状态', async () => {
+  const res = await api('GET', '/api/config');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.data.db, 'up');
+  assert.equal(typeof res.body.data.minLauncherVersion, 'string');
+  assert.equal(typeof res.body.data.maintenance, 'boolean');
+});
+
+test('GET /api/me/stats 需要登录，返回聚合数据', async () => {
+  const noToken = await api('GET', '/api/me/stats');
+  assert.equal(noToken.status, 401);
+
+  const res = await api('GET', '/api/me/stats', { token: accessToken });
+  assert.equal(res.status, 200);
+  assert.equal(typeof res.body.data.sessions, 'number');
+  assert.equal(typeof res.body.data.totalSeconds, 'number');
+});
+
 test('退出登录：旧 JWT 立即失效', async () => {
   const res = await api('POST', '/api/auth/logout', { token: accessToken });
   assert.equal(res.status, 200);

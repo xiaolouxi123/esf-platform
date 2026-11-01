@@ -1,18 +1,67 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// 把后端的能力暴露给前端，前端通过 window.electronAPI 调用
+/**
+ * 渲染层唯一能碰到的主进程能力。
+ * 所有调用统一返回 { ok, data | code, message }，这里把它转成 Promise，
+ * 失败时抛出带 code 的 Error，前端只管 try/catch。
+ */
+async function call(channel, payload) {
+  const res = await ipcRenderer.invoke(channel, payload);
+  if (!res || res.ok !== true) {
+    const error = new Error((res && res.message) || '操作失败');
+    error.code = (res && res.code) || 'UNKNOWN';
+    throw error;
+  }
+  return res.data;
+}
+
 contextBridge.exposeInMainWorld('electronAPI', {
-  // 扫描地图
-  scanMaps: () => ipcRenderer.invoke('scan-maps'),
+  app: {
+    info: () => call('app:info'),
+    config: () => call('config:get'),
+  },
 
-  // 启动游戏
-  launchGame: (config) => ipcRenderer.invoke('launch-game', config),
+  settings: {
+    get: () => call('settings:get'),
+    update: (patch) => call('settings:update', patch),
+  },
 
-  // 🚀 新增：选择游戏目录
-  selectGameDir: () => ipcRenderer.invoke('select-game-dir'),
+  dialog: {
+    pickGameDir: () => call('dialog:pick-game-dir'),
+  },
 
-  //服务器接口
-  queryServers: () => ipcRenderer.invoke('query-servers'),
-  // 🚀 连服需要带上当前用户名，服务端 AMXX 才能正确显示身份
-  joinServer: (ip, port, username) => ipcRenderer.invoke('join-server', { ip, port, username }),
+  auth: {
+    login: (username, password) => call('auth:login', { username, password }),
+    register: (payload) => call('auth:register', payload),
+    me: () => call('auth:me'),
+    logout: () => call('auth:logout'),
+  },
+
+  stats: {
+    get: () => call('stats:get'),
+  },
+
+  servers: {
+    list: () => call('servers:list'),
+  },
+
+  maps: {
+    scan: () => call('maps:scan'),
+  },
+
+  launch: {
+    token: (serverKey) => call('launch:token', { serverKey }),
+    join: (payload) => call('launch:join', payload),
+    local: (map) => call('launch:local', { map }),
+  },
+
+  shell: {
+    openDataDir: () => call('shell:open-data-dir'),
+    openGameDir: () => call('shell:open-game-dir'),
+  },
+
+  win: {
+    minimize: () => call('window:minimize'),
+    close: () => call('window:close'),
+  },
 });

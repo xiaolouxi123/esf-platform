@@ -1,271 +1,566 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import TitleBar from './TitleBar';
+import Icon from './Icon';
+import ServerHall from './ServerHall';
+import SettingsDrawer from './SettingsDrawer';
+import {
+  formatDuration,
+  formatRelative,
+  initials,
+  loadFavoriteSet,
+  pingTone,
+  roleLabel,
+  saveFavoriteSet,
+} from '../lib/format';
 
-export default function Lobby({ user, onLogout }) {
+const FAV_SERVERS = 'esf:favServers';
+const FAV_MAPS = 'esf:favMaps';
+
+export default function Lobby({ user, settings, appInfo, backend, notice, toast, onSettingsChanged, onLogout }) {
+  const [page, setPage] = useState('lobby');
   const [maps, setMaps] = useState([]);
+  const [mapKeyword, setMapKeyword] = useState('');
   const [selectedMap, setSelectedMap] = useState('');
-  const [bots, setBots] = useState([
-    { name: 'SOHAN TEEN', difficulty: 'NORMAL' },
-    { name: 'GOGETA', difficulty: 'BASE' }
-  ]);
-  const containerRef = useRef(null);
+  const [servers, setServers] = useState([]);
+  const [serversLoading, setServersLoading] = useState(true);
+  const [stats, setStats] = useState(null);
+  const [localBusy, setLocalBusy] = useState(false);
+  const [joinBusyKey, setJoinBusyKey] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [favServers, setFavServers] = useState(() => loadFavoriteSet(FAV_SERVERS));
+  const [favMaps, setFavMaps] = useState(() => loadFavoriteSet(FAV_MAPS));
 
-  // 🚀 服务器查询相关状态
-  const [serverList, setServerList] = useState([]);
-  const [isQuerying, setIsQuerying] = useState(false);
-  const [showServerModal, setShowServerModal] = useState(false);
-  // 🚀 新增：记录当前展开的服务器（用 IP 作为唯一标识）
-  const [expandedServer, setExpandedServer] = useState(null);
-  // 🚀 右下角临时提示（连服/启动结果），5 秒后自动消失
-  const [toast, setToast] = useState('');
+  const hasGameDir = Boolean(settings?.hlPath && settings?.esfModDir);
 
-  useEffect(() => {
-    if (!toast) return undefined;
-    const timer = setTimeout(() => setToast(''), 5000);
-    return () => clearTimeout(timer);
+  const refreshServers = useCallback(async () => {
+    setServersLoading(true);
+    try {
+      const data = await window.electronAPI.servers.list();
+      setServers(Array.isArray(data?.servers) ? data.servers : []);
+    } catch (err) {
+      toast(err.message, 'error');
+      setServers([]);
+    } finally {
+      setServersLoading(false);
+    }
   }, [toast]);
 
-  // 一键连服
-  const handleJoin = async (srv) => {
-    setShowServerModal(false);
+  const refreshStats = useCallback(async () => {
     try {
-      const res = await window.electronAPI.joinServer(srv.ip, srv.port, user?.username);
-      if (res && res.success) {
-        setToast(`已启动游戏，正在连接 ${res.address || `${srv.ip}:${srv.port}`} ...`);
-      } else {
-        alert(res?.message || '连服失败，请查看控制台日志。');
-      }
-    } catch (err) {
-      console.error('连服失败:', err);
-      alert('连服失败：' + err.message);
+      const data = await window.electronAPI.stats.get();
+      setStats(data);
+    } catch {
+      setStats(null);
     }
-  };
+  }, []);
 
-  const handleQueryServers = async () => {
-    setIsQuerying(true);
-    try {
-      const servers = await window.electronAPI.queryServers();
-      setServerList(servers);
-    } catch (err) {
-      console.error('查询服务器失败:', err);
-      alert('查询服务器列表失败，请检查控制台报错。');
-    } finally {
-      setIsQuerying(false);
-    }
-  };
+  useEffect(() => {
+    window.electronAPI.maps
+      .scan()
+      .then((list) => {
+        setMaps(list);
+        setSelectedMap((current) => current || list[0] || '');
+      })
+      .catch(() => setMaps([]));
+  }, []);
 
-  // 加载地图
-  const loadMaps = () => {
-    window.electronAPI.scanMaps().then(mapList => {
-      setMaps(mapList);
-      if (mapList.length > 0) {
-        setSelectedMap(mapList[0]);
-      } else {
-        setSelectedMap('');
-      }
+  useEffect(() => {
+    let alive = true;
+
+    window.electronAPI.servers
+      .list()
+      .then((data) => {
+        if (alive) setServers(Array.isArray(data?.servers) ? data.servers : []);
+      })
+      .catch((err) => {
+        if (alive) toast(err.message, 'error');
+      })
+      .finally(() => {
+        if (alive) setServersLoading(false);
+      });
+
+    window.electronAPI.stats
+      .get()
+      .then((data) => {
+        if (alive) setStats(data);
+      })
+      .catch(() => {});
+
+    return () => {
+      alive = false;
+    };
+  }, [toast]);
+
+  const onlineServers = useMemo(() => servers.filter((server) => server.online), [servers]);
+  const bestPing = useMemo(() => {
+    const values = onlineServers.map((server) => server.ping).filter((value) => value > 0);
+    return values.length ? Math.min(...values) : null;
+  }, [onlineServers]);
+
+  const visibleMaps = useMemo(() => {
+    const keyword = mapKeyword.trim().toLowerCase();
+    const list = maps.filter((map) => !keyword || map.toLowerCase().includes(keyword));
+    return list.sort((a, b) => {
+      const favA = favMaps.has(a) ? 0 : 1;
+      const favB = favMaps.has(b) ? 0 : 1;
+      if (favA !== favB) return favA - favB;
+      return a.localeCompare(b);
+    });
+  }, [maps, mapKeyword, favMaps]);
+
+  const toggleFavorite = (setter, storageKey) => (key) => {
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      saveFavoriteSet(storageKey, next);
+      return next;
     });
   };
 
-  useEffect(() => {
-    loadMaps();
-  }, []);
+  const toggleServerFav = toggleFavorite(setFavServers, FAV_SERVERS);
+  const toggleMapFav = toggleFavorite(setFavMaps, FAV_MAPS);
 
-  const handleMouseMove = (e) => {
-    if (!containerRef.current) return;
-    containerRef.current.style.setProperty('--mouse-x', `${e.clientX}px`);
-    containerRef.current.style.setProperty('--mouse-y', `${e.clientY}px`);
+  const ensureGameDir = () => {
+    if (hasGameDir) return true;
+    setSettingsOpen(true);
+    toast('请先选择游戏目录', 'error');
+    return false;
   };
 
-  const handleLaunch = async () => {
-    if (!selectedMap) return alert("请先设置游戏目录并选择地图！");
-    const res = await window.electronAPI.launchGame({ map: selectedMap, bots, username: user.username });
-    if (res && res.success) {
-      setToast(`已启动游戏：${res.map || selectedMap}`);
-    } else if (res) {
-      alert(res.message);
+  const startLocal = async () => {
+    if (!ensureGameDir()) return;
+    if (!selectedMap) {
+      toast('请先在左侧选择一张地图', 'error');
+      return;
+    }
+
+    setLocalBusy(true);
+    try {
+      const result = await window.electronAPI.launch.local(selectedMap);
+      toast(`已启动本地游戏：${result.map}`, 'ok');
+      refreshStats();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setLocalBusy(false);
     }
   };
 
-  const handleSelectDir = async () => {
-    const res = await window.electronAPI.selectGameDir();
-    if (res.success) {
-      alert('目录设置成功！\n路径: ' + res.path);
-      loadMaps(); 
-    } else if (res.message !== '已取消选择') {
-      alert(res.message);
+  const joinServer = async (server) => {
+    if (!ensureGameDir()) return;
+
+    setJoinBusyKey(server.serverKey);
+    try {
+      const result = await window.electronAPI.launch.join({
+        serverKey: server.serverKey,
+        ip: server.ip,
+        port: server.port,
+      });
+      toast(`正在连接 ${result.address}`, 'ok');
+      refreshStats();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setJoinBusyKey('');
     }
   };
+
+  const pickRandomMap = () => {
+    if (maps.length === 0) return;
+    const pool = maps.filter((map) => map !== selectedMap);
+    const next = pool.length ? pool[Math.floor(Math.random() * pool.length)] : maps[0];
+    setSelectedMap(next);
+  };
+
+  const openSettings = () => setSettingsOpen(true);
+
+  const saveSettings = async (patch) => {
+    const next = await window.electronAPI.settings.update(patch);
+    onSettingsChanged?.(next);
+  };
+
+  const handlePickDir = async () => {
+    const picked = await window.electronAPI.dialog.pickGameDir();
+    const next = await window.electronAPI.settings.get();
+    onSettingsChanged?.(next);
+    const refreshed = await window.electronAPI.maps.scan();
+    setMaps(refreshed);
+    if (!selectedMap && refreshed.length > 0) setSelectedMap(refreshed[0]);
+    return picked;
+  };
+
+  const quickActions = [
+    {
+      key: 'servers',
+      icon: 'server',
+      title: '服务器大厅',
+      hint: `${onlineServers.length} 个在线房间`,
+      onClick: () => setPage('servers'),
+    },
+    {
+      key: 'refresh',
+      icon: 'refresh',
+      title: '刷新状态',
+      hint: serversLoading ? '刷新中…' : '重新拉取房间列表',
+      onClick: refreshServers,
+    },
+    {
+      key: 'dir',
+      icon: 'folder',
+      title: hasGameDir ? '更换目录' : '设置目录',
+      hint: hasGameDir ? '已配置 hl.exe' : '还未配置 hl.exe',
+      onClick: openSettings,
+    },
+    {
+      key: 'help',
+      icon: 'help',
+      title: '帮助中心',
+      hint: '启动失败 / 连不上怎么办',
+      onClick: () => toast('排错顺序：后端是否启动 → MySQL 3307 → AMXX 日志', 'ok'),
+    },
+  ];
+
+  const railShortcuts = [
+    { key: 'quest', icon: 'trophy', title: '任务' },
+    { key: 'event', icon: 'gift', title: '活动' },
+    { key: 'rank', icon: 'users', title: '排行' },
+    { key: 'store', icon: 'spark', title: '商城' },
+  ];
 
   return (
-    <div className="launcher-container" ref={containerRef} onMouseMove={handleMouseMove}>
-      <div className="bg-image"></div>
-      <div className="mouse-glow"></div>
+    <div className="app-shell">
+      <TitleBar
+        page={page}
+        onPage={setPage}
+        user={user}
+        onOpenSettings={openSettings}
+      />
 
-      {/* 顶部用户信息栏 */}
-      <div className="user-bar">
-        <span>欢迎，{user?.username}</span>
-        
-        <button onClick={() => setShowServerModal(true)} className="btn-setting">
-          🌐 在线服务器
-        </button>
-        
-        <button onClick={handleSelectDir} className="btn-setting">
-          ⚙️ 设置目录
-        </button>
-        
-        <button onClick={onLogout} className="btn-logout">退出</button>
-      </div>
-
-      <div className="top-title">
-        <h1>{selectedMap || '请先设置游戏目录'}</h1>
-      </div>
-
-      <div className="sidebar">
-        <h2>地图选择</h2>
-        <div className="map-list">
-          {maps.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#888', marginTop: '20px' }}>
-              暂无地图<br/>(请点击右上角设置目录)
-            </div>
-          ) : (
-            maps.map(m => (
-              <div 
-                key={m} 
-                className={`map-item ${selectedMap === m ? 'active' : ''}`}
-                onClick={() => setSelectedMap(m)}
-              >
-                {m}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="right-panel">
-        <h2>机器人设置 (BOTS)</h2>
-        <div className="bot-list">
-          {bots.map((bot, index) => (
-            <div key={index} className="bot-row">
-              <span>{bot.name}</span>
-              <span>{bot.difficulty}</span>
-            </div>
-          ))}
-        </div>
-        <button className="btn-add">+ 添加机器人</button>
-        <button className="btn-launch" onClick={handleLaunch}>开始游戏</button>
-      </div>
-
-      {/* 🚀 服务器列表弹窗 (Modal) */}
-      {showServerModal && (
-        <div className="server-modal-overlay">
-          <div className="server-modal">
-            <div className="server-modal-header">
-              <h2>在线服务器大厅</h2>
-              <button className="btn-close" onClick={() => setShowServerModal(false)}>✖</button>
-            </div>
-            
-            <button onClick={handleQueryServers} disabled={isQuerying} className="btn-add" style={{marginBottom: '15px'}}>
-              {isQuerying ? '🔄 正在搜索服务器...' : '🔄 刷新服务器列表'}
-            </button>
-
-            <div className="server-list">
-              {serverList.length === 0 ? (
-                <p style={{textAlign: 'center', color: '#888'}}>暂无服务器数据，请点击上方刷新。</p>
-              ) : (
-                serverList.map((srv, idx) => {
-                  const isExpanded = expandedServer === srv.ip;
-                  return (
-                    // 🚀 点击整张卡片即可展开/折叠
-                    <div 
-                      key={idx} 
-                      className={`server-card ${!srv.online ? 'offline' : ''} ${isExpanded ? 'expanded' : ''}`}
-                      onClick={() => srv.online && setExpandedServer(isExpanded ? null : srv.ip)}
-                      style={{ cursor: srv.online ? 'pointer' : 'default' }}
-                    >
-                      
-                      <div className="card-header">
-                        <div className="card-info">
-                          <h3 className="server-name">{srv.name}</h3>
-                          <div className="server-details">
-                            <span className="tag map-tag">🗺️ {srv.map}</span>
-                            <span className="tag player-tag">👤 {srv.players}/{srv.maxPlayers}</span>
-                            <span className={`tag ping-tag ${srv.ping > 100 ? 'high-ping' : ''}`}>
-                              📶 {srv.online ? `${srv.ping}ms` : '离线'}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <div className="card-actions">
-                          {/* 展开指示箭头 */}
-                          {srv.online && srv.players > 0 && (
-                            <span className="expand-icon">{isExpanded ? '▲' : '▼'}</span>
-                          )}
-
-                          <button 
-                            className="btn-join-big" 
-                            disabled={!srv.online}
-                            // 🚀 阻止事件冒泡，防止点加入时触发了卡片的折叠
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!srv.online) return;
-                              handleJoin(srv);
-                            }}
-                          >
-                            {srv.online ? '加入游戏' : '离线'}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 🚀 展开后的玩家列表区域 */}
-                      {isExpanded && srv.online && (
-                        <div className="player-list-container">
-                          {srv.playerList && srv.playerList.length > 0 ? (
-                            <>
-                              <div className="player-list-header">
-                                <span>玩家名字</span>
-                                <span>分数</span>
-                              </div>
-                              {srv.playerList.map((p, i) => (
-                                <div key={i} className="player-row">
-                                  <span>{p.name}</span>
-                                  <span>{p.score}</span>
-                                </div>
-                              ))}
-                            </>
-                          ) : (
-                            <div style={{fontSize: '12px', color: '#ffaa00', textAlign: 'center', padding: '10px'}}>
-                              该服务器隐藏了玩家列表或获取超时
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                    </div>
-                  )
-                })
-              )}
-            </div>
+      <div className={`workspace${page === 'servers' ? ' workspace--wide' : ''}`}>
+        <aside className="sidebar">
+          <div className="side-head">
+            <h2>地图库</h2>
+            <span className="pill">{maps.length}</span>
           </div>
-        </div>
-      )}
 
-      {/* 🚀 右下角临时提示 */}
-      {toast && (
-        <div style={{
-          position: 'fixed',
-          right: '32px',
-          bottom: '32px',
-          maxWidth: '360px',
-          padding: '12px 18px',
-          borderRadius: '12px',
-          background: 'rgba(20, 20, 28, 0.85)',
-          border: '1px solid rgba(255, 170, 0, 0.5)',
-          color: '#ffc861',
-          fontSize: '14px',
-          zIndex: 9999,
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
-        }}>
-          {toast}
-        </div>
+          <div className="search">
+            <Icon name="search" size={15} />
+            <input
+              type="text"
+              value={mapKeyword}
+              placeholder="搜索地图…"
+              onChange={(event) => setMapKeyword(event.target.value)}
+            />
+          </div>
+
+          <div className="map-scroll">
+            {visibleMaps.length === 0 ? (
+              <p className="side-empty">
+                {maps.length === 0 ? '还没有地图，先设置游戏目录' : '没有匹配的地图'}
+              </p>
+            ) : (
+              visibleMaps.map((map) => {
+                const isFav = favMaps.has(map);
+                return (
+                  <div
+                    key={map}
+                    className={`map-row${selectedMap === map ? ' is-active' : ''}`}
+                    onClick={() => setSelectedMap(map)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => event.key === 'Enter' && setSelectedMap(map)}
+                  >
+                    <Icon name="map" size={14} />
+                    <span className="map-name">{map}</span>
+                    <button
+                      type="button"
+                      className={`icon-btn icon-btn--xs${isFav ? ' is-on' : ''}`}
+                      title={isFav ? '取消收藏' : '收藏地图'}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleMapFav(map);
+                      }}
+                    >
+                      <Icon name={isFav ? 'starFill' : 'star'} size={13} />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <button type="button" className="side-foot-btn" onClick={openSettings}>
+            <Icon name="folder" size={15} />
+            {hasGameDir ? '游戏目录已配置' : '选择游戏目录'}
+          </button>
+        </aside>
+
+        <main className="center">
+          {page === 'servers' ? (
+            <ServerHall
+              servers={servers}
+              loading={serversLoading}
+              onRefresh={refreshServers}
+              onJoin={joinServer}
+              favorites={favServers}
+              onToggleFavorite={toggleServerFav}
+              busyKey={joinBusyKey}
+            />
+          ) : (
+            <>
+              <section className="hero">
+                <div className="hero-content">
+                  <span className="eyebrow">
+                    <Icon name="map" size={13} />
+                    当前地图
+                  </span>
+                  <h1>{selectedMap || '请先设置游戏目录'}</h1>
+                  <p>
+                    本地开图 · 平台身份校验 · 模组 <code>{settings?.esfModDir ? '已连接' : '未设置'}</code>
+                  </p>
+
+                  <div className="hero-actions">
+                    <button type="button" className="btn btn-primary btn-lg" onClick={startLocal} disabled={localBusy}>
+                      {localBusy ? <span className="spinner" /> : <Icon name="play" size={16} />}
+                      {localBusy ? '启动中…' : '开始游戏'}
+                    </button>
+                    <button type="button" className="btn btn-ghost" onClick={pickRandomMap}>
+                      <Icon name="refresh" size={15} /> 换一张
+                    </button>
+                  </div>
+                </div>
+
+                <div className="hero-side">
+                  <div className="hero-stat">
+                    <span>地图</span>
+                    <b>{maps.length}</b>
+                  </div>
+                  <div className="hero-stat">
+                    <span>在线房间</span>
+                    <b>{onlineServers.length}</b>
+                  </div>
+                  <div className="hero-stat">
+                    <span>最低延迟</span>
+                    <b>{bestPing === null ? '—' : `${bestPing}ms`}</b>
+                  </div>
+                </div>
+              </section>
+
+              <div className="quick-grid">
+                {quickActions.map((action) => (
+                  <button key={action.key} type="button" className="quick" onClick={action.onClick}>
+                    <span className="quick-icon">
+                      <Icon name={action.icon} size={18} />
+                    </span>
+                    <b>{action.title}</b>
+                    <small>{action.hint}</small>
+                  </button>
+                ))}
+              </div>
+
+              <section className="section">
+                <div className="section-head">
+                  <h2>在线房间</h2>
+                  <button type="button" className="link" onClick={() => setPage('servers')}>
+                    全部 <Icon name="chevronRight" size={13} />
+                  </button>
+                </div>
+
+                {onlineServers.length === 0 ? (
+                  <div className="empty empty--inline">
+                    <Icon name="server" size={20} />
+                    <p>{serversLoading ? '正在获取…' : '当前没有在线房间'}</p>
+                  </div>
+                ) : (
+                  <div className="server-strip">
+                    {onlineServers.slice(0, 3).map((server) => (
+                      <button
+                        key={server.serverKey}
+                        type="button"
+                        className="mini-server"
+                        onClick={() => joinServer(server)}
+                        disabled={joinBusyKey === server.serverKey}
+                      >
+                        <span className={`dot dot--on`} />
+                        <span className="mini-name">{server.name}</span>
+                        <span className="mini-meta">
+                          <Icon name="map" size={12} /> {server.map || '—'}
+                        </span>
+                        <span className="mini-meta">
+                          <Icon name="users" size={12} /> {server.players}/{server.maxPlayers}
+                        </span>
+                        <span className={`mini-ping tag--${pingTone(server.ping)}`}>
+                          {joinBusyKey === server.serverKey ? <span className="spinner" /> : `${server.ping}ms`}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <div className="notice">
+                <Icon name="bell" size={15} />
+                <span>{notice || '平台已接入真实账号与连服凭证，游戏内会自动完成身份校验。'}</span>
+              </div>
+
+              <section className="section">
+                <div className="section-head">
+                  <h2>快速上手</h2>
+                  <span className="tag">3 步进服</span>
+                </div>
+
+                <div className="guide-grid">
+                  {[
+                    { no: '01', icon: 'map', title: '选一张地图', text: '左侧地图库支持搜索与收藏' },
+                    { no: '02', icon: 'play', title: '点开始游戏', text: '启动器写入一次性平台凭证' },
+                    { no: '03', icon: 'shield', title: '进服自动验证', text: 'AMXX 校验通过后显示平台身份' },
+                  ].map((step) => (
+                    <article key={step.no} className="guide-step">
+                      <span className="step-no">{step.no}</span>
+                      <Icon name={step.icon} size={17} />
+                      <b>{step.title}</b>
+                      <p>{step.text}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <div className="env-strip">
+                <span className="env-item">
+                  <span className={`dot dot--${backend?.ok ? 'on' : 'off'}`} /> 平台服务
+                </span>
+                <span className="env-item">
+                  <span className={`dot dot--${backend?.db === 'up' ? 'on' : 'off'}`} /> 数据库
+                </span>
+                <span className="env-item">
+                  <span className={`dot dot--${hasGameDir ? 'on' : 'off'}`} /> 游戏目录
+                </span>
+                <span className="env-item">
+                  <span className={`dot dot--${onlineServers.length > 0 ? 'on' : 'off'}`} /> 在线房间
+                </span>
+                <span className="env-spacer" />
+                <span className="env-item env-item--muted">
+                  模组 {settings?.esfModDir ? '已挂载' : '未设置'}
+                </span>
+              </div>
+            </>
+          )}
+        </main>
+
+        {page === 'lobby' && (
+          <aside className="rail">
+            <section className="card profile">
+              <div className="profile-head">
+                <span className="avatar avatar--lg">{initials(user?.gameName || user?.username)}</span>
+                <div>
+                  <h3>{user?.gameName || user?.username || '玩家'}</h3>
+                  <p>
+                    <span className="badge">{roleLabel(user?.role)}</span>
+                    <code>@{user?.username}</code>
+                  </p>
+                </div>
+              </div>
+
+              <div className="profile-stats">
+                <div>
+                  <b>{stats ? stats.sessions : '—'}</b>
+                  <span>进场次数</span>
+                </div>
+                <div>
+                  <b>{stats ? formatDuration(stats.totalSeconds) : '—'}</b>
+                  <span>累计时长</span>
+                </div>
+              </div>
+
+              <p className="profile-last">
+                <Icon name="clock" size={13} /> {formatRelative(stats?.lastPlayedAt)}
+              </p>
+            </section>
+
+            <section className="card">
+              <div className="section-head section-head--tight">
+                <h2>平台功能</h2>
+                <span className="tag tag--soon">筹备中</span>
+              </div>
+
+              <div className="shortcut-grid">
+                {railShortcuts.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className="shortcut"
+                    onClick={() => toast(`${item.title}功能尚未开放，先占个位`, 'ok')}
+                  >
+                    <Icon name={item.icon} size={16} />
+                    <span>{item.title}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="card card--notice">
+              <h3>
+                <Icon name="help" size={14} /> 小贴士
+              </h3>
+              <ul className="tips">
+                <li>首次使用先到设置里选择游戏目录</li>
+                <li>连服失败先看游戏目录里的 esf_launcher.log</li>
+                <li>换图后被踢 = 凭证失效，回平台重进一次</li>
+              </ul>
+            </section>
+
+            <section className="card card--muted">
+              <button type="button" className="rail-link" onClick={openSettings}>
+                <Icon name="settings" size={15} /> 平台设置
+              </button>
+              <button
+                type="button"
+                className="rail-link"
+                onClick={async () => {
+                  try {
+                    await window.electronAPI.shell.openGameDir();
+                  } catch (err) {
+                    toast(err.message, 'error');
+                  }
+                }}
+              >
+                <Icon name="folder" size={15} /> 打开游戏目录
+              </button>
+              <button type="button" className="rail-link rail-link--danger" onClick={onLogout}>
+                <Icon name="logout" size={15} /> 退出登录
+              </button>
+            </section>
+          </aside>
+        )}
+      </div>
+
+      <footer className="statusbar">
+        <span className="status-item">
+          <span className={`dot dot--${backend?.ok ? 'on' : 'off'}`} />
+          {backend?.ok ? '平台服务在线' : '平台服务离线'}
+        </span>
+        <span className="status-item">
+          <Icon name="server" size={12} /> {onlineServers.length}/{servers.length} 在线
+        </span>
+        <span className="status-item">
+          <Icon name="wifi" size={12} /> {settings?.apiBaseUrl || '—'}
+        </span>
+        <span className="status-spacer" />
+        <span className="status-item">v{appInfo?.version || '0.0.0'}</span>
+      </footer>
+
+      {settingsOpen && (
+        <SettingsDrawer
+          settings={settings}
+          appInfo={appInfo}
+          backend={backend}
+          onClose={() => setSettingsOpen(false)}
+          onSave={saveSettings}
+          onPickGameDir={handlePickDir}
+          onLogout={onLogout}
+          toast={toast}
+        />
       )}
     </div>
   );

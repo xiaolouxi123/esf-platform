@@ -10,6 +10,8 @@ release/
 .devdb/
 # 后台进程日志 / pid
 .run/
+# 截图产物（scripts/shot.cjs 生成）
+shots/
 # 环境变量与密钥
 .env
 .env.*
