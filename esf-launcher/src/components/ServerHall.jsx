@@ -1,75 +1,7 @@
 import { useState } from 'react';
 import Icon from './Icon';
+import ServerRoomList from './ServerRoomList';
 import { pingTone } from '../lib/format';
-
-function ServerCard({ server, favorite, busy, onJoin, onToggleFavorite }) {
-  const [copied, setCopied] = useState(false);
-  const address = `${server.ip}:${server.port}`;
-  const ratio = server.maxPlayers > 0 ? Math.min(100, Math.round((server.players / server.maxPlayers) * 100)) : 0;
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(address);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch {
-      setCopied(false);
-    }
-  };
-
-  return (
-    <article className={`srv-card${server.online ? '' : ' is-offline'}`}>
-      <header className="srv-head">
-        <div className="srv-title">
-          <span className={`dot dot--${server.online ? 'on' : 'off'}`} />
-          <h3>{server.name}</h3>
-        </div>
-
-        <button
-          type="button"
-          className={`icon-btn${favorite ? ' is-on' : ''}`}
-          title={favorite ? '取消收藏' : '收藏房间'}
-          onClick={() => onToggleFavorite(server.serverKey)}
-        >
-          <Icon name={favorite ? 'starFill' : 'star'} size={16} />
-        </button>
-      </header>
-
-      <div className="srv-tags">
-        <span className="tag">
-          <Icon name="map" size={13} /> {server.map || '未知地图'}
-        </span>
-        <span className="tag">
-          <Icon name="users" size={13} /> {server.players}/{server.maxPlayers}
-        </span>
-        <span className={`tag tag--${pingTone(server.ping)}`}>
-          <Icon name="signal" size={13} /> {server.online ? `${server.ping}ms` : '离线'}
-        </span>
-      </div>
-
-      <div className="srv-bar" aria-hidden="true">
-        <span style={{ width: `${ratio}%` }} />
-      </div>
-
-      <footer className="srv-foot">
-        <button type="button" className="ip-chip" onClick={copy} title="复制地址">
-          <Icon name="copy" size={13} />
-          {copied ? '已复制' : address}
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          disabled={!server.online || busy}
-          onClick={() => onJoin(server)}
-        >
-          {busy ? <span className="spinner" /> : <Icon name="play" size={13} />}
-          {busy ? '连接中…' : server.online ? '加入游戏' : '离线'}
-        </button>
-      </footer>
-    </article>
-  );
-}
 
 /** 直连查询：输入 IP:端口 现场查一次，不依赖后台是否登记 */
 function LookupBar({ onJoin, busyKey }) {
@@ -209,7 +141,7 @@ export default function ServerHall({
             服务器大厅
             <span className="pill">{servers.length}</span>
           </h2>
-          <p>列表来自平台登记，实时状态由后端每 15 秒查询一次</p>
+          <p>点任意一行展开实时玩家列表；列表来自平台登记，状态由后端每 15 秒刷新</p>
         </div>
 
         <button type="button" className="btn btn-ghost" onClick={onRefresh} disabled={loading}>
@@ -245,30 +177,19 @@ export default function ServerHall({
         </div>
       </div>
 
-      {visible.length === 0 ? (
-        <div className="empty">
-          <Icon name="server" size={26} />
-          <p>{loading ? '正在获取服务器列表…' : '没有符合条件的房间'}</p>
-        </div>
-      ) : (
-        <div className="srv-grid">
-          {visible.map((server) => (
-            <ServerCard
-              key={server.serverKey}
-              server={server}
-              favorite={favorites.has(server.serverKey)}
-              busy={busyKey === server.serverKey}
-              onJoin={onJoin}
-              onToggleFavorite={onToggleFavorite}
-            />
-          ))}
-        </div>
-      )}
+      <ServerRoomList
+        servers={visible}
+        loading={loading}
+        onJoin={onJoin}
+        busyKey={busyKey}
+        favorites={favorites}
+        onToggleFavorite={onToggleFavorite}
+      />
 
       <footer className="hall-tip">
         <Icon name="help" size={14} />
         <span>
-          列表只有登记的服务器？用上面的直连查询看任意地址；要把新服加进列表，在 server 目录执行
+          点行展开玩家；击杀/死亡需要 AMXX 统计插件上报。要把新服加进列表，在 server 目录执行
           <code>npm run server:add</code>。
         </span>
       </footer>

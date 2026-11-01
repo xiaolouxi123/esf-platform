@@ -89,6 +89,10 @@ const lookupServer = (settings, token, address) =>
     token,
   });
 
+/** 单个房间实时详情（含玩家列表），展开行用 */
+const serverDetail = (settings, token, params) =>
+  request(settings, { path: `/api/servers/detail${queryString(params)}`, token });
+
 const launchToken = (settings, token, serverKey) =>
   request(settings, { method: 'POST', path: '/api/launch-token', token, body: { serverKey } });
 
@@ -234,6 +238,7 @@ module.exports = {
   stats,
   servers,
   lookupServer,
+  serverDetail,
   launchToken,
   assets,
   assetDetail,

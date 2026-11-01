@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   servers: {
     list: () => call('servers:list'),
     lookup: (address) => call('servers:lookup', { address }),
+    detail: (params) => call('servers:detail', params),
   },
 
   maps: {

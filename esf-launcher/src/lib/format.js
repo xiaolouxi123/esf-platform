@@ -84,6 +84,16 @@ export function formatNumber(value) {
   return new Intl.NumberFormat('zh-CN').format(Number(value) || 0);
 }
 
+/** 秒 → 12:34 / 1:02:03（玩家在线时长用） */
+export function formatClock(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  const pad = (value) => String(value).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(secs)}` : `${minutes}:${pad(secs)}`;
+}
+
 export function loadFavoriteSet(key) {
   try {
     const raw = JSON.parse(localStorage.getItem(key) || '[]');

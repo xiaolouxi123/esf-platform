@@ -8,12 +8,13 @@ import AdminPanel from './AdminPanel';
 import AssetLibrary from './AssetLibrary';
 import PresencePanel from './PresencePanel';
 import ChatPanel from './ChatPanel';
+import ServerRoomList from './ServerRoomList';
 import {
   formatDuration,
   formatRelative,
+  isAdminRole,
   isStaff,
   loadFavoriteSet,
-  pingTone,
   roleLabel,
   saveFavoriteSet,
 } from '../lib/format';
@@ -35,6 +36,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   const [favServers, setFavServers] = useState(() => loadFavoriteSet(FAV_SERVERS));
   const [favMaps, setFavMaps] = useState(() => loadFavoriteSet(FAV_MAPS));
   const [updateInfo, setUpdateInfo] = useState(null);
+  const [adminSummary, setAdminSummary] = useState(null);
 
   const hasGameDir = Boolean(settings?.hlPath && settings?.esfModDir);
   const staff = isStaff(user?.role);
@@ -116,6 +118,23 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
     const timer = setInterval(ping, 20000);
     return () => clearInterval(timer);
   }, []);
+
+  // 员工才拉管理概览（玩家端不请求、也不显示）
+  useEffect(() => {
+    if (!staff) return undefined;
+
+    let alive = true;
+    window.electronAPI.admin
+      .overview()
+      .then((data) => {
+        if (alive) setAdminSummary(data);
+      })
+      .catch(() => {});
+
+    return () => {
+      alive = false;
+    };
+  }, [staff]);
 
   const onlineServers = useMemo(() => servers.filter((server) => server.online), [servers]);
   const bestPing = useMemo(() => {
@@ -404,6 +423,12 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                     <span>最低延迟</span>
                     <b>{bestPing === null ? '—' : `${bestPing}ms`}</b>
                   </div>
+                  {staff && (
+                    <div className="hero-stat hero-stat--staff">
+                      <span>待审资源</span>
+                      <b>{adminSummary ? adminSummary.assets.pending : '—'}</b>
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -433,29 +458,14 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                     <p>{serversLoading ? '正在获取…' : '当前没有在线房间'}</p>
                   </div>
                 ) : (
-                  <div className="server-strip">
-                    {onlineServers.slice(0, 3).map((server) => (
-                      <button
-                        key={server.serverKey}
-                        type="button"
-                        className="mini-server"
-                        onClick={() => joinServer(server)}
-                        disabled={joinBusyKey === server.serverKey}
-                      >
-                        <span className={`dot dot--on`} />
-                        <span className="mini-name">{server.name}</span>
-                        <span className="mini-meta">
-                          <Icon name="map" size={12} /> {server.map || '—'}
-                        </span>
-                        <span className="mini-meta">
-                          <Icon name="users" size={12} /> {server.players}/{server.maxPlayers}
-                        </span>
-                        <span className={`mini-ping tag--${pingTone(server.ping)}`}>
-                          {joinBusyKey === server.serverKey ? <span className="spinner" /> : `${server.ping}ms`}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                  <ServerRoomList
+                    servers={onlineServers.slice(0, 5)}
+                    loading={serversLoading}
+                    onJoin={joinServer}
+                    busyKey={joinBusyKey}
+                    favorites={favServers}
+                    onToggleFavorite={toggleServerFav}
+                  />
                 )}
               </section>
 
@@ -536,33 +546,81 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
               <p className="profile-last">
                 <Icon name="clock" size={13} /> {formatRelative(stats?.lastPlayedAt)}
               </p>
+
+              <div className="profile-actions">
+                <button type="button" className="rail-link" onClick={openSettings}>
+                  <Icon name="settings" size={14} /> 设置
+                </button>
+                <button
+                  type="button"
+                  className="rail-link"
+                  onClick={async () => {
+                    try {
+                      await window.electronAPI.shell.openGameDir();
+                    } catch (err) {
+                      toast(err.message, 'error');
+                    }
+                  }}
+                >
+                  <Icon name="folder" size={14} /> 目录
+                </button>
+                <button type="button" className="rail-link rail-link--danger" onClick={onLogout}>
+                  <Icon name="logout" size={14} /> 退出
+                </button>
+              </div>
             </section>
+
+            {staff && (
+              <section className="card card--role">
+                <div className="presence-head">
+                  <h3>
+                    <Icon name="shield" size={14} /> {roleLabel(user?.role)}工作台
+                  </h3>
+                  <button type="button" className="link" onClick={() => setPage('admin')}>
+                    进入 <Icon name="chevronRight" size={12} />
+                  </button>
+                </div>
+
+                <div className="role-metrics">
+                  <div>
+                    <b>{adminSummary ? adminSummary.assets.pending : '—'}</b>
+                    <span>待审资源</span>
+                  </div>
+                  <div>
+                    <b>{adminSummary ? adminSummary.sessions.today : '—'}</b>
+                    <span>今日进场</span>
+                  </div>
+                </div>
+
+                <p className="role-hint">
+                  {isAdminRole(user?.role)
+                    ? '你可以改角色、查看操作审计与使用开发者工具。'
+                    : '你可以审核资源、处理玩家与登记服务器；改角色与审计由管理员负责。'}
+                </p>
+              </section>
+            )}
+
+            {user?.role === 'creator' && (
+              <section className="card card--role">
+                <div className="presence-head">
+                  <h3>
+                    <Icon name="spark" size={14} /> 作者中心
+                  </h3>
+                </div>
+                <p className="role-hint">上传模型 / 声音，审核通过后所有玩家可见。</p>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm btn-block"
+                  onClick={() => setPage('assets')}
+                >
+                  去上传资源
+                </button>
+              </section>
+            )}
 
             <PresencePanel user={user} />
 
             <ChatPanel user={user} toast={toast} />
-
-            <section className="card card--muted">
-              <button type="button" className="rail-link" onClick={openSettings}>
-                <Icon name="settings" size={15} /> 平台设置
-              </button>
-              <button
-                type="button"
-                className="rail-link"
-                onClick={async () => {
-                  try {
-                    await window.electronAPI.shell.openGameDir();
-                  } catch (err) {
-                    toast(err.message, 'error');
-                  }
-                }}
-              >
-                <Icon name="folder" size={15} /> 打开游戏目录
-              </button>
-              <button type="button" className="rail-link rail-link--danger" onClick={onLogout}>
-                <Icon name="logout" size={15} /> 退出登录
-              </button>
-            </section>
           </aside>
         )}
       </div>
@@ -572,6 +630,16 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
           <span className={`dot dot--${backend?.ok ? 'on' : 'off'}`} />
           {backend?.ok ? '平台服务在线' : '平台服务离线'}
         </span>
+        {staff && (
+          <span className="status-item">
+            <span className={`dot dot--${backend?.db === 'up' ? 'on' : 'off'}`} /> 数据库
+          </span>
+        )}
+        {staff && (
+          <span className="status-item">
+            待审 {adminSummary ? adminSummary.assets.pending : '—'}
+          </span>
+        )}
         <span className="status-item">
           <Icon name="server" size={12} /> {onlineServers.length}/{servers.length} 在线
         </span>

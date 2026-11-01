@@ -372,6 +372,21 @@ test('管理台：审计日志可查，且普通玩家无权看', async () => {
   assert.ok(filtered.body.data.logs.every((item) => item.action === 'user.kick'));
 });
 
+test('房间详情：必须给 serverKey 或 address', async () => {
+  const res = await api('GET', '/api/servers/detail', { token: accessToken });
+  assert.equal(res.status, 400);
+});
+
+test('房间详情：未登记的 serverKey 返回 404', async () => {
+  const res = await api('GET', '/api/servers/detail?serverKey=no-such-room', { token: accessToken });
+  assert.equal(res.status, 404);
+});
+
+test('房间详情：非法地址返回 400', async () => {
+  const res = await api('GET', '/api/servers/detail?address=bad', { token: accessToken });
+  assert.equal(res.status, 400);
+});
+
 test('连服 Token：未知服务器 404', async () => {
   const res = await api('POST', '/api/launch-token', {
     token: accessToken,

@@ -314,6 +314,10 @@ handle('servers:lookup', async ({ address }) => {
   return data.server;
 });
 
+handle('servers:detail', async (params = {}) =>
+  apiCall(api.serverDetail, getSettings(), requireToken(), params)
+);
+
 // ---- 在线状态 / 大厅频道 ----
 handle('presence:ping', async () => {
   requireToken();

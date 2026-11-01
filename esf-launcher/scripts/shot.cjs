@@ -57,16 +57,25 @@ app.whenReady().then(async () => {
   }
 
   if (clickSelector) {
-    const clicked = await win.webContents.executeJavaScript(`
-      (() => {
-        const el = document.querySelector(${JSON.stringify(clickSelector)});
-        if (!el) return false;
-        el.click();
-        return true;
-      })()
-    `);
-    console.log('click', clickSelector, 'matched =', clicked);
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    // 支持 "选择器1@@选择器2" 依次点击（例如先切页面再展开房间）
+    const selectors = String(clickSelector)
+      .split(/@@|\|\|/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    for (const selector of selectors) {
+      const clicked = await win.webContents.executeJavaScript(`
+        (() => {
+          let el = null;
+          try { el = document.querySelector(${JSON.stringify(selector)}); } catch (err) { return 'bad-selector'; }
+          if (!el) return false;
+          el.click();
+          return true;
+        })()
+      `);
+      console.log('click', selector, 'matched =', clicked);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400));
   }
 
   if (scrollPx > 0) {
