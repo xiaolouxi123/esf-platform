@@ -1,0 +1,32 @@
+# ---- 依赖与构建产物 ----
+node_modules/
+dist/
+dist-ssr/
+release/
+*.tsbuildinfo
+
+# ---- 本地运行时 ----
+# 独立开发用 MySQL 实例的数据目录（含 root 空密码，绝不入库）
+.devdb/
+# 后台进程日志 / pid
+.run/
+# 环境变量与密钥
+.env
+.env.*
+!.env.example
+*.local
+
+# ---- 日志 ----
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ---- 编辑器 ----
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.sw?
