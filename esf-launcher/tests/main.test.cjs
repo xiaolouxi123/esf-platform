@@ -120,6 +120,25 @@ global.fetch = async (url, options = {}) => {
 
   if (pathname === '/api/me') return ok({ user: fakeUser });
   if (pathname === '/api/me/stats') return ok({ sessions: 3, totalSeconds: 5400, lastPlayedAt: null });
+  if (pathname === '/api/servers/lookup') {
+    const address = new URL(url).searchParams.get('address');
+    return ok({
+      server: {
+        address,
+        ip: '114.132.84.150',
+        port: 27016,
+        registered: true,
+        serverKey: 'fcx-1v1-1',
+        registryName: '[ESF-FCX]单挑房[1]',
+        online: true,
+        name: '[ESF-FCX]单挑房[1]',
+        map: 'ape_ocean',
+        players: 3,
+        maxPlayers: 12,
+        ping: 20,
+      },
+    });
+  }
   if (pathname === '/api/servers') {
     return ok({
       servers: [
@@ -227,6 +246,18 @@ function ipc(channel, payload) {
     assert.equal(servers.ok, true);
     assert.equal(servers.data.servers[0].serverKey, 'fcx-1v1-1');
   });
+
+  const lookup = await ipc('servers:lookup', { address: '114.132.84.150:27016' });
+  check('直连查询返回在线信息与登记状态', () => {
+    assert.equal(lookup.ok, true, JSON.stringify(lookup));
+    assert.equal(lookup.data.online, true);
+    assert.equal(lookup.data.registered, true);
+    assert.equal(lookup.data.serverKey, 'fcx-1v1-1');
+    assert.equal(lookup.data.address, '114.132.84.150:27016');
+  });
+
+  const lookupEmpty = await ipc('servers:lookup', { address: '   ' });
+  check('空地址被拒绝', () => assert.equal(lookupEmpty.ok, false));
 
   const join = await ipc('launch:join', { serverKey: 'fcx-1v1-1', ip: '114.132.84.150', port: 27016 });
   check('连服成功并返回地址', () => {

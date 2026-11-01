@@ -241,6 +241,14 @@ handle('stats:get', async () => apiCall(api.stats, getSettings(), requireToken()
 
 handle('servers:list', async () => apiCall(api.servers, getSettings(), requireToken()));
 
+handle('servers:lookup', async ({ address }) => {
+  const value = String(address || '').trim();
+  if (!value) throw new Error('请输入服务器地址，例如 114.132.84.150:27016');
+
+  const data = await apiCall(api.lookupServer, getSettings(), requireToken(), value);
+  return data.server;
+});
+
 handle('maps:scan', async () => {
   const dir = getSettings().esfModDir;
   if (!dir) return [];

@@ -120,6 +120,20 @@ const api = {
   },
   servers: {
     list: async () => ({ servers }),
+    lookup: async (address) => ({
+      address,
+      ip: '114.132.84.150',
+      port: 27016,
+      registered: true,
+      serverKey: 'fcx-1v1-1',
+      registryName: '[ESF-FCX]单挑房[1]',
+      online: true,
+      name: '[ESF-FCX]单挑房[1]',
+      map: 'ape_foreshadow',
+      players: 4,
+      maxPlayers: 12,
+      ping: 18,
+    }),
   },
   maps: {
     scan: async () => maps,

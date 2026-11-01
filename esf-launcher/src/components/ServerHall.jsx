@@ -71,6 +71,110 @@ function ServerCard({ server, favorite, busy, onJoin, onToggleFavorite }) {
   );
 }
 
+/** 直连查询：输入 IP:端口 现场查一次，不依赖后台是否登记 */
+function LookupBar({ onJoin, busyKey }) {
+  const [address, setAddress] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const run = async () => {
+    const value = address.trim();
+    if (!value || busy) return;
+
+    setBusy(true);
+    setResult(null);
+    try {
+      const server = await window.electronAPI.servers.lookup(value);
+      setResult(server);
+    } catch (err) {
+      setResult({ error: err.message, address: value });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="lookup">
+      <div className="lookup-bar">
+        <div className="search">
+          <Icon name="wifi" size={15} />
+          <input
+            type="text"
+            value={address}
+            placeholder="直连查询：输入 IP:端口，例如 114.132.84.150:27016"
+            onChange={(event) => setAddress(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && run()}
+          />
+        </div>
+
+        <button type="button" className="btn btn-ghost" onClick={run} disabled={busy}>
+          {busy ? <span className="spinner" /> : <Icon name="search" size={15} />}
+          {busy ? '查询中…' : '查询'}
+        </button>
+      </div>
+
+      {result && (
+        <div className={`probe${result.error ? ' is-error' : ''}`}>
+          {result.error ? (
+            <>
+              <Icon name="alert" size={15} />
+              <span>
+                {result.address} 查询失败：{result.error}
+              </span>
+            </>
+          ) : (
+            <>
+              <div className="probe-main">
+                <span className={`dot dot--${result.online ? 'on' : 'off'}`} />
+                <b>{result.name || result.registryName || result.address}</b>
+                <code>{result.address}</code>
+                {result.online ? (
+                  <>
+                    <span className="tag">
+                      <Icon name="map" size={13} /> {result.map || '—'}
+                    </span>
+                    <span className="tag">
+                      <Icon name="users" size={13} /> {result.players}/{result.maxPlayers}
+                    </span>
+                    <span className={`tag tag--${pingTone(result.ping)}`}>{result.ping}ms</span>
+                  </>
+                ) : (
+                  <span className="tag tag--bad">离线</span>
+                )}
+              </div>
+
+              <div className="probe-foot">
+                {result.registered ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={!result.online || busyKey === result.serverKey}
+                    onClick={() =>
+                      onJoin({
+                        serverKey: result.serverKey,
+                        ip: result.ip,
+                        port: result.port,
+                        name: result.name || result.address,
+                      })
+                    }
+                  >
+                    <Icon name="play" size={13} /> 带平台身份加入
+                  </button>
+                ) : (
+                  <span className="probe-hint">
+                    这台服没在平台登记，无法带平台身份加入。管理员可执行
+                    <code>npm run server:add -- --key … --ip … --port …</code> 登记。
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ServerHall({
   servers,
   loading,
@@ -105,7 +209,7 @@ export default function ServerHall({
             服务器大厅
             <span className="pill">{servers.length}</span>
           </h2>
-          <p>实时状态来自 A2S 查询，后端每 15 秒刷新一次</p>
+          <p>列表来自平台登记，实时状态由后端每 15 秒查询一次</p>
         </div>
 
         <button type="button" className="btn btn-ghost" onClick={onRefresh} disabled={loading}>
@@ -114,13 +218,15 @@ export default function ServerHall({
         </button>
       </header>
 
+      <LookupBar onJoin={onJoin} busyKey={busyKey} />
+
       <div className="hall-toolbar">
         <div className="search">
           <Icon name="search" size={16} />
           <input
             type="text"
             value={keyword}
-            placeholder="搜索房间、地图或 IP…"
+            placeholder="筛选：名称 / 地图 / IP"
             onChange={(event) => setKeyword(event.target.value)}
           />
         </div>
@@ -161,7 +267,10 @@ export default function ServerHall({
 
       <footer className="hall-tip">
         <Icon name="help" size={14} />
-        <span>连不上？先确认后端已启动（server 目录 npm start），再看游戏目录里的 esf_launcher.log。</span>
+        <span>
+          列表只有登记的服务器？用上面的直连查询看任意地址；要把新服加进列表，在 server 目录执行
+          <code>npm run server:add</code>。
+        </span>
       </footer>
     </div>
   );

@@ -47,6 +47,14 @@ npm test             # 11 项接口测试
 | PATCH | `/api/me` | JWT | 改昵称 / 改密码（需旧密码） |
 | POST | `/api/launch-token` | JWT | `{serverKey}` → 32 位 hex Token，TTL 120s |
 | GET | `/api/servers` | JWT | 服务器 + A2S 状态缓存 |
+| GET | `/api/servers/lookup?address=IP:PORT` | JWT | 现场查询任意地址，返回是否已在平台登记 |
+| GET | `/api/assets?kind=&q=&limit=&offset=` | — | 已上架资源（模型 / 声音） |
+| GET | `/api/assets/:id` | — | 资源详情 |
+| GET | `/api/assets/:id/download` | 可选 | 下载文件（未上架仅作者/管理员可取） |
+| POST | `/api/assets` | JWT | 上传资源（multipart），普通用户进待审 |
+| GET | `/api/admin/assets?status=` | admin/gm | 审核列表（含待审） |
+| PATCH | `/api/assets/:id/status` | admin/gm | 通过 / 驳回 |
+| DELETE | `/api/assets/:id` | admin | 删除资源与磁盘文件 |
 
 ## 账号约定
 
@@ -113,3 +121,68 @@ platform_debug "1"
 | AMXX 日志 `数据库连接失败` | 账号密码/端口不对，或没建成 `mysql_native_password` |
 | 游戏内提示"平台凭证无效" | Token 过期（>120s）、已用于别的服务器、或账号被 ban |
 | 本地房主被判失败但踢不掉 | listen server 的房主无法被踢（`The local player cannot be kicked!`），这是引擎限制；远程玩家不受影响 |
+
+## 查数据库
+
+不用记 mysql 命令，三条就够：
+
+```bash
+cd server
+npm run db:start                         # 开发库没起时先起（127.0.0.1:3307）
+npm run db:report                        # 巡检：表、账号、服务器、Token、在线记录
+npm run db:query -- "SELECT id, username FROM users"
+npm run db:query -- "UPDATE users SET status='banned' WHERE username='demo'"
+npm run db:console                       # 交互式终端（需要本机 mysql.exe）
+```
+
+`db:report` 会打印：连接信息、表清单、关键计数、最近账号、登录审计、服务器状态、
+最近在线记录、最近连服 Token —— 基本上一眼看全库。
+
+> 开发库是项目自带实例（`.devdb/`，端口 3307），不是本机那个 MySQL80 服务。
+
+## 登记服务器
+
+启动器大厅只显示**登记过**的服务器；新增一台：
+
+```bash
+npm run server:add -- --key fcx-1v1-2 --name "[ESF-FCX]单挑房[2]" --ip 1.2.3.4 --port 27017
+npm run server:add -- --key fcx-1v1-2 --disable     # 下架
+```
+
+登记后 15 秒内后端会查询一次状态，启动器刷新列表即可看到。
+临时看任意地址活没活，用启动器服务器页的「直连查询」，或
+
+```bash
+curl -H "Authorization: Bearer <JWT>" "http://127.0.0.1:3000/api/servers/lookup?address=114.132.84.150:27016"
+```
+
+## 资源库（模型 / 声音）
+
+给模型作者用的上传接口，文件与数据库分离：文件落在 `server/uploads/<kind>/`，库里只存元数据。
+
+```bash
+# 上传（普通账号 → pending，admin/gm → 直接 approved）
+curl -X POST http://127.0.0.1:3000/api/assets \
+  -H "Authorization: Bearer <JWT>" \
+  -F kind=model \
+  -F name="悟空新模型" \
+  -F version=1.2.0 \
+  -F targetPath=models/player/goku/goku.mdl \
+  -F description="替换默认模型" \
+  -F file=@goku.mdl
+
+npm run asset:list                 # 待审列表
+npm run asset:list -- --status all # 全部
+npm run asset:review -- 3 approved # 通过 id=3
+npm run asset:review -- 3 rejected # 驳回
+```
+
+约束：
+
+- `kind` 必须在 `file` 之前传（multer 靠它决定目录与扩展名）
+- `kind=model` 只收 `.mdl`；`kind=sound` 收 `.wav/.mp3`；`kind=other` 收 `.zip/.spr/.tga/.bmp`
+- `targetPath` 必须是**相对模组目录**的路径，禁止 `..` 与盘符（防目录穿越）
+- 单文件默认上限 64MB（`.env` 的 `UPLOAD_MAX_MB`）
+- 同一 `kind + slug + version` 唯一，升级版本就换 `version`
+
+启动器侧按 `targetPath` 把文件落到模组目录（下一步接 UI）。

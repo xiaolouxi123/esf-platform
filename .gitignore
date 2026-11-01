@@ -12,6 +12,8 @@ release/
 .run/
 # 截图产物（scripts/shot.cjs 生成）
 shots/
+# 资源库上传目录
+server/uploads/
 # 环境变量与密钥
 .env
 .env.*

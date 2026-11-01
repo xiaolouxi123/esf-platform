@@ -5,6 +5,8 @@ process.env.NODE_ENV = 'test';
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
 
 const app = require('../src/app');
 const { q, ping, close } = require('../src/db');
@@ -118,6 +120,85 @@ test('GET /api/servers：返回种子服务器', async () => {
   assert.ok(seeded, '缺少 fcx-1v1-1');
   assert.equal(seeded.ip, '114.132.84.150');
   assert.equal(seeded.port, 27016);
+});
+
+test('直连查询：地址格式错误返回 400（不能挂住请求）', async () => {
+  const res = await api('GET', '/api/servers/lookup?address=not-an-address', { token: accessToken });
+  assert.equal(res.status, 400);
+  assert.equal(res.body.code, 'BAD_REQUEST');
+});
+
+test('资源：未登录不能上传', async () => {
+  const form = new FormData();
+  form.append('kind', 'sound');
+  form.append('name', '未登录');
+  form.append('targetPath', 'sound/anon.wav');
+  form.append('file', new Blob([Buffer.from('RIFF')]), 'anon.wav');
+
+  const res = await fetch(`${base}/api/assets`, { method: 'POST', body: form });
+  assert.equal(res.status, 401);
+});
+
+test('资源：扩展名与路径校验', async () => {
+  const wrongExt = new FormData();
+  wrongExt.append('kind', 'sound');
+  wrongExt.append('name', '错误格式');
+  wrongExt.append('targetPath', 'sound/x.exe');
+  wrongExt.append('file', new Blob([Buffer.from('x')]), 'x.exe');
+  const bad = await fetch(`${base}/api/assets`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: wrongExt,
+  });
+  assert.equal(bad.status, 400);
+
+  const traversal = new FormData();
+  traversal.append('kind', 'sound');
+  traversal.append('name', '越界');
+  traversal.append('targetPath', '../../evil.wav');
+  traversal.append('file', new Blob([Buffer.from('RIFF')]), 'evil.wav');
+  const trav = await fetch(`${base}/api/assets`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: traversal,
+  });
+  assert.equal(trav.status, 400);
+});
+
+test('资源：上传进待审 → 公开列表不可见 → 匿名下载 404', async () => {
+  const payload = Buffer.alloc(1024, 1);
+  payload.write('RIFF', 0);
+
+  const form = new FormData();
+  form.append('kind', 'sound');
+  form.append('name', '测试音效');
+  form.append('version', '1.0.0');
+  form.append('targetPath', 'sound/test/beep.wav');
+  form.append('file', new Blob([payload], { type: 'audio/wav' }), 'beep.wav');
+
+  const res = await fetch(`${base}/api/assets`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: form,
+  });
+  const json = await res.json();
+  assert.equal(res.status, 201, JSON.stringify(json));
+  const asset = json.data.asset;
+  assert.equal(asset.status, 'pending');
+  assert.match(asset.sha256, /^[0-9a-f]{64}$/);
+
+  const pub = await api('GET', '/api/assets?kind=sound');
+  assert.ok(!pub.body.data.assets.some((item) => item.id === asset.id), '待审资源不应出现在公开列表');
+
+  const download = await fetch(`${base}/api/assets/${asset.id}/download`);
+  assert.equal(download.status, 404);
+
+  // 清理：数据库行 + 磁盘文件
+  const rows = await q('SELECT stored_name FROM assets WHERE id = ?', [asset.id]);
+  await q('DELETE FROM assets WHERE id = ?', [asset.id]);
+  if (rows[0]) {
+    fs.rmSync(path.join(__dirname, '..', 'uploads', 'sound', rows[0].stored_name), { force: true });
+  }
 });
 
 test('连服 Token：未知服务器 404', async () => {

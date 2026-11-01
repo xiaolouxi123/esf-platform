@@ -83,6 +83,12 @@ const stats = (settings, token) => request(settings, { path: '/api/me/stats', to
 
 const servers = (settings, token) => request(settings, { path: '/api/servers', token });
 
+const lookupServer = (settings, token, address) =>
+  request(settings, {
+    path: `/api/servers/lookup?address=${encodeURIComponent(address)}`,
+    token,
+  });
+
 const launchToken = (settings, token, serverKey) =>
   request(settings, { method: 'POST', path: '/api/launch-token', token, body: { serverKey } });
 
@@ -97,5 +103,6 @@ module.exports = {
   me,
   stats,
   servers,
+  lookupServer,
   launchToken,
 };

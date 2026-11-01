@@ -12,6 +12,12 @@
     "db:start": "node scripts/dev-db.cjs start",
     "db:stop": "node scripts/dev-db.cjs stop",
     "db:status": "node scripts/dev-db.cjs status",
+    "db:report": "node scripts/db-report.cjs",
+    "db:query": "node scripts/db-query.cjs",
+    "db:console": "node scripts/db-console.cjs",
+    "server:add": "node scripts/server-add.cjs",
+    "asset:list": "node scripts/asset-review.cjs",
+    "asset:review": "node scripts/asset-review.cjs --review",
     "migrate": "node scripts/migrate.js",
     "smoke": "node scripts/smoke.cjs",
     "token": "node scripts/issue-token.cjs",
@@ -27,6 +33,7 @@
     "express-rate-limit": "^7.4.1",
     "goldsrc-query": "^1.1.6",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.5.0",
     "mysql2": "^3.11.5",
     "zod": "^3.23.8"
   }

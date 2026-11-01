@@ -36,7 +36,9 @@ npm run dev            # vite + electron
 | AMXX 服务端校验（查库、消费 Token、踢人） | ✅ 本机 listen server 已验证 |
 | 启动器接入真实登录 / Token / 自动登录 | ✅ 主进程 IPC + safeStorage |
 | 界面重做（导航、按钮、图标、状态位） | ✅ 见 `shots/` |
-| 打包分发（electron-builder） | ⬜ 第四步 |
+| 服务器直连查询（按 IP:端口） | ✅ 大厅顶部查询条 |
+| 资源库接口（模型 / 声音上传审核） | ✅ 接口 + CLI，启动器 UI 待接 |
+| 打包分发（electron-builder） | ⬜ 下一步 |
 
 详见 `Desktop\存档\第一步.md`、`Desktop\存档\第二步.md`。
 
@@ -62,6 +64,16 @@ cd server
 npm run smoke                        # 全链路冒烟
 npm run token demo demo12345 fcx-1v1-1   # 签发一个连服 Token
 npm test
+
+# 查数据库（不用记 mysql 命令）
+npm run db:report                    # 一览：表 / 账号 / 服务器 / Token / 在线记录
+npm run db:query -- "SELECT * FROM users"
+npm run db:console                   # 交互式终端
+
+# 运维
+npm run server:add -- --key fcx-2 --name "新服" --ip 1.2.3.4 --port 27016
+npm run asset:list                   # 待审资源
+npm run asset:review -- 1 approved   # 审核通过
 
 # 本机 listen server 验证 AMXX（不开 Electron）
 node amxx/local-verify.cjs <token> <昵称> <地图>
