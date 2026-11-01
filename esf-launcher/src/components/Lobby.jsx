@@ -9,6 +9,7 @@ import AssetLibrary from './AssetLibrary';
 import PresencePanel from './PresencePanel';
 import ChatPanel from './ChatPanel';
 import ServerRoomList from './ServerRoomList';
+import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import {
   formatDuration,
   formatRelative,
@@ -26,6 +27,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   const [page, setPage] = useState('lobby');
   const [maps, setMaps] = useState([]);
   const [mapKeyword, setMapKeyword] = useState('');
+  const [mapCategory, setMapCategory] = useState('all');
   const [selectedMap, setSelectedMap] = useState('');
   const [servers, setServers] = useState([]);
   const [serversLoading, setServersLoading] = useState(true);
@@ -144,14 +146,37 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
 
   const visibleMaps = useMemo(() => {
     const keyword = mapKeyword.trim().toLowerCase();
-    const list = maps.filter((map) => !keyword || map.toLowerCase().includes(keyword));
-    return list.sort((a, b) => {
-      const favA = favMaps.has(a) ? 0 : 1;
-      const favB = favMaps.has(b) ? 0 : 1;
-      if (favA !== favB) return favA - favB;
-      return a.localeCompare(b);
-    });
-  }, [maps, mapKeyword, favMaps]);
+
+    return mapCatalog(maps)
+      .filter((item) => {
+        if (mapCategory === 'fav') {
+          if (!favMaps.has(item.code)) return false;
+        } else if (mapCategory !== 'all' && item.category !== mapCategory) {
+          return false;
+        }
+        if (!keyword) return true;
+        return item.name.toLowerCase().includes(keyword) || item.code.toLowerCase().includes(keyword);
+      })
+      .sort((a, b) => {
+        const favA = favMaps.has(a.code) ? 0 : 1;
+        const favB = favMaps.has(b.code) ? 0 : 1;
+        if (favA !== favB) return favA - favB;
+        return a.name.localeCompare(b.name, 'zh-CN');
+      });
+  }, [maps, mapKeyword, mapCategory, favMaps]);
+
+  const selectedMeta = useMemo(() => mapMeta(selectedMap || ''), [selectedMap]);
+
+  // 排序后选中的那张可能在视口外，切图时把它滚进可视区
+  useEffect(() => {
+    const scroller = document.querySelector('.map-scroll');
+    const active = scroller?.querySelector('.map-row.is-active');
+    if (!scroller || !active) return;
+    const offset = active.offsetTop - scroller.offsetTop;
+    if (offset < scroller.scrollTop || offset + active.offsetHeight > scroller.scrollTop + scroller.clientHeight) {
+      scroller.scrollTop = Math.max(0, offset - scroller.clientHeight / 2 + active.offsetHeight / 2);
+    }
+  }, [selectedMap, mapCategory, mapKeyword]);
 
   const toggleFavorite = (setter, storageKey) => (key) => {
     setter((prev) => {
@@ -237,36 +262,22 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
     return picked;
   };
 
-  const quickActions = [
-    {
-      key: 'servers',
-      icon: 'server',
-      title: '服务器大厅',
-      hint: `${onlineServers.length} 个在线房间`,
-      onClick: () => setPage('servers'),
-    },
-    {
-      key: 'refresh',
-      icon: 'refresh',
-      title: '刷新状态',
-      hint: serversLoading ? '刷新中…' : '重新拉取房间列表',
-      onClick: refreshServers,
-    },
-    {
-      key: 'dir',
-      icon: 'folder',
-      title: hasGameDir ? '更换目录' : '设置目录',
-      hint: hasGameDir ? '已配置 hl.exe' : '还未配置 hl.exe',
-      onClick: openSettings,
-    },
-    {
-      key: 'help',
-      icon: 'help',
-      title: '帮助中心',
-      hint: '启动失败 / 连不上怎么办',
-      onClick: () => toast('排错顺序：后端是否启动 → MySQL 3307 → AMXX 日志', 'ok'),
-    },
-  ];
+  // Enter 直接开始本地游戏（输入框、按钮、地图/房间行上按 Enter 不触发）
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key !== 'Enter' || event.repeat || event.defaultPrevented) return;
+      const target = event.target;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+      if (target?.closest?.('button, a, [role="button"], [role="link"]')) return;
+      if (settingsOpen || activePage !== 'lobby') return;
+      event.preventDefault();
+      startLocal();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
 
   return (
     <div className="app-shell">
@@ -282,6 +293,9 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
           <div className="side-head">
             <h2>地图库</h2>
             <span className="pill">{maps.length}</span>
+            <button type="button" className="link side-manage" onClick={openSettings}>
+              管理 <Icon name="chevronRight" size={12} />
+            </button>
           </div>
 
           <div className="search">
@@ -289,9 +303,22 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
             <input
               type="text"
               value={mapKeyword}
-              placeholder="搜索地图…"
+              placeholder="搜索地图 / 代号"
               onChange={(event) => setMapKeyword(event.target.value)}
             />
+          </div>
+
+          <div className="map-filters">
+            {MAP_CATEGORIES.map((category) => (
+              <button
+                key={category.key}
+                type="button"
+                className={`chip${mapCategory === category.key ? ' is-active' : ''}`}
+                onClick={() => setMapCategory(category.key)}
+              >
+                {category.label}
+              </button>
+            ))}
           </div>
 
           <div className="map-scroll">
@@ -300,26 +327,31 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                 {maps.length === 0 ? '还没有地图，先设置游戏目录' : '没有匹配的地图'}
               </p>
             ) : (
-              visibleMaps.map((map) => {
-                const isFav = favMaps.has(map);
+              visibleMaps.map((item) => {
+                const isFav = favMaps.has(item.code);
                 return (
                   <div
-                    key={map}
-                    className={`map-row${selectedMap === map ? ' is-active' : ''}`}
-                    onClick={() => setSelectedMap(map)}
+                    key={item.code}
+                    className={`map-row map-row--${item.tone}${selectedMap === item.code ? ' is-active' : ''}`}
+                    onClick={() => setSelectedMap(item.code)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(event) => event.key === 'Enter' && setSelectedMap(map)}
+                    onKeyDown={(event) => event.key === 'Enter' && setSelectedMap(item.code)}
                   >
-                    <Icon name="map" size={14} />
-                    <span className="map-name">{map}</span>
+                    <span className="map-icon">
+                      <Icon name={item.icon} size={14} />
+                    </span>
+                    <span className="map-text">
+                      <b>{item.name}</b>
+                      <small>{item.code}</small>
+                    </span>
                     <button
                       type="button"
                       className={`icon-btn icon-btn--xs${isFav ? ' is-on' : ''}`}
                       title={isFav ? '取消收藏' : '收藏地图'}
                       onClick={(event) => {
                         event.stopPropagation();
-                        toggleMapFav(map);
+                        toggleMapFav(item.code);
                       }}
                     >
                       <Icon name={isFav ? 'starFill' : 'star'} size={13} />
@@ -330,10 +362,17 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
             )}
           </div>
 
-          <button type="button" className="side-foot-btn" onClick={openSettings}>
-            <Icon name="folder" size={15} />
-            {hasGameDir ? '游戏目录已配置' : '选择游戏目录'}
-          </button>
+          <div className="side-foot">
+            <button type="button" className="side-foot-btn" onClick={openSettings}>
+              <Icon name="folder" size={14} />
+              <span className="side-foot-name">游戏目录</span>
+              <code>{hasGameDir ? 'hl.exe' : '未设置'}</code>
+              <em>{hasGameDir ? '更换' : '设置'}</em>
+            </button>
+            <span className="side-count">
+              已显示 {visibleMaps.length} / {maps.length} 张
+            </span>
+          </div>
         </aside>
 
         <main className="center">
@@ -388,21 +427,27 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                 </div>
               )}
 
-              <section className="hero">
+              <section className={`hero hero--${selectedMeta.tone}`}>
                 <div className="hero-content">
                   <span className="eyebrow">
                     <Icon name="map" size={13} />
                     当前地图
+                    <em className="eyebrow-status">{hasGameDir ? '已就绪' : '未就绪'}</em>
                   </span>
-                  <h1>{selectedMap || '请先设置游戏目录'}</h1>
-                  <p>
-                    本地开图 · 平台身份校验 · 模组 <code>{settings?.esfModDir ? '已连接' : '未设置'}</code>
-                  </p>
+                  <h1>{selectedMeta.name}</h1>
+
+                  <div className="hero-tags">
+                    <span className="tag">{selectedMeta.categoryLabel}</span>
+                    <span className="tag tag--code">{selectedMap || '未选择'}</span>
+                    <span className="tag">本地开图</span>
+                    <span className="tag">平台身份校验</span>
+                  </div>
 
                   <div className="hero-actions">
                     <button type="button" className="btn btn-primary btn-lg" onClick={startLocal} disabled={localBusy}>
                       {localBusy ? <span className="spinner" /> : <Icon name="play" size={16} />}
                       {localBusy ? '启动中…' : '开始游戏'}
+                      <kbd className="btn-kbd">Enter</kbd>
                     </button>
                     <button type="button" className="btn btn-ghost" onClick={pickRandomMap}>
                       <Icon name="refresh" size={15} /> 换一张
@@ -432,24 +477,26 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                 </div>
               </section>
 
-              <div className="quick-grid">
-                {quickActions.map((action) => (
-                  <button key={action.key} type="button" className="quick" onClick={action.onClick}>
-                    <span className="quick-icon">
-                      <Icon name={action.icon} size={18} />
-                    </span>
-                    <b>{action.title}</b>
-                    <small>{action.hint}</small>
-                  </button>
-                ))}
-              </div>
-
               <section className="section">
                 <div className="section-head">
-                  <h2>在线房间</h2>
-                  <button type="button" className="link" onClick={() => setPage('servers')}>
-                    全部 <Icon name="chevronRight" size={13} />
-                  </button>
+                  <h2>
+                    在线房间 <span className="pill">{onlineServers.length}</span>
+                  </h2>
+
+                  <div className="section-head-actions">
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title="刷新房间列表"
+                      onClick={refreshServers}
+                      disabled={serversLoading}
+                    >
+                      <Icon name="refresh" size={14} />
+                    </button>
+                    <button type="button" className="link" onClick={() => setPage('servers')}>
+                      全部 <Icon name="chevronRight" size={13} />
+                    </button>
+                  </div>
                 </div>
 
                 {onlineServers.length === 0 ? (
@@ -474,26 +521,17 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                 <span>{notice || '平台已接入真实账号与连服凭证，游戏内会自动完成身份校验。'}</span>
               </div>
 
-              <section className="section">
+              <section className="section section--tips">
                 <div className="section-head">
-                  <h2>快速上手</h2>
-                  <span className="tag">3 步进服</span>
+                  <h2>进服提示</h2>
+                  <span className="tag">3 步</span>
                 </div>
 
-                <div className="guide-grid">
-                  {[
-                    { no: '01', icon: 'map', title: '选一张地图', text: '左侧地图库支持搜索与收藏' },
-                    { no: '02', icon: 'play', title: '点开始游戏', text: '启动器写入一次性平台凭证' },
-                    { no: '03', icon: 'shield', title: '进服自动验证', text: 'AMXX 校验通过后显示平台身份' },
-                  ].map((step) => (
-                    <article key={step.no} className="guide-step">
-                      <span className="step-no">{step.no}</span>
-                      <Icon name={step.icon} size={17} />
-                      <b>{step.title}</b>
-                      <p>{step.text}</p>
-                    </article>
-                  ))}
-                </div>
+                <ol className="tips">
+                  <li>左侧挑地图或房间，点「开始游戏 / 加入」</li>
+                  <li>启动器写入一次性平台凭证并拉起游戏</li>
+                  <li>AMXX 校验通过后在游戏内显示平台身份</li>
+                </ol>
               </section>
 
               <div className="env-strip">
@@ -643,10 +681,19 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
         <span className="status-item">
           <Icon name="server" size={12} /> {onlineServers.length}/{servers.length} 在线
         </span>
-        <span className="status-item">
-          <Icon name="wifi" size={12} /> {settings?.apiBaseUrl || '—'}
-        </span>
+        {staff && (
+          <span className="status-item">
+            <Icon name="wifi" size={12} /> {settings?.apiBaseUrl || '—'}
+          </span>
+        )}
         <span className="status-spacer" />
+        <button
+          type="button"
+          className="link status-help"
+          onClick={() => toast('排错顺序：后端是否启动 → MySQL 3307 → AMXX 日志', 'ok')}
+        >
+          <Icon name="help" size={12} /> 帮助中心
+        </button>
         <span className="status-item">v{appInfo?.version || '0.0.0'}</span>
       </footer>
 
