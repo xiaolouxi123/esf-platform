@@ -3692,3 +3692,64 @@ select:focus {
     transition: none !important;
   }
 }
+/* ============================ 自动刷新 / 维护 / 运营设置 ============================ */
+.rooms-sync {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.maintenance-strip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 95, 109, 0.35);
+  background: rgba(255, 95, 109, 0.1);
+  color: #ffb3ba;
+  font-size: 12px;
+}
+
+.maintenance-strip b {
+  color: #ff9aa3;
+}
+
+.platform-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.switch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+.switch-row input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+
+.switch-row b {
+  display: block;
+  font-size: 12px;
+}
+
+.switch-row small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--dim);
+}

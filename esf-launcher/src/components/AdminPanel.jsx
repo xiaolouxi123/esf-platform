@@ -66,6 +66,10 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
   const [auditAction, setAuditAction] = useState('');
   const [auditLoading, setAuditLoading] = useState(false);
 
+  const [platform, setPlatform] = useState(null);
+  const [platformForm, setPlatformForm] = useState({ notice: '', maintenance: false, maintenanceText: '' });
+  const [platformSaving, setPlatformSaving] = useState(false);
+
   const [transferId, setTransferId] = useState('');
   const [transferring, setTransferring] = useState(false);
 
@@ -119,6 +123,28 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
     return () => clearTimeout(timer);
   }, [loadAudit]);
 
+  useEffect(() => {
+    if (!staff) return undefined;
+
+    let alive = true;
+    window.electronAPI.admin
+      .platform()
+      .then((data) => {
+        if (!alive) return;
+        setPlatform(data);
+        setPlatformForm({
+          notice: data.notice || '',
+          maintenance: Boolean(data.maintenance),
+          maintenanceText: data.maintenanceText || '',
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      alive = false;
+    };
+  }, [staff]);
+
   const act = async (id, action, successMessage) => {
     setBusyId(id);
     try {
@@ -166,8 +192,25 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
     }
   };
 
-  const transferOwner = async () => {
-    const target = users.find((item) => String(item.id) === String(transferId));
+  const savePlatform = async () => {
+    setPlatformSaving(true);
+    try {
+      const data = await window.electronAPI.admin.updatePlatform({
+        notice: platformForm.notice.trim(),
+        maintenance: platformForm.maintenance,
+        maintenanceText: platformForm.maintenanceText.trim(),
+      });
+      setPlatform(data);
+      toast('运营设置已保存，玩家端 1 分钟内生效', 'ok');
+      if (canSeeAudit) await loadAudit();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setPlatformSaving(false);
+    }
+  };
+
+  const transferOwner = async () => {    const target = users.find((item) => String(item.id) === String(transferId));
     if (!target) return toast('请选择接手账号', 'error');
     if (!window.confirm(`确认把所有权转让给「${target.gameName}」？\n你会降为管理员，双方都需要重新登录。`)) return;
 
@@ -384,6 +427,71 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
               )}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <div className="admin-section-head">
+          <h3>
+            <Icon name="bell" size={15} /> 运营设置
+            <span className="tag">ops 及以上</span>
+          </h3>
+          {platform && (
+            <span className={`status-pill status-${platform.maintenance ? 'banned' : 'active'}`}>
+              {platform.maintenance ? '维护中' : '正常'}
+            </span>
+          )}
+        </div>
+
+        <div className="platform-form">
+          <label className="field">
+            <span className="field-label">大厅公告</span>
+            <div className="field-input">
+              <input
+                type="text"
+                value={platformForm.notice}
+                maxLength={300}
+                placeholder="例如：今晚 20:00 停服维护 30 分钟"
+                onChange={(event) => setPlatformForm((prev) => ({ ...prev, notice: event.target.value }))}
+              />
+            </div>
+          </label>
+
+          <label className="switch-row">
+            <input
+              type="checkbox"
+              checked={platformForm.maintenance}
+              onChange={(event) =>
+                setPlatformForm((prev) => ({ ...prev, maintenance: event.target.checked }))
+              }
+            />
+            <span>
+              <b>维护模式</b>
+              <small>开启后玩家无法开始游戏或加入服务器</small>
+            </span>
+          </label>
+
+          <label className="field">
+            <span className="field-label">维护提示</span>
+            <div className="field-input">
+              <input
+                type="text"
+                value={platformForm.maintenanceText}
+                maxLength={120}
+                placeholder="平台维护中，请稍后再试"
+                onChange={(event) =>
+                  setPlatformForm((prev) => ({ ...prev, maintenanceText: event.target.value }))
+                }
+              />
+            </div>
+          </label>
+
+          <div className="admin-actions">
+            <button type="button" className="btn btn-primary" onClick={savePlatform} disabled={platformSaving}>
+              {platformSaving ? <span className="spinner" /> : <Icon name="check" size={14} />}
+              {platformSaving ? '保存中…' : '保存设置'}
+            </button>
+          </div>
         </div>
       </section>
 

@@ -608,6 +608,17 @@ handle('admin:transfer-owner', async ({ userId } = {}) => {
   log(`🛡️ 所有权已转让给 ${data.owner}`);
   return data;
 });
+handle('admin:platform', async () => {
+  requireStaff();
+  return apiCall(api.adminPlatform, getSettings(), requireToken());
+});
+
+handle('admin:update-platform', async (patch = {}) => {
+  requireStaff();
+  const data = await apiCall(api.adminUpdatePlatform, getSettings(), requireToken(), patch);
+  log('🛠️ 运营设置已更新（公告 / 维护模式）');
+  return data;
+});
 
 // ---- 开发者工具 ----
 handle('devtools:open', async () => {

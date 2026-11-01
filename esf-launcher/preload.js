@@ -84,6 +84,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setAssetStatus: (id, status) => call('admin:asset-status', { id, status }),
     audit: (params) => call('admin:audit', params),
     transferOwner: (userId) => call('admin:transfer-owner', { userId }),
+    platform: () => call('admin:platform'),
+    updatePlatform: (patch) => call('admin:update-platform', patch),
     openDevTools: () => call('devtools:open'),
   },
 

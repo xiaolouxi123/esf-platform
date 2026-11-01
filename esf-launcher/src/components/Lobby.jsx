@@ -39,23 +39,36 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   const [updateInfo, setUpdateInfo] = useState(null);
   const [adminSummary, setAdminSummary] = useState(null);
   const [recentAssets, setRecentAssets] = useState([]);
+  const [lastSyncAt, setLastSyncAt] = useState(null);
+  const [platformState, setPlatformState] = useState({
+    notice: notice || '',
+    maintenance: Boolean(backend?.maintenance),
+    maintenanceText: '',
+  });
 
   const hasGameDir = Boolean(settings?.hlPath && settings?.esfModDir);
   const staff = isStaff(user?.role);
   const activePage = page === 'admin' && !staff ? 'lobby' : page;
 
-  const refreshServers = useCallback(async () => {
-    setServersLoading(true);
-    try {
-      const data = await window.electronAPI.servers.list();
-      setServers(Array.isArray(data?.servers) ? data.servers : []);
-    } catch (err) {
-      toast(err.message, 'error');
-      setServers([]);
-    } finally {
-      setServersLoading(false);
-    }
-  }, [toast]);
+  const refreshServers = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!silent) setServersLoading(true);
+      try {
+        const data = await window.electronAPI.servers.list();
+        setServers(Array.isArray(data?.servers) ? data.servers : []);
+        setLastSyncAt(Date.now());
+      } catch (err) {
+        // 静默刷新失败时保留上一份列表，只提示手动刷新
+        if (!silent) {
+          toast(err.message, 'error');
+          setServers([]);
+        }
+      } finally {
+        if (!silent) setServersLoading(false);
+      }
+    },
+    [toast]
+  );
 
   const refreshStats = useCallback(async () => {
     try {
@@ -82,7 +95,10 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
     window.electronAPI.servers
       .list()
       .then((data) => {
-        if (alive) setServers(Array.isArray(data?.servers) ? data.servers : []);
+        if (alive) {
+          setServers(Array.isArray(data?.servers) ? data.servers : []);
+          setLastSyncAt(Date.now());
+        }
       })
       .catch((err) => {
         if (alive) toast(err.message, 'error');
@@ -109,6 +125,44 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
       alive = false;
     };
   }, [toast]);
+
+  // 服务器状态自动刷新：每 15 秒静默拉一次，窗口重新聚焦也拉（后端轮询同样 15 秒）
+  useEffect(() => {
+    const timer = setInterval(() => refreshServers({ silent: true }), 15000);
+    const onFocus = () => refreshServers({ silent: true });
+
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [refreshServers]);
+
+  // 公告 / 维护模式：每 60 秒同步一次，管理员改完玩家端不用重启
+  useEffect(() => {
+    let alive = true;
+
+    const load = () => {
+      window.electronAPI.app
+        .config()
+        .then((config) => {
+          if (!alive) return;
+          setPlatformState({
+            notice: config.notice || '',
+            maintenance: Boolean(config.maintenance),
+            maintenanceText: config.maintenanceText || '',
+          });
+        })
+        .catch(() => {});
+    };
+
+    load();
+    const timer = setInterval(load, 60000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   // 在线心跳：进入大厅立刻报一次，之后每 20 秒一次（主进程判断游戏是否在跑）
   useEffect(() => {
@@ -214,6 +268,10 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   };
 
   const startLocal = async () => {
+    if (platformState.maintenance) {
+      toast(platformState.maintenanceText || '平台维护中，请稍后再试', 'error');
+      return;
+    }
     if (!ensureGameDir()) return;
     if (!selectedMap) {
       toast('请先在左侧选择一张地图', 'error');
@@ -234,6 +292,10 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   };
 
   const joinServer = async (server) => {
+    if (platformState.maintenance) {
+      toast(platformState.maintenanceText || '平台维护中，请稍后再试', 'error');
+      return;
+    }
     if (!ensureGameDir()) return;
 
     const key = server.custom ? server.address : server.serverKey;
@@ -255,6 +317,9 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
       );
       window.electronAPI.presence.ping().catch(() => {});
       refreshStats();
+      // 进游戏后列表里的在线人数/地图会变，几秒后静默补两次
+      setTimeout(() => refreshServers({ silent: true }), 4000);
+      setTimeout(() => refreshServers({ silent: true }), 12000);
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -410,6 +475,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
               onToggleFavorite={toggleServerFav}
               busyKey={joinBusyKey}
               toast={toast}
+              syncedAt={lastSyncAt}
             />
           ) : activePage === 'assets' ? (
             <AssetLibrary toast={toast} settings={settings} />
@@ -425,6 +491,15 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
             />
           ) : (
             <>
+              {platformState.maintenance && (
+                <div className="maintenance-strip">
+                  <Icon name="alert" size={15} />
+                  <span>
+                    <b>平台维护中</b> · {platformState.maintenanceText || '请稍后再试'}
+                  </span>
+                </div>
+              )}
+
               {updateInfo?.hasUpdate && (
                 <div className="update-strip">
                   <Icon name="spark" size={15} />
@@ -537,6 +612,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                     busyKey={joinBusyKey}
                     favorites={favServers}
                     onToggleFavorite={toggleServerFav}
+                    syncedAt={lastSyncAt}
                   />
                 )}
               </section>
@@ -553,7 +629,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                     <li className="feed-item">
                       <span className="feed-tag feed-tag--notice">公告</span>
                       <div>
-                        <b>{notice || '平台已接入真实账号与连服凭证'}</b>
+                        <b>{platformState.notice || '平台已接入真实账号与连服凭证'}</b>
                         <small>进入游戏后自动完成身份校验</small>
                       </div>
                     </li>

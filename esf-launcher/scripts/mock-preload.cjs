@@ -86,7 +86,8 @@ const api = {
     }),
     config: async () => ({
       notice: '10 月 31 日更新：连服 Token 已改为服务端签发，进服 2 秒内完成校验。',
-      maintenance: false,
+      maintenance: process.env.MOCK_MAINTENANCE === '1',
+      maintenanceText: '今晚 20:00-21:00 停服维护',
       minLauncherVersion: '0.1.0',
       version: '0.1.0',
       db: 'up',
@@ -432,6 +433,16 @@ const api = {
       ],
     }),
     transferOwner: async () => ({ owner: 'yun' }),
+    platform: async () => ({
+      notice: '10 月 31 日更新：连服 Token 已改为服务端签发。',
+      maintenance: process.env.MOCK_MAINTENANCE === '1',
+      maintenanceText: '今晚 20:00-21:00 停服维护',
+    }),
+    updatePlatform: async (patch) => ({
+      notice: patch.notice || '',
+      maintenance: Boolean(patch.maintenance),
+      maintenanceText: patch.maintenanceText || '',
+    }),
     openDevTools: async () => true,
   },
 

@@ -415,6 +415,33 @@ test('房间详情：非法地址返回 400', async () => {
   assert.equal(res.status, 400);
 });
 
+test('运营设置：公告与维护模式可改，普通玩家无权', async () => {
+  const denied = await api('PATCH', '/api/admin/platform', {
+    token: accessToken,
+    body: { notice: '不该生效' },
+  });
+  assert.equal(denied.status, 403);
+
+  const res = await api('PATCH', '/api/admin/platform', {
+    token: ownerToken,
+    body: { notice: '测试公告：今晚 20 点维护', maintenance: true, maintenanceText: '维护到 21 点' },
+  });
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal(res.body.data.maintenance, true);
+
+  const config = await api('GET', '/api/config');
+  assert.equal(config.body.data.notice, '测试公告：今晚 20 点维护');
+  assert.equal(config.body.data.maintenance, true);
+  assert.equal(config.body.data.maintenanceText, '维护到 21 点');
+
+  const reset = await api('PATCH', '/api/admin/platform', {
+    token: ownerToken,
+    body: { notice: '', maintenance: false, maintenanceText: '' },
+  });
+  assert.equal(reset.status, 200);
+  const after = await api('GET', '/api/config');
+  assert.equal(after.body.data.maintenance, false);
+});
 test('连服 Token：未知服务器 404', async () => {
   const res = await api('POST', '/api/launch-token', {
     token: accessToken,

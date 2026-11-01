@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Icon from './Icon';
 import { formatClock, pingTone } from '../lib/format';
 
@@ -34,9 +34,18 @@ export default function ServerRoomList({
   favorites,
   onToggleFavorite,
   emptyText = '没有符合条件的房间',
+  syncedAt = null,
 }) {
   const [openKey, setOpenKey] = useState('');
   const [details, setDetails] = useState({});
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const secondsAgo = syncedAt ? Math.max(0, Math.round((now - syncedAt) / 1000)) : null;
 
   const loadDetail = useCallback(async (key, force = false) => {
     if (!force) {
@@ -210,6 +219,12 @@ export default function ServerRoomList({
           </div>
         );
       })}
+
+      {syncedAt && (
+        <p className="rooms-sync">
+          <Icon name="refresh" size={12} /> 每 15 秒自动刷新 · 上次同步 {secondsAgo} 秒前
+        </p>
+      )}
     </div>
   );
 }

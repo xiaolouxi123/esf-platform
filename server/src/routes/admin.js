@@ -21,6 +21,7 @@ const { requireAuth } = require('../middleware/auth');
 const { requireRole, isAdmin, ROLES } = require('../middleware/roles');
 const { badRequest, notFound, forbidden, conflict } = require('../lib/errors');
 const { logAction, listAudit } = require('../services/audit');
+const { getPlatformSettings, updatePlatformSettings } = require('../services/platform');
 
 const router = express.Router();
 
@@ -301,8 +302,41 @@ router.post('/admin/owner/transfer', requireRole('owner'), async (req, res, next
   }
 });
 
-/** 审计日志（admin / owner 可见） */
-router.get('/admin/audit', requireRole('admin', 'owner'), async (req, res, next) => {
+/** 运营设置：公告 / 维护模式（ops 及以上） */
+router.get('/admin/platform', requireRole('ops', 'admin', 'owner'), async (req, res, next) => {
+  try {
+    res.json({ ok: true, data: await getPlatformSettings() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const platformSchema = z
+  .object({
+    notice: z.string().trim().max(300).optional(),
+    maintenance: z.boolean().optional(),
+    maintenanceText: z.string().trim().max(120).optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: '至少修改一项' });
+
+router.patch('/admin/platform', requireRole('ops', 'admin', 'owner'), async (req, res, next) => {
+  try {
+    const patch = platformSchema.parse(req.body);
+    const data = await updatePlatformSettings(patch);
+
+    await logAction(req, {
+      action: 'platform.update',
+      targetType: 'platform',
+      detail: patch,
+    });
+
+    res.json({ ok: true, data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 审计日志（admin / owner 可见） */router.get('/admin/audit', requireRole('admin', 'owner'), async (req, res, next) => {
   try {
     const data = await listAudit({
       action: String(req.query.action || '').trim() || undefined,

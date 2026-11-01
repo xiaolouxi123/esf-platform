@@ -210,6 +210,12 @@ const adminAudit = (settings, token, params) =>
 const adminTransferOwner = (settings, token, userId) =>
   request(settings, { method: 'POST', path: '/api/admin/owner/transfer', token, body: { userId } });
 
+const adminPlatform = (settings, token) =>
+  request(settings, { path: '/api/admin/platform', token });
+
+const adminUpdatePlatform = (settings, token, patch) =>
+  request(settings, { method: 'PATCH', path: '/api/admin/platform', token, body: patch });
+
 /* ---------------- 社交：在线状态 / 大厅频道 ---------------- */
 
 const pingPresence = (settings, token, payload) =>
@@ -252,6 +258,8 @@ module.exports = {
   adminAssets,
   adminAudit,
   adminTransferOwner,
+  adminPlatform,
+  adminUpdatePlatform,
   pingPresence,
   presenceList,
   chatList,
