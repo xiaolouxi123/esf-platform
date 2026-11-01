@@ -1,0 +1,33 @@
+{
+  "name": "esf-platform-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ESF 平台后端：账号 + Token 签发 + 服务器列表",
+  "type": "commonjs",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:init": "node scripts/dev-db.cjs init",
+    "db:start": "node scripts/dev-db.cjs start",
+    "db:stop": "node scripts/dev-db.cjs stop",
+    "db:status": "node scripts/dev-db.cjs status",
+    "migrate": "node scripts/migrate.js",
+    "smoke": "node scripts/smoke.cjs",
+    "token": "node scripts/issue-token.cjs",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.1",
+    "goldsrc-query": "^1.1.6",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.5",
+    "zod": "^3.23.8"
+  }
+}
