@@ -240,6 +240,34 @@ test('资源：上传进待审 → 公开列表不可见 → 匿名下载 404', 
   }
 });
 
+test('资源：特效 sprite 可上传（.spr）', async () => {
+  const payload = Buffer.alloc(64, 2);
+  const form = new FormData();
+  form.append('kind', 'sprite');
+  form.append('name', '光束特效');
+  form.append('version', '1.0.0');
+  form.append('targetPath', 'sprites/beam.spr');
+  form.append('file', new Blob([payload], { type: 'application/octet-stream' }), 'beam.spr');
+
+  const res = await fetch(`${base}/api/assets`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: form,
+  });
+  const json = await res.json();
+  assert.equal(res.status, 201, JSON.stringify(json));
+  assert.equal(json.data.asset.kind, 'sprite');
+  assert.equal(json.data.asset.status, 'pending');
+
+  const pub = await api('GET', '/api/assets?kind=sprite');
+  assert.ok(!pub.body.data.assets.some((item) => item.id === json.data.asset.id), '待审特效不应出现在公开列表');
+
+  const rows = await q('SELECT stored_name FROM assets WHERE id = ?', [json.data.asset.id]);
+  await q('DELETE FROM assets WHERE id = ?', [json.data.asset.id]);
+  if (rows[0]) {
+    fs.rmSync(path.join(__dirname, '..', 'uploads', 'sprite', rows[0].stored_name), { force: true });
+  }
+});
 test('管理台：普通玩家访问管理接口返回 403', async () => {
   const res = await api('GET', '/api/admin/users', { token: accessToken });
   assert.equal(res.status, 403);

@@ -236,14 +236,23 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   const joinServer = async (server) => {
     if (!ensureGameDir()) return;
 
-    setJoinBusyKey(server.serverKey);
+    const key = server.custom ? server.address : server.serverKey;
+    setJoinBusyKey(key);
     try {
-      const result = await window.electronAPI.launch.join({
-        serverKey: server.serverKey,
-        ip: server.ip,
-        port: server.port,
-      });
-      toast(`正在连接 ${result.address}`, 'ok');
+      const result = server.custom
+        ? await window.electronAPI.launch.joinCustom(server.address)
+        : await window.electronAPI.launch.join({
+            serverKey: server.serverKey,
+            ip: server.ip,
+            port: server.port,
+          });
+
+      toast(
+        server.custom
+          ? `正在直连 ${result.address}（未登记，不带平台身份）`
+          : `正在连接 ${result.address}`,
+        'ok'
+      );
       window.electronAPI.presence.ping().catch(() => {});
       refreshStats();
     } catch (err) {
@@ -400,6 +409,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
               favorites={favServers}
               onToggleFavorite={toggleServerFav}
               busyKey={joinBusyKey}
+              toast={toast}
             />
           ) : activePage === 'assets' ? (
             <AssetLibrary toast={toast} settings={settings} />

@@ -317,6 +317,37 @@ handle('servers:lookup', async ({ address }) => {
 handle('servers:detail', async (params = {}) =>
   apiCall(api.serverDetail, getSettings(), requireToken(), params)
 );
+// ---- 玩家自建服务器：只存在本机，不进平台登记 ----
+handle('servers:custom-list', async () => ({ servers: store.loadCustomServers() }));
+
+handle('servers:custom-add', async ({ name, address } = {}) => {
+  requireToken();
+  const value = String(address || '').trim();
+  if (!/^[0-9A-Za-z.-]{3,64}:\d{2,5}$/.test(value)) {
+    throw new Error('地址格式应为 IP:端口，例如 1.2.3.4:27016');
+  }
+
+  const list = store.loadCustomServers();
+  if (list.some((item) => item.address === value)) throw new Error('这个地址已经在列表里了');
+
+  const next = store.saveCustomServers([
+    ...list,
+    { name: String(name || '').trim() || value, address: value, addedAt: new Date().toISOString() },
+  ]);
+
+  const added = next.find((item) => item.address === value) || null;
+  log(`➕ 添加自定义服务器 ${value}`);
+  return { server: added, servers: next };
+});
+
+handle('servers:custom-remove', async ({ address } = {}) => {
+  const value = String(address || '').trim();
+  const next = store.saveCustomServers(
+    store.loadCustomServers().filter((item) => item.address !== value)
+  );
+  log(`➖ 移除自定义服务器 ${value}`);
+  return { servers: next };
+});
 
 // ---- 在线状态 / 大厅频道 ----
 handle('presence:ping', async () => {
@@ -402,6 +433,20 @@ handle('launch:join', async ({ serverKey, ip, port }) => {
   return { address, maskedToken: maskToken(issued.token) };
 });
 
+// 未登记服务器：直接 connect，不带平台身份（AMXX 不会做身份校验）
+handle('launch:join-custom', async ({ address } = {}) => {
+  requireToken();
+  checkGameDir();
+
+  const value = String(address || '').trim();
+  const matched = /^([0-9A-Za-z.-]{3,64}):(\d{2,5})$/.exec(value);
+  if (!matched) throw new Error('地址格式应为 IP:端口');
+
+  const target = `${matched[1]}:${matched[2]}`;
+  await spawnGame(['-game', modName(), '+connect', target]);
+  log(`🌐 自定义服务器直连 ${target}（不带平台身份）`);
+  return { address: target, platform: false };
+});
 handle('launch:local', async ({ map }) => {
   const current = getSession();
   requireToken();
@@ -437,7 +482,8 @@ handle('shell:open-game-dir', async () => {
 const ASSET_KIND_EXT = {
   model: ['mdl'],
   sound: ['wav', 'mp3'],
-  other: ['zip', 'spr', 'tga', 'bmp'],
+  sprite: ['spr'],
+  other: ['zip', 'tga', 'bmp'],
 };
 
 handle('assets:list', async ({ kind, q } = {}) => api.assets(getSettings(), { kind, q }));

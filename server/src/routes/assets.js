@@ -22,7 +22,8 @@ const UPLOAD_ROOT = path.resolve(env.uploadDir);
 const KIND_EXT = {
   model: ['.mdl'],
   sound: ['.wav', '.mp3'],
-  other: ['.zip', '.spr', '.tga', '.bmp'],
+  sprite: ['.spr'],
+  other: ['.zip', '.tga', '.bmp'],
 };
 
 const MIME = {
@@ -91,7 +92,7 @@ const upload = multer({
     const kind = String((req.body && req.body.kind) || '').toLowerCase();
     const allowed = KIND_EXT[kind];
     if (!allowed) {
-      const err = badRequest('kind 必须是 model / sound / other，并且要在 file 之前传');
+      const err = badRequest('kind 必须是 model / sound / sprite / other，并且要在 file 之前传');
       err.status = 400;
       return cb(err);
     }
@@ -140,7 +141,7 @@ const SELECT_WITH_AUTHOR = `SELECT a.*, u.username AS author_name
   FROM assets a LEFT JOIN users u ON u.id = a.author_id`;
 
 const createSchema = z.object({
-  kind: z.enum(['model', 'sound', 'other']),
+  kind: z.enum(['model', 'sound', 'sprite', 'other']),
   name: z.string().trim().min(1).max(64),
   slug: z
     .string()
@@ -216,7 +217,7 @@ router.post('/assets', requireAuth, upload.single('file'), async (req, res, next
 router.get('/assets', async (req, res, next) => {
   try {
     const kind = req.query.kind ? String(req.query.kind) : '';
-    if (kind && !KIND_EXT[kind]) throw badRequest('kind 只能是 model / sound / other');
+    if (kind && !KIND_EXT[kind]) throw badRequest('kind 只能是 model / sound / sprite / other');
 
     const keyword = String(req.query.q || '').trim();
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));

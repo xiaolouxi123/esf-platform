@@ -60,6 +60,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     list: () => call('servers:list'),
     lookup: (address) => call('servers:lookup', { address }),
     detail: (params) => call('servers:detail', params),
+    customList: () => call('servers:custom-list'),
+    customAdd: (fields) => call('servers:custom-add', fields),
+    customRemove: (address) => call('servers:custom-remove', { address }),
   },
 
   maps: {
@@ -87,6 +90,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   launch: {
     token: (serverKey) => call('launch:token', { serverKey }),
     join: (payload) => call('launch:join', payload),
+    joinCustom: (address) => call('launch:join-custom', { address }),
     local: (map) => call('launch:local', { map }),
   },
 

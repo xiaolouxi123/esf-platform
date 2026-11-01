@@ -137,6 +137,51 @@ function clearSession() {
   }
 }
 
+// ================= 玩家自建服务器 =================
+
+function customServersPath() {
+  return path.join(baseDir(), 'custom-servers.json');
+}
+
+function normalizeCustomServer(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const address = String(raw.address || '').trim();
+  if (!/^[0-9A-Za-z.-]{3,64}:\d{2,5}$/.test(address)) return null;
+  return {
+    name: String(raw.name || '').trim().slice(0, 48) || address,
+    address,
+    addedAt: String(raw.addedAt || new Date().toISOString()),
+  };
+}
+
+function loadCustomServers() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(customServersPath(), 'utf8'));
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeCustomServer).filter(Boolean).slice(0, 50);
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomServers(list) {
+  const cleaned = (Array.isArray(list) ? list : [])
+    .map(normalizeCustomServer)
+    .filter(Boolean)
+    .slice(0, 50);
+
+  // 同一个地址只留一条
+  const seen = new Set();
+  const unique = cleaned.filter((item) => {
+    if (seen.has(item.address)) return false;
+    seen.add(item.address);
+    return true;
+  });
+
+  fs.writeFileSync(customServersPath(), JSON.stringify(unique, null, 2), 'utf8');
+  return unique;
+}
+
 module.exports = {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -144,7 +189,10 @@ module.exports = {
   saveSession,
   loadSession,
   clearSession,
+  loadCustomServers,
+  saveCustomServers,
   baseDir,
   settingsPath,
   sessionPath,
+  customServersPath,
 };

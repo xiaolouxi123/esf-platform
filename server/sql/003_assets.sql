@@ -8,7 +8,7 @@ USE esf_platform;
 
 CREATE TABLE IF NOT EXISTS assets (
   id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  kind        ENUM('model','sound','other') NOT NULL,
+  kind        ENUM('model','sound','sprite','other') NOT NULL,
   name        VARCHAR(64)  NOT NULL COMMENT '展示名',
   slug        VARCHAR(64)  NOT NULL COMMENT '同 kind 下的稳定标识',
   version     VARCHAR(32)  NOT NULL DEFAULT '1.0.0',

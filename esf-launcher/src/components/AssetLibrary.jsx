@@ -7,15 +7,17 @@ const KIND_FILTERS = [
   { value: '', label: '全部' },
   { value: 'model', label: '模型' },
   { value: 'sound', label: '声音' },
+  { value: 'sprite', label: '特效' },
   { value: 'other', label: '其它' },
 ];
 
-const KIND_LABEL = { model: '模型', sound: '声音', other: '其它' };
+const KIND_LABEL = { model: '模型', sound: '声音', sprite: '特效', other: '其它' };
 
 const KIND_HINT = {
   model: '只收 .mdl，落地路径例：models/player/goku/goku.mdl',
   sound: '只收 .wav / .mp3，落地路径例：sound/weapons/beam.wav',
-  other: '只收 .zip / .spr / .tga / .bmp',
+  sprite: '只收 .spr，落地路径例：sprites/beam.spr',
+  other: '只收 .zip / .tga / .bmp',
 };
 
 export default function AssetLibrary({ toast, settings }) {
@@ -107,7 +109,7 @@ export default function AssetLibrary({ toast, settings }) {
             资源库
             <span className="pill">{assets.length}</span>
           </h2>
-          <p>模型与声音由作者上传、管理员审核；安装后会落到模组目录，原文件自动备份。</p>
+          <p>模型、声音与特效由作者上传、管理员审核；安装后会落到模组目录，原文件自动备份。</p>
         </div>
 
         <div className="assets-head-actions">
@@ -133,6 +135,7 @@ export default function AssetLibrary({ toast, settings }) {
                 >
                   <option value="model">模型</option>
                   <option value="sound">声音</option>
+                  <option value="sprite">特效</option>
                   <option value="other">其它</option>
                 </select>
               </div>
@@ -170,7 +173,13 @@ export default function AssetLibrary({ toast, settings }) {
               <input
                 type="text"
                 value={form.targetPath}
-                placeholder="models/player/goku/goku.mdl"
+                placeholder={
+                  form.kind === 'sprite'
+                    ? 'sprites/beam.spr'
+                    : form.kind === 'sound'
+                      ? 'sound/weapons/beam.wav'
+                      : 'models/player/goku/goku.mdl'
+                }
                 onChange={(event) => setForm((prev) => ({ ...prev, targetPath: event.target.value }))}
               />
             </div>

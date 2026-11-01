@@ -10,6 +10,7 @@ const role = process.env.MOCK_ROLE || 'owner';
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const user = { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', role };
+const customServers = [{ name: '朋友的服', address: '1.2.3.4:27016', addedAt: new Date().toISOString() }];
 
 const settings = {
   hlPath: 'G:\\FCX1\\FCX7.02融合版\\hl.exe',
@@ -206,6 +207,19 @@ const api = {
       maxPlayers: 12,
       ping: 18,
     }),
+    customList: async () => ({ servers: customServers.slice() }),
+    customAdd: async ({ name, address }) => {
+      const value = String(address || '').trim();
+      if (!/^[0-9A-Za-z.-]{3,64}:\\d{2,5}$/.test(value)) throw new Error('地址格式应为 IP:端口，例如 1.2.3.4:27016');
+      if (customServers.some((item) => item.address === value)) throw new Error('这个地址已经在列表里了');
+      customServers.push({ name: String(name || '').trim() || value, address: value, addedAt: new Date().toISOString() });
+      return { server: customServers[customServers.length - 1], servers: customServers.slice() };
+    },
+    customRemove: async (address) => {
+      const index = customServers.findIndex((item) => item.address === address);
+      if (index >= 0) customServers.splice(index, 1);
+      return { servers: customServers.slice() };
+    },
     detail: async (params = {}) => ({
       serverKey: params.serverKey || 'fcx-1v1-1',
       address: '114.132.84.150:27016',
@@ -232,9 +246,10 @@ const api = {
     token: async (serverKey) => ({ serverKey, expiresAt: null, maskedToken: 'a1b2c3…' }),
     join: async ({ ip, port }) => ({ address: `${ip}:${port}`, maskedToken: 'a1b2c3…' }),
     local: async (map) => ({ map, maskedToken: 'a1b2c3…' }),
+    joinCustom: async (address) => ({ address, platform: false }),
   },
   assets: {
-    list: async () => ({
+    list: async ({ kind } = {}) => ({
       assets: [
         {
           id: 1,
@@ -269,8 +284,19 @@ const api = {
           downloads: 5,
           authorName: 'demo',
         },
-      ],
-      total: 3,
+        {
+          id: 4,
+          kind: 'sprite',
+          name: '龟派气功特效',
+          version: '1.0.0',
+          targetPath: 'sprites/kamehameha.spr',
+          description: '替换默认光束贴图',
+          fileSize: 131_072,
+          downloads: 3,
+          authorName: 'demo',
+        },
+      ].filter((item) => !kind || item.kind === kind),
+      total: 4,
     }),
     upload: async () => ({ id: 99, name: '新资源', version: '1.0.0', status: 'pending' }),
     install: async () => ({ targetPath: 'sound/test/beep.wav', bytes: 2048, backedUp: false }),

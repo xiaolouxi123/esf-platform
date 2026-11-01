@@ -3455,3 +3455,240 @@ select:focus {
   padding-top: 10px;
   border-top: 1px solid var(--line);
 }
+/* ============================ 自建服务器 ============================ */
+.custom-servers {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(20, 22, 32, 0.45);
+}
+
+.custom-hint {
+  margin: 4px 0 10px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+
+.custom-form {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.custom-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  font-size: 11.5px;
+  outline: none;
+}
+
+.custom-form input:focus {
+  border-color: rgba(255, 138, 31, 0.45);
+}
+
+.custom-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+
+.custom-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+
+.custom-row:first-child {
+  border-top: none;
+}
+
+.custom-meta {
+  min-width: 0;
+}
+
+.custom-meta b {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-meta small {
+  display: block;
+  font-size: 10.5px;
+  color: var(--dim);
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.room-flag--custom {
+  color: #c9b6ff;
+  border-color: rgba(150, 120, 255, 0.35);
+  background: rgba(150, 120, 255, 0.1);
+}
+
+.custom-error {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #ff9aa3;
+}
+
+/* ============================ 资源类型：特效 ============================ */
+.tag--sprite {
+  color: #86f0bd;
+  border-color: rgba(61, 220, 151, 0.3);
+  background: rgba(61, 220, 151, 0.1);
+}
+
+/* ============================ 聊天输入贴底 ============================ */
+.chat-list {
+  max-height: none;
+}
+
+.chat-input {
+  margin-top: auto;
+}
+
+/* ============================ 主界面动效 ============================ */
+@keyframes esf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes esf-bar {
+  0%,
+  100% {
+    border-left-color: var(--accent);
+  }
+  50% {
+    border-left-color: #ffd9a0;
+  }
+}
+
+@keyframes esf-aura {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -45%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 138, 31, 0.14) 48deg,
+    transparent 110deg
+  );
+  animation: esf-aura 16s linear infinite;
+  pointer-events: none;
+}
+
+.hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.rooms .room {
+  animation: esf-rise 0.3s ease both;
+}
+
+.rooms .room:nth-child(3) {
+  animation-delay: 0.04s;
+}
+
+.rooms .room:nth-child(4) {
+  animation-delay: 0.08s;
+}
+
+.rooms .room:nth-child(5) {
+  animation-delay: 0.12s;
+}
+
+.feed-item {
+  animation: esf-rise 0.32s ease both;
+}
+
+.feed-item:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.feed-item:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.feed-item:nth-child(4) {
+  animation-delay: 0.15s;
+}
+
+.map-row {
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+}
+
+.map-row:hover {
+  transform: translateX(2px);
+}
+
+.map-row.is-active {
+  animation: esf-bar 2.6s ease-in-out infinite;
+}
+
+.room-row {
+  transition: background 0.15s, transform 0.15s;
+}
+
+.room-row:hover {
+  transform: translateX(2px);
+}
+
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 70%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+}
+
+.btn-primary:hover::after {
+  transform: translateX(130%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero::before,
+  .rooms .room,
+  .feed-item,
+  .map-row.is-active,
+  .btn-primary::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

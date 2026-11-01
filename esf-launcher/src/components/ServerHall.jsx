@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from './Icon';
 import ServerRoomList from './ServerRoomList';
 import { pingTone } from '../lib/format';
@@ -94,8 +94,7 @@ function LookupBar({ onJoin, busyKey }) {
                   </button>
                 ) : (
                   <span className="probe-hint">
-                    这台服没在平台登记，无法带平台身份加入。管理员可执行
-                    <code>npm run server:add -- --key … --ip … --port …</code> 登记。
+                    这台服没在平台登记。可以把它加进「我的服务器」直接直连（不带平台身份）。
                   </span>
                 )}
               </div>
@@ -115,9 +114,59 @@ export default function ServerHall({
   favorites,
   onToggleFavorite,
   busyKey,
+  toast,
 }) {
   const [keyword, setKeyword] = useState('');
   const [filter, setFilter] = useState('all');
+  const [customServers, setCustomServers] = useState([]);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customForm, setCustomForm] = useState({ name: '', address: '' });
+  const [customBusy, setCustomBusy] = useState(false);
+  const [customError, setCustomError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    window.electronAPI.servers
+      .customList()
+      .then((data) => {
+        if (alive) setCustomServers(data.servers || []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const addCustom = async (event) => {
+    event.preventDefault();
+    if (customBusy) return;
+
+    setCustomError('');
+    setCustomBusy(true);
+    try {
+      const data = await window.electronAPI.servers.customAdd({
+        name: customForm.name.trim(),
+        address: customForm.address.trim(),
+      });
+      setCustomServers(data.servers || []);
+      setCustomForm({ name: '', address: '' });
+      setCustomOpen(false);
+      toast?.(`已添加 ${customForm.address.trim()}`, 'ok');
+    } catch (err) {
+      setCustomError(err.message);
+    } finally {
+      setCustomBusy(false);
+    }
+  };
+
+  const removeCustom = async (address) => {
+    try {
+      const data = await window.electronAPI.servers.customRemove(address);
+      setCustomServers(data.servers || []);
+    } catch (err) {
+      setCustomError(err.message);
+    }
+  };
 
   const visible = servers.filter((server) => {
     if (filter === 'online' && !server.online) return false;
@@ -141,7 +190,7 @@ export default function ServerHall({
             服务器大厅
             <span className="pill">{servers.length}</span>
           </h2>
-          <p>点任意一行展开实时玩家列表；列表来自平台登记，状态由后端每 15 秒刷新</p>
+          <p>点任意一行展开实时玩家列表；没登记的服务器可以在下面自己添加</p>
         </div>
 
         <button type="button" className="btn btn-ghost" onClick={onRefresh} disabled={loading}>
@@ -151,6 +200,74 @@ export default function ServerHall({
       </header>
 
       <LookupBar onJoin={onJoin} busyKey={busyKey} />
+
+      <section className="custom-servers">
+        <div className="section-head">
+          <h2>
+            我的服务器 <span className="pill">{customServers.length}</span>
+          </h2>
+
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCustomOpen((value) => !value)}>
+            <Icon name={customOpen ? 'close' : 'plus'} size={14} />
+            {customOpen ? '收起' : '添加服务器'}
+          </button>
+        </div>
+
+        <p className="custom-hint">
+          只保存在本机，不走平台登记；直连时不带平台身份，AMXX 不会做身份校验。
+        </p>
+
+        {customOpen && (
+          <form className="custom-form" onSubmit={addCustom}>
+            <input
+              type="text"
+              value={customForm.name}
+              placeholder="名称（可选）"
+              onChange={(event) => setCustomForm((prev) => ({ ...prev, name: event.target.value }))}
+            />
+            <input
+              type="text"
+              value={customForm.address}
+              placeholder="IP:端口，例如 1.2.3.4:27016"
+              onChange={(event) => setCustomForm((prev) => ({ ...prev, address: event.target.value }))}
+            />
+            <button type="submit" className="btn btn-primary btn-sm" disabled={customBusy || !customForm.address.trim()}>
+              {customBusy ? <span className="spinner" /> : '添加'}
+            </button>
+          </form>
+        )}
+
+        {customError && <p className="custom-error">{customError}</p>}
+
+        {customServers.length > 0 && (
+          <div className="custom-list">
+            {customServers.map((server) => (
+              <div className="custom-row" key={server.address}>
+                <span className="room-flag room-flag--custom">自建</span>
+                <div className="custom-meta">
+                  <b>{server.name}</b>
+                  <small>{server.address}</small>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => removeCustom(server.address)}
+                >
+                  删除
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  disabled={busyKey === server.address}
+                  onClick={() => onJoin({ custom: true, name: server.name, address: server.address })}
+                >
+                  {busyKey === server.address ? <span className="spinner" /> : '加入'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="hall-toolbar">
         <div className="search">
@@ -189,7 +306,7 @@ export default function ServerHall({
       <footer className="hall-tip">
         <Icon name="help" size={14} />
         <span>
-          点行展开玩家；击杀/死亡需要 AMXX 统计插件上报。要把新服加进列表，在 server 目录执行
+          展开行查看玩家；击杀/死亡需要 AMXX 统计插件上报。要把新服加进平台列表，在 server 目录执行
           <code>npm run server:add</code>。
         </span>
       </footer>
