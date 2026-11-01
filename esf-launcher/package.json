@@ -1,7 +1,9 @@
 {
   "name": "esf-launcher",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "ESF 平台启动器（龙珠 Online 私服大厅）",
+  "author": "ESF Platform",
   "type": "module",
   "main": "main.cjs",
   "scripts": {
@@ -9,7 +11,9 @@
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dist": "npm run build && electron-builder --win nsis",
+    "dist:dir": "npm run build && electron-builder --win --dir"
   },
   "dependencies": {
     "goldsrc-query": "^1.1.6",
@@ -30,5 +34,45 @@
     "globals": "^17.13.0",
     "vite": "^8.3.5",
     "wait-on": "^9.5.1"
+  },
+  "build": {
+    "appId": "com.esf.platform.launcher",
+    "productName": "ESF 平台",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.js",
+      "api.cjs",
+      "store.cjs",
+      "launcher-core.cjs",
+      "dist/**/*",
+      "package.json",
+      "!scripts/**",
+      "!tests/**",
+      "!shots/**",
+      "!src/**",
+      "!**/*.map"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "ESF 平台"
+    }
   }
 }

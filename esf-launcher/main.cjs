@@ -488,7 +488,42 @@ const ASSET_KIND_EXT = {
 
 handle('assets:list', async ({ kind, q } = {}) => api.assets(getSettings(), { kind, q }));
 
-handle('assets:upload', async ({ kind, name, version, targetPath, description } = {}) => {
+const COVER_MIME = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+};
+
+handle('assets:pick-cover', async () => {
+  requireToken();
+
+  const picked = await dialog.showOpenDialog({
+    title: '选择资源封面（支持 GIF / 动态 WebP）',
+    properties: ['openFile'],
+    filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+  });
+  if (picked.canceled || picked.filePaths.length === 0) {
+    throw new api.ApiError('已取消选择', 'CANCELED');
+  }
+
+  const filePath = picked.filePaths[0];
+  const stat = fs.statSync(filePath);
+  if (stat.size > 8 * 1024 * 1024) throw new Error('封面不能超过 8MB');
+
+  const mime = COVER_MIME[path.extname(filePath).toLowerCase()];
+  if (!mime) throw new Error('封面只支持 png / jpg / webp / gif');
+
+  return {
+    name: path.basename(filePath),
+    mime,
+    size: stat.size,
+    base64: fs.readFileSync(filePath).toString('base64'),
+  };
+});
+
+handle('assets:upload', async ({ kind, name, version, targetPath, description, coverBase64, coverName, coverMime } = {}) => {
   requireToken();
 
   const extensions = ASSET_KIND_EXT[kind];
@@ -508,13 +543,22 @@ handle('assets:upload', async ({ kind, name, version, targetPath, description } 
   if (stat.size > 64 * 1024 * 1024) throw new Error('文件超过 64MB 上限');
 
   const buffer = fs.readFileSync(filePath);
+  const cover = coverBase64
+    ? {
+        buffer: Buffer.from(coverBase64, 'base64'),
+        fileName: coverName || 'cover.png',
+        mime: coverMime || 'image/png',
+      }
+    : null;
+
   const asset = await apiCall(
     api.uploadAsset,
     getSettings(),
     requireToken(),
     { kind, name, version, targetPath, description },
     buffer,
-    path.basename(filePath)
+    path.basename(filePath),
+    cover
   );
 
   log(`📦 资源已提交: ${asset.name} ${asset.version} (${asset.status})`);

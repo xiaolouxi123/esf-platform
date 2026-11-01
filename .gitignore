@@ -5,16 +5,11 @@ dist-ssr/
 release/
 *.tsbuildinfo
 
-# ---- 本地运行时 ----
-# 独立开发用 MySQL 实例的数据目录（含 root 空密码，绝不入库）
+# ---- 本地运行时（绝不入库） ----
 .devdb/
-# 后台进程日志 / pid
 .run/
-# 截图产物（scripts/shot.cjs 生成）
 shots/
-# 资源库上传目录
 server/uploads/
-# 环境变量与密钥
 .env
 .env.*
 !.env.example

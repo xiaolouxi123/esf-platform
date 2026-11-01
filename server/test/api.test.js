@@ -268,6 +268,51 @@ test('资源：特效 sprite 可上传（.spr）', async () => {
     fs.rmSync(path.join(__dirname, '..', 'uploads', 'sprite', rows[0].stored_name), { force: true });
   }
 });
+test('资源：封面图片随资源保存，待审封面不公开', async () => {
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64'
+  );
+
+  const form = new FormData();
+  form.append('kind', 'model');
+  form.append('name', '带封面模型');
+  form.append('version', '1.0.0');
+  form.append('targetPath', 'models/test/cover.mdl');
+  form.append('file', new Blob([Buffer.alloc(32, 3)]), 'cover.mdl');
+  form.append('cover', new Blob([png], { type: 'image/png' }), 'cover.png');
+
+  const res = await fetch(`${base}/api/assets`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}` },
+    body: form,
+  });
+  const json = await res.json();
+  assert.equal(res.status, 201, JSON.stringify(json));
+  const asset = json.data.asset;
+  assert.match(asset.coverUrl, /\/api\/assets\/\d+\/cover$/);
+  assert.equal(asset.coverMime, 'image/png');
+
+  const anonymous = await fetch(`${base}${asset.coverUrl}`);
+  assert.equal(anonymous.status, 404, '待审资源封面不应公开');
+
+  const asAuthor = await fetch(`${base}${asset.coverUrl}`, {
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+  assert.equal(asAuthor.status, 200);
+  assert.equal(asAuthor.headers.get('content-type'), 'image/png');
+  const bytes = Buffer.from(await asAuthor.arrayBuffer());
+  assert.equal(bytes.length, png.length);
+
+  const rows = await q('SELECT stored_name, cover_name FROM assets WHERE id = ?', [asset.id]);
+  await q('DELETE FROM assets WHERE id = ?', [asset.id]);
+  if (rows[0]) {
+    fs.rmSync(path.join(__dirname, '..', 'uploads', 'model', rows[0].stored_name), { force: true });
+    if (rows[0].cover_name) {
+      fs.rmSync(path.join(__dirname, '..', 'uploads', 'covers', rows[0].cover_name), { force: true });
+    }
+  }
+});
 test('管理台：普通玩家访问管理接口返回 403', async () => {
   const res = await api('GET', '/api/admin/users', { token: accessToken });
   assert.equal(res.status, 403);

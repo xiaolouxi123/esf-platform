@@ -54,7 +54,8 @@ npm run dev            # vite + electron
 | 在线状态（大厅 / 游戏中）+ 大厅频道 | ✅ 大厅右栏，每 20 秒心跳 |
 | 头像自定义（emoji，底色按用户名生成） | ✅ 设置 → 账号 |
 | 版本检查更新（顶栏横幅 + 一键检查） | ✅ 设置 → 关于 |
-| 打包分发（electron-builder） | ⬜ 下一步 |
+| 资源封面（GIF / 动态 WebP，16:9） | ✅ 上传预览 + 首屏缩略图 |
+| 打包分发（electron-builder + NSIS） | ✅ npm run dist → release/*.exe |
 
 详见 `Desktop\存档\第一步.md`、`Desktop\存档\第二步.md`。
 

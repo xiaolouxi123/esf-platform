@@ -18,6 +18,18 @@ const { badRequest, notFound, forbidden } = require('../lib/errors');
 const router = express.Router();
 const UPLOAD_ROOT = path.resolve(env.uploadDir);
 
+/** 封面：允许动图（gif / 动态 webp），原样保存不压缩 */
+const COVER_EXT = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
+const COVER_MIME = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+};
+const COVER_MAX_BYTES = 8 * 1024 * 1024;
+const COVER_DIR = path.join(UPLOAD_ROOT, 'covers');
+
 /** kind → 允许的落地扩展名 */
 const KIND_EXT = {
   model: ['.mdl'],
@@ -72,7 +84,9 @@ function slugify(input) {
 const storage = multer.diskStorage({
   destination(req, file, cb) {
     const kind = String((req.body && req.body.kind) || 'other').toLowerCase();
-    const dir = path.join(UPLOAD_ROOT, KIND_EXT[kind] ? kind : 'other');
+    const dir = file.fieldname === 'cover'
+      ? COVER_DIR
+      : path.join(UPLOAD_ROOT, KIND_EXT[kind] ? kind : 'other');
     try {
       fs.mkdirSync(dir, { recursive: true });
       cb(null, dir);
@@ -87,8 +101,17 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: env.uploadMaxBytes, files: 1 },
+  limits: { fileSize: env.uploadMaxBytes, files: 2 },
   fileFilter(req, file, cb) {
+    if (file.fieldname === 'cover') {
+      if (!COVER_EXT.includes(extOf(file.originalname))) {
+        const err = badRequest('封面只支持 png / jpg / webp / gif');
+        err.status = 400;
+        return cb(err);
+      }
+      return cb(null, true);
+    }
+
     const kind = String((req.body && req.body.kind) || '').toLowerCase();
     const allowed = KIND_EXT[kind];
     if (!allowed) {
@@ -131,6 +154,9 @@ function publicAsset(row) {
     downloads: Number(row.downloads),
     authorId: row.author_id ? Number(row.author_id) : null,
     authorName: row.author_name || null,
+    coverUrl: row.cover_name ? `/api/assets/${row.id}/cover` : null,
+    coverMime: row.cover_mime || null,
+    coverSize: row.cover_size ? Number(row.cover_size) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     downloadUrl: `/api/assets/${row.id}/download`,
@@ -159,60 +185,89 @@ const createSchema = z.object({
 
 /**
  * 上传资源（multipart/form-data）
- * 字段：kind, name, slug?, version?, targetPath, description?, file
- * 注意：kind 必须排在 file 前面，multer 靠它决定落盘目录与扩展名校验。
+ * 字段：kind, name, slug?, version?, targetPath, description?, file, cover?
+ * cover 支持 png / jpg / webp / gif（动图原样保存，不做压缩）
  */
-router.post('/assets', requireAuth, upload.single('file'), async (req, res, next) => {
-  const filePath = req.file && req.file.path;
+router.post(
+  '/assets',
+  requireAuth,
+  upload.fields([
+    { name: 'file', maxCount: 1 },
+    { name: 'cover', maxCount: 1 },
+  ]),
+  async (req, res, next) => {
+    const file = req.files && req.files.file ? req.files.file[0] : null;
+    const cover = req.files && req.files.cover ? req.files.cover[0] : null;
 
-  try {
-    if (!req.file) throw badRequest('缺少文件字段 file（Content-Type 用 multipart/form-data）');
+    const cleanup = async () => {
+      if (file) await fsp.unlink(file.path).catch(() => {});
+      if (cover) await fsp.unlink(cover.path).catch(() => {});
+    };
 
-    const body = createSchema.parse(req.body);
-    const targetPath = assertSafeTarget(body.kind, body.targetPath);
-    const version = body.version || '1.0.0';
-    const slug = body.slug || slugify(body.name);
-    const sha256 = await sha256File(req.file.path);
+    try {
+      if (!file) throw badRequest('缺少文件字段 file（Content-Type 用 multipart/form-data）');
+      if (cover && cover.size > COVER_MAX_BYTES) throw badRequest('封面不能超过 8MB');
 
-    // 管理员 / 运营 / 所有者直接上架，作者与玩家进待审队列
-    const status = isStaff(req.user) ? 'approved' : 'pending';
+      const body = createSchema.parse(req.body);
+      const targetPath = assertSafeTarget(body.kind, body.targetPath);
+      const version = body.version || '1.0.0';
+      const slug = body.slug || slugify(body.name);
+      const sha256 = await sha256File(file.path);
 
-    const result = await q(
-      `INSERT INTO assets
-         (kind, name, slug, version, target_path, description,
-          file_name, stored_name, file_size, sha256, author_id, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        body.kind,
-        body.name,
-        slug,
-        version,
-        targetPath,
-        body.description || null,
-        req.file.originalname.slice(0, 255),
-        req.file.filename,
-        req.file.size,
-        sha256,
-        req.user.id,
-        status,
-      ]
-    );
+      const coverMime = cover ? COVER_MIME[extOf(cover.originalname)] || cover.mimetype : null;
+      const coverSha256 = cover ? await sha256File(cover.path) : null;
 
-    await logAction(req, {
-      action: 'asset.upload',
-      targetType: 'asset',
-      targetId: result.insertId,
-      detail: { kind: body.kind, name: body.name, version, targetPath, status },
-    });
+      // 管理员 / 运营 / 所有者直接上架，作者与玩家进待审队列
+      const status = isStaff(req.user) ? 'approved' : 'pending';
 
-    const row = await one(`${SELECT_WITH_AUTHOR} WHERE a.id = ? LIMIT 1`, [result.insertId]);
-    res.status(201).json({ ok: true, data: { asset: publicAsset(row) } });
-  } catch (err) {
-    if (filePath) await fsp.unlink(filePath).catch(() => {});
-    next(err);
+      const result = await q(
+        `INSERT INTO assets
+           (kind, name, slug, version, target_path, description,
+            file_name, stored_name, file_size, sha256, author_id, status,
+            cover_name, cover_mime, cover_size, cover_sha256)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          body.kind,
+          body.name,
+          slug,
+          version,
+          targetPath,
+          body.description || null,
+          file.originalname.slice(0, 255),
+          file.filename,
+          file.size,
+          sha256,
+          req.user.id,
+          status,
+          cover ? cover.filename : null,
+          coverMime,
+          cover ? cover.size : null,
+          coverSha256,
+        ]
+      );
+
+      await logAction(req, {
+        action: 'asset.upload',
+        targetType: 'asset',
+        targetId: result.insertId,
+        detail: {
+          kind: body.kind,
+          name: body.name,
+          version,
+          targetPath,
+          status,
+          cover: Boolean(cover),
+        },
+      });
+
+      const row = await one(`${SELECT_WITH_AUTHOR} WHERE a.id = ? LIMIT 1`, [result.insertId]);
+      res.status(201).json({ ok: true, data: { asset: publicAsset(row) } });
+    } catch (err) {
+      await cleanup();
+      next(err);
+    }
   }
-});
-
+);
 /** 公开列表：只返回已上架的 */
 router.get('/assets', async (req, res, next) => {
   try {
@@ -278,6 +333,32 @@ router.get('/assets/:id', async (req, res, next) => {
   }
 });
 
+/** 封面：公开资源人人可看；待审资源只有作者 / staff 能看 */
+router.get('/assets/:id/cover', async (req, res, next) => {
+  try {
+    const row = await one(
+      'SELECT id, status, author_id, cover_name, cover_mime FROM assets WHERE id = ? LIMIT 1',
+      [req.params.id]
+    );
+    if (!row || !row.cover_name) throw notFound('封面不存在');
+
+    if (row.status !== 'approved') {
+      const user = await resolveOptionalUser(req);
+      const isAuthor = user && Number(user.id) === Number(row.author_id);
+      const isStaffViewer = user && ['ops', 'admin', 'owner'].includes(user.role);
+      if (!isAuthor && !isStaffViewer) throw notFound('封面不存在');
+    }
+
+    const filePath = path.join(COVER_DIR, row.cover_name);
+    if (!fs.existsSync(filePath)) throw notFound('封面文件已丢失');
+
+    res.setHeader('Content-Type', row.cover_mime || 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    fs.createReadStream(filePath).pipe(res);
+  } catch (err) {
+    next(err);
+  }
+});
 /** 下载：未上架的资源只有作者/管理员能取 */
 router.get('/assets/:id/download', async (req, res, next) => {
   try {
@@ -341,6 +422,9 @@ router.delete('/assets/:id', requireAuth, requireRole('admin', 'owner'), async (
 
     const kindDir = KIND_EXT[row.kind] ? row.kind : 'other';
     await fsp.unlink(path.join(UPLOAD_ROOT, kindDir, row.stored_name)).catch(() => {});
+    if (row.cover_name) {
+      await fsp.unlink(path.join(COVER_DIR, row.cover_name)).catch(() => {});
+    }
     await q('DELETE FROM assets WHERE id = ?', [row.id]);
 
     await logAction(req, {

@@ -116,7 +116,7 @@ const setAssetStatus = (settings, token, id, status) =>
   request(settings, { method: 'PATCH', path: `/api/assets/${id}/status`, token, body: { status } });
 
 /** 上传：multipart 里 kind 必须排在 file 前面，multer 靠它决定目录与扩展名白名单 */
-async function uploadAsset(settings, token, fields, fileBuffer, fileName) {
+async function uploadAsset(settings, token, fields, fileBuffer, fileName, cover) {
   const base = normalizeBase(settings && settings.apiBaseUrl);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 120000);
@@ -129,6 +129,9 @@ async function uploadAsset(settings, token, fields, fileBuffer, fileName) {
     form.append('targetPath', fields.targetPath);
     if (fields.description) form.append('description', fields.description);
     form.append('file', new Blob([fileBuffer]), fileName);
+    if (cover && cover.buffer) {
+      form.append('cover', new Blob([cover.buffer], { type: cover.mime }), cover.fileName);
+    }
 
     const res = await fetch(`${base}/api/assets`, {
       method: 'POST',

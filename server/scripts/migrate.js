@@ -94,6 +94,16 @@ async function main() {
       'avatar',
       "VARCHAR(16) NOT NULL DEFAULT '' COMMENT '头像（emoji 或留空）' AFTER game_name"
     );
+    // 资源封面（支持动图，原样保存）
+    const coverColumns = [
+      ['cover_name', 'VARCHAR(255) NULL AFTER sha256'],
+      ['cover_mime', 'VARCHAR(64) NULL AFTER cover_name'],
+      ['cover_size', 'INT UNSIGNED NULL AFTER cover_mime'],
+      ['cover_sha256', 'CHAR(64) NULL AFTER cover_size'],
+    ];
+    for (const [column, definition] of coverColumns) {
+      await ensureColumn(conn, env.db.name, 'assets', column, definition);
+    }
 
     // 3. 应用账号
     await createAccount(conn, env.db.user, env.db.allowedHost, env.db.password);

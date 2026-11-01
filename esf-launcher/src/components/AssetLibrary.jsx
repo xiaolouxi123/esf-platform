@@ -35,6 +35,25 @@ export default function AssetLibrary({ toast, settings }) {
     targetPath: '',
     description: '',
   });
+  const [cover, setCover] = useState(null);
+
+  const assetUrl = (url) => {
+    if (!url) return '';
+    if (/^(data:|https?:)/i.test(url)) return url;
+    return `${String(settings?.apiBaseUrl || '').replace(/\/$/, '')}${url}`;
+  };
+
+  const pickCover = async () => {
+    try {
+      const picked = await window.electronAPI.assets.pickCover();
+      setCover({
+        ...picked,
+        preview: `data:${picked.mime};base64,${picked.base64}`,
+      });
+    } catch (err) {
+      if (err.code !== 'CANCELED') toast(err.message, 'error');
+    }
+  };
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -85,6 +104,9 @@ export default function AssetLibrary({ toast, settings }) {
         version: form.version.trim() || '1.0.0',
         targetPath: form.targetPath.trim(),
         description: form.description.trim() || undefined,
+        coverBase64: cover?.base64,
+        coverName: cover?.name,
+        coverMime: cover?.mime,
       });
 
       toast(
@@ -93,6 +115,7 @@ export default function AssetLibrary({ toast, settings }) {
       );
       setUploadOpen(false);
       setForm({ kind: 'model', name: '', version: '1.0.0', targetPath: '', description: '' });
+      setCover(null);
       await refresh();
     } catch (err) {
       if (err.code !== 'CANCELED') toast(err.message, 'error');
@@ -186,6 +209,30 @@ export default function AssetLibrary({ toast, settings }) {
             <span className="field-hint">{KIND_HINT[form.kind]}</span>
           </label>
 
+          <div className="field">
+            <span className="field-label">封面（可选，支持 GIF / 动态 WebP）</span>
+            <div className="cover-picker">
+              {cover ? (
+                <img className="cover-preview" src={cover.preview} alt="封面预览" />
+              ) : (
+                <span className="cover-empty">
+                  <Icon name="image" size={16} /> 还没有封面
+                </span>
+              )}
+
+              <div className="cover-actions">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={pickCover}>
+                  <Icon name="image" size={14} /> {cover ? '更换封面' : '选择封面'}
+                </button>
+                {cover && (
+                  <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCover(null)}>
+                    移除
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <label className="field">
             <span className="field-label">说明（可选）</span>
             <div className="field-input">
@@ -247,6 +294,12 @@ export default function AssetLibrary({ toast, settings }) {
         <div className="asset-grid">
           {assets.map((asset) => (
             <article key={asset.id} className="asset-card">
+              {asset.coverUrl && (
+                <div className="asset-cover">
+                  <img src={assetUrl(asset.coverUrl)} alt={`${asset.name} 封面`} loading="lazy" />
+                </div>
+              )}
+
               <header className="asset-card-head">
                 <span className={`tag tag--kind tag--${asset.kind}`}>{KIND_LABEL[asset.kind] || asset.kind}</span>
                 <span className="asset-version">v{asset.version}</span>

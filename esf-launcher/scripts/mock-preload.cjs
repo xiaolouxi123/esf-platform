@@ -291,6 +291,8 @@ const api = {
           name: '龟派气功特效',
           version: '1.0.0',
           targetPath: 'sprites/kamehameha.spr',
+          coverUrl:
+            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23131722'/%3E%3Ccircle cx='160' cy='90' r='48' fill='none' stroke='%23ffb05c' stroke-width='4'/%3E%3Ccircle cx='160' cy='90' r='18' fill='%23ffb05c' fill-opacity='.35'/%3E%3C/svg%3E",
           description: '替换默认光束贴图',
           fileSize: 131_072,
           downloads: 3,

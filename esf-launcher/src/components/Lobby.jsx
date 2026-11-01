@@ -336,6 +336,12 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
 
   const openSettings = () => setSettingsOpen(true);
 
+  const assetUrl = (url) => {
+    if (!url) return '';
+    if (/^(data:|https?:)/i.test(url)) return url;
+    return `${String(settings?.apiBaseUrl || '').replace(/\/$/, '')}${url}`;
+  };
+
   const saveSettings = async (patch) => {
     const next = await window.electronAPI.settings.update(patch);
     onSettingsChanged?.(next);
@@ -681,6 +687,14 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                     <ul className="feed-list">
                       {recentAssets.slice(0, 4).map((asset) => (
                         <li key={asset.id} className="feed-item">
+                          {asset.coverUrl && (
+                            <img
+                              className="feed-thumb"
+                              src={assetUrl(asset.coverUrl)}
+                              alt=""
+                              loading="lazy"
+                            />
+                          )}
                           <span className="feed-tag feed-tag--asset">
                             {asset.kind === 'model' ? '模型' : asset.kind === 'sound' ? '声音' : '资源'}
                           </span>
