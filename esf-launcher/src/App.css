@@ -3186,3 +3186,272 @@ select:focus {
     padding-top: 8px;
   }
 }
+
+/* ============================ 玩家表对齐（表头 4 列，数据行也有第 4 个空列） ============================ */
+.player-line {
+  grid-template-columns: minmax(0, 1fr) 70px 90px 60px;
+}
+
+/* ============================ 龙珠雷达 ============================ */
+.radar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.radar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+
+.radar svg {
+  width: 30px;
+  height: 30px;
+  overflow: visible;
+}
+
+.radar-ring {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+}
+
+.radar-sweep {
+  stroke: rgba(61, 220, 151, 0.7);
+  stroke-width: 1;
+  transform-origin: 22px 22px;
+  animation: radar-sweep 6s linear infinite;
+}
+
+@keyframes radar-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.radar-dot--ok {
+  fill: #3ddc97;
+  filter: drop-shadow(0 0 3px rgba(61, 220, 151, 0.8));
+}
+
+.radar-dot--warn {
+  fill: #ffc24b;
+}
+
+.radar-dot--off {
+  fill: #4a5266;
+}
+
+.pill.is-warn {
+  color: #ffd9a0;
+  border-color: rgba(255, 200, 97, 0.4);
+  background: rgba(255, 200, 97, 0.12);
+}
+
+.radar-nodes {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 10px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.radar-nodes li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.radar-nodes em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 9.5px;
+  color: var(--dim);
+}
+
+.radar-node-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex: none;
+  background: #4a5266;
+}
+
+.radar-node-dot--ok {
+  background: #3ddc97;
+}
+
+.radar-node-dot--warn {
+  background: #ffc24b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radar-sweep {
+    animation: none;
+  }
+}
+
+/* ============================ 平台公告 / 最近上架 ============================ */
+.feed {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 250px;
+}
+
+.feed-col {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(20, 22, 32, 0.45);
+  min-width: 0;
+}
+
+.feed-col .section-head {
+  margin-bottom: 10px;
+}
+
+.feed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feed-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+.feed-item:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.feed-item > div {
+  min-width: 0;
+}
+
+.feed-item b {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.feed-item small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+.feed-tag {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  font-size: 9.5px;
+  color: var(--muted);
+}
+
+.feed-tag--notice {
+  color: #ffd9a0;
+  border-color: rgba(255, 200, 97, 0.3);
+  background: rgba(255, 200, 97, 0.1);
+}
+
+.feed-tag--update {
+  color: #8fe6ff;
+  border-color: rgba(63, 208, 255, 0.3);
+  background: rgba(63, 208, 255, 0.1);
+}
+
+.feed-tag--asset {
+  color: #c9b6ff;
+  border-color: rgba(150, 120, 255, 0.3);
+  background: rgba(150, 120, 255, 0.1);
+}
+
+@media (max-width: 1120px) {
+  .feed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 公告/资源卡底部信息贴底，让卡片撑满剩余高度时不像“空着” */
+.feed-list {
+  flex: 0 0 auto;
+}
+
+.feed-foot {
+  margin: auto 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.feed-foot .link {
+  font-size: 10.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+/* 个人卡里的角色信息条（替代原来独立的“工作台”卡，省出高度给聊天） */
+.profile-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.profile-strip b {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.profile-strip .link {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10.5px;
+}
+
+.profile-strip--link {
+  justify-content: flex-start;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}

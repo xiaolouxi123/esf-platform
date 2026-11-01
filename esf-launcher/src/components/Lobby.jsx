@@ -13,7 +13,6 @@ import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import {
   formatDuration,
   formatRelative,
-  isAdminRole,
   isStaff,
   loadFavoriteSet,
   roleLabel,
@@ -39,6 +38,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   const [favMaps, setFavMaps] = useState(() => loadFavoriteSet(FAV_MAPS));
   const [updateInfo, setUpdateInfo] = useState(null);
   const [adminSummary, setAdminSummary] = useState(null);
+  const [recentAssets, setRecentAssets] = useState([]);
 
   const hasGameDir = Boolean(settings?.hlPath && settings?.esfModDir);
   const staff = isStaff(user?.role);
@@ -137,6 +137,21 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
       alive = false;
     };
   }, [staff]);
+
+  // 最近上架：公开资源，玩家也能看，用来填满首屏下方
+  useEffect(() => {
+    let alive = true;
+    window.electronAPI.assets
+      .list({})
+      .then((data) => {
+        if (alive) setRecentAssets(Array.isArray(data?.assets) ? data.assets : []);
+      })
+      .catch(() => {});
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const onlineServers = useMemo(() => servers.filter((server) => server.online), [servers]);
   const bestPing = useMemo(() => {
@@ -516,42 +531,97 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                 )}
               </section>
 
-              <div className="notice">
-                <Icon name="bell" size={15} />
-                <span>{notice || '平台已接入真实账号与连服凭证，游戏内会自动完成身份校验。'}</span>
-              </div>
 
-              <section className="section section--tips">
-                <div className="section-head">
-                  <h2>进服提示</h2>
-                  <span className="tag">3 步</span>
+              <section className="feed">
+                <div className="feed-col">
+                  <div className="section-head">
+                    <h2>平台公告</h2>
+                    <span className="tag">公开</span>
+                  </div>
+
+                  <ul className="feed-list">
+                    <li className="feed-item">
+                      <span className="feed-tag feed-tag--notice">公告</span>
+                      <div>
+                        <b>{notice || '平台已接入真实账号与连服凭证'}</b>
+                        <small>进入游戏后自动完成身份校验</small>
+                      </div>
+                    </li>
+
+                    {updateInfo?.hasUpdate && (
+                      <li className="feed-item">
+                        <span className="feed-tag feed-tag--update">更新</span>
+                        <div>
+                          <b>新版本 v{updateInfo.latest} 已发布</b>
+                          <small>在「设置 → 关于」里检查更新</small>
+                        </div>
+                      </li>
+                    )}
+
+                    <li className="feed-item">
+                      <span className="feed-tag">提示</span>
+                      <div>
+                        <b>点房间行可展开实时玩家</b>
+                        <small>玩家名 / 分数 / 在线时长，来自 A2S 查询</small>
+                      </div>
+                    </li>
+
+                    <li className="feed-item">
+                      <span className="feed-tag">功能</span>
+                      <div>
+                        <b>大厅频道与在线状态已上线</b>
+                        <small>每 20 秒心跳，游戏中会自动标记地图</small>
+                      </div>
+                    </li>
+                  </ul>
+
+                  <p className="feed-foot">
+                    <span>公告由管理员在大厅维护</span>
+                    <Icon name="bell" size={12} />
+                  </p>
                 </div>
 
-                <ol className="tips">
-                  <li>左侧挑地图或房间，点「开始游戏 / 加入」</li>
-                  <li>启动器写入一次性平台凭证并拉起游戏</li>
-                  <li>AMXX 校验通过后在游戏内显示平台身份</li>
-                </ol>
+                <div className="feed-col">
+                  <div className="section-head">
+                    <h2>最近上架</h2>
+                    <button type="button" className="link" onClick={() => setPage('assets')}>
+                      资源库 <Icon name="chevronRight" size={13} />
+                    </button>
+                  </div>
+
+                  {recentAssets.length === 0 ? (
+                    <p className="admin-muted">还没有上架资源，作者上传并通过审核后会出现在这里。</p>
+                  ) : (
+                    <ul className="feed-list">
+                      {recentAssets.slice(0, 4).map((asset) => (
+                        <li key={asset.id} className="feed-item">
+                          <span className="feed-tag feed-tag--asset">
+                            {asset.kind === 'model' ? '模型' : asset.kind === 'sound' ? '声音' : '资源'}
+                          </span>
+                          <div>
+                            <b>{asset.name}</b>
+                            <small>
+                              v{asset.version} · {formatRelative(asset.createdAt)}
+                              {asset.authorName ? ` · ${asset.authorName}` : ''}
+                            </small>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <p className="feed-foot">
+                    <span>共 {recentAssets.length} 个已上架资源</span>
+                    <button type="button" className="link" onClick={() => setPage('assets')}>
+                      查看全部 <Icon name="chevronRight" size={12} />
+                    </button>
+                  </p>
+                </div>
               </section>
 
-              <div className="env-strip">
-                <span className="env-item">
-                  <span className={`dot dot--${backend?.ok ? 'on' : 'off'}`} /> 平台服务
-                </span>
-                <span className="env-item">
-                  <span className={`dot dot--${backend?.db === 'up' ? 'on' : 'off'}`} /> 数据库
-                </span>
-                <span className="env-item">
-                  <span className={`dot dot--${hasGameDir ? 'on' : 'off'}`} /> 游戏目录
-                </span>
-                <span className="env-item">
-                  <span className={`dot dot--${onlineServers.length > 0 ? 'on' : 'off'}`} /> 在线房间
-                </span>
-                <span className="env-spacer" />
-                <span className="env-item env-item--muted">
-                  模组 {settings?.esfModDir ? '已挂载' : '未设置'}
-                </span>
-              </div>
+
+
+
             </>
           )}
         </main>
@@ -606,57 +676,36 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                   <Icon name="logout" size={14} /> 退出
                 </button>
               </div>
-            </section>
 
-            {staff && (
-              <section className="card card--role">
-                <div className="presence-head">
-                  <h3>
-                    <Icon name="shield" size={14} /> {roleLabel(user?.role)}工作台
-                  </h3>
+              {staff && (
+                <div className="profile-strip">
+                  <span>
+                    待审 <b>{adminSummary ? adminSummary.assets.pending : '—'}</b>
+                  </span>
+                  <span>
+                    今日 <b>{adminSummary ? adminSummary.sessions.today : '—'}</b>
+                  </span>
                   <button type="button" className="link" onClick={() => setPage('admin')}>
-                    进入 <Icon name="chevronRight" size={12} />
+                    管理台 <Icon name="chevronRight" size={12} />
                   </button>
                 </div>
+              )}
 
-                <div className="role-metrics">
-                  <div>
-                    <b>{adminSummary ? adminSummary.assets.pending : '—'}</b>
-                    <span>待审资源</span>
-                  </div>
-                  <div>
-                    <b>{adminSummary ? adminSummary.sessions.today : '—'}</b>
-                    <span>今日进场</span>
-                  </div>
-                </div>
-
-                <p className="role-hint">
-                  {isAdminRole(user?.role)
-                    ? '你可以改角色、查看操作审计与使用开发者工具。'
-                    : '你可以审核资源、处理玩家与登记服务器；改角色与审计由管理员负责。'}
-                </p>
-              </section>
-            )}
-
-            {user?.role === 'creator' && (
-              <section className="card card--role">
-                <div className="presence-head">
-                  <h3>
-                    <Icon name="spark" size={14} /> 作者中心
-                  </h3>
-                </div>
-                <p className="role-hint">上传模型 / 声音，审核通过后所有玩家可见。</p>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm btn-block"
-                  onClick={() => setPage('assets')}
-                >
-                  去上传资源
+              {user?.role === 'creator' && (
+                <button type="button" className="link profile-strip profile-strip--link" onClick={() => setPage('assets')}>
+                  作者中心 · 上传资源 <Icon name="chevronRight" size={12} />
                 </button>
-              </section>
-            )}
+              )}
+            </section>
 
-            <PresencePanel user={user} />
+            <PresencePanel
+              user={user}
+              backend={backend}
+              hasGameDir={hasGameDir}
+              settings={settings}
+              serversCount={servers.length}
+              updateInfo={updateInfo}
+            />
 
             <ChatPanel user={user} toast={toast} />
           </aside>

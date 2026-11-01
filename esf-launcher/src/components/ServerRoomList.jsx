@@ -195,6 +195,7 @@ export default function ServerRoomList({
                       <span className="player-name">{player.name || '未命名'}</span>
                       <span>{player.score}</span>
                       <span>{formatClock(player.durationSec)}</span>
+                      <span />
                     </div>
                   ))
                 ) : (
