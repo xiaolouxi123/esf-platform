@@ -1,5 +1,12 @@
 const paths = {
   home: <path d="M4 10.6 12 4l8 6.6V19a1 1 0 0 1-1 1h-4.2v-5.6H9.2V20H5a1 1 0 0 1-1-1z" />,
+  download: (
+    <>
+      <path d="M12 4v10" />
+      <path d="m8 10 4 4 4-4" />
+      <path d="M5 19h14" />
+    </>
+  ),
   server: (
     <>
       <rect x="3.5" y="4" width="17" height="6.2" rx="1.6" />

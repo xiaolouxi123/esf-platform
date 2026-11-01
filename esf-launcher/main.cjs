@@ -7,6 +7,7 @@ const { spawn, spawnSync } = require('child_process');
 const core = require('./launcher-core.cjs');
 const store = require('./store.cjs');
 const api = require('./api.cjs');
+const { autoUpdater } = require('electron-updater');
 
 // ================= 全局状态 =================
 let mainWindow = null;
@@ -24,6 +25,90 @@ function log(...args) {
 function maskToken(token) {
   const value = String(token || '');
   return value ? `${value.slice(0, 6)}…` : '';
+}
+
+// ================= 自动更新（electron-updater） =================
+let updateState = { status: 'idle' };
+
+function updateLog(...args) {
+  try {
+    fs.appendFileSync(
+      path.join(app.getPath('userData'), 'update.log'),
+      `[${new Date().toISOString()}] ${args.join(' ')}\n`
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function sendUpdate(patch) {
+  updateState = { ...updateState, ...patch };
+  updateLog('STATE', JSON.stringify(updateState));
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update:status', updateState);
+  }
+}
+
+function localFeedUrl() {
+  return String(process.env.ESF_UPDATE_URL || getSettings().updateFeedUrl || '').trim();
+}
+
+/** 本地没配就向后端要（服务器可以统一下发更新源） */
+async function resolveFeedUrl() {
+  const local = localFeedUrl();
+  if (local) return local;
+  try {
+    const config = await api.config(getSettings());
+    return String(config.updateFeedUrl || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = {
+    info: (...args) => updateLog('INFO', ...args),
+    warn: (...args) => updateLog('WARN', ...args),
+    error: (...args) => updateLog('ERROR', ...args),
+    debug: () => {},
+  };
+
+  autoUpdater.on('checking-for-update', () => sendUpdate({ status: 'checking' }));
+  autoUpdater.on('update-available', (info) =>
+    sendUpdate({ status: 'available', version: info && info.version })
+  );
+  autoUpdater.on('update-not-available', (info) =>
+    sendUpdate({ status: 'current', version: info && info.version })
+  );
+  autoUpdater.on('download-progress', (progress) =>
+    sendUpdate({
+      status: 'downloading',
+      percent: Math.round(Number(progress.percent) || 0),
+      transferred: Number(progress.transferred) || 0,
+      total: Number(progress.total) || 0,
+    })
+  );
+  autoUpdater.on('update-downloaded', (info) =>
+    sendUpdate({ status: 'downloaded', version: info && info.version })
+  );
+  autoUpdater.on('error', (err) => sendUpdate({ status: 'error', message: err.message }));
+}
+
+async function autoCheckOnce() {
+  const feed = await resolveFeedUrl();
+  if (!feed) return null;
+
+  autoUpdater.setFeedURL({ provider: 'generic', url: feed });
+  sendUpdate({ status: 'checking', feed });
+  try {
+    await autoUpdater.checkForUpdates();
+    return updateState;
+  } catch (err) {
+    sendUpdate({ status: 'error', message: err.message });
+    return updateState;
+  }
 }
 
 function getSettings() {
@@ -387,6 +472,24 @@ handle('update:check', async () => {
   };
 });
 
+handle('update:status', async () => updateState);
+
+handle('update:auto-check', async () => {
+  if (!app.isPackaged) {
+    return { status: 'dev', message: '开发模式不执行自动更新' };
+  }
+  const result = await autoCheckOnce();
+  if (!result) {
+    return { status: 'unconfigured', message: '还没有配置更新源（UPDATE_FEED_URL）' };
+  }
+  return result;
+});
+
+handle('update:auto-install', async () => {
+  if (updateState.status !== 'downloaded') throw new Error('还没有下载完成的更新');
+  setTimeout(() => autoUpdater.quitAndInstall(), 300);
+  return true;
+});
 handle('shell:open-external', async ({ url } = {}) => {
   const value = String(url || '');
   if (!/^https?:\/\//i.test(value)) throw new Error('只允许打开 http/https 链接');
@@ -697,7 +800,14 @@ if (!gotLock) {
     getSettings();
     getSession();
     log(`🧩 启动器 v${app.getVersion()} 就绪，API=${getSettings().apiBaseUrl}`);
+    setupAutoUpdater();
     createWindow();
+
+    // 启动 8 秒后静默检查一次；没配更新源就跳过
+    setTimeout(() => {
+      if (!app.isPackaged) return;
+      autoCheckOnce().catch((err) => updateLog('auto check failed', err.message));
+    }, 8000);
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

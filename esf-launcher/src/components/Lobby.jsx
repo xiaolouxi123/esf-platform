@@ -37,6 +37,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   const [favServers, setFavServers] = useState(() => loadFavoriteSet(FAV_SERVERS));
   const [favMaps, setFavMaps] = useState(() => loadFavoriteSet(FAV_MAPS));
   const [updateInfo, setUpdateInfo] = useState(null);
+  const [autoUpdate, setAutoUpdate] = useState(null);
   const [adminSummary, setAdminSummary] = useState(null);
   const [recentAssets, setRecentAssets] = useState([]);
   const [lastSyncAt, setLastSyncAt] = useState(null);
@@ -164,6 +165,18 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
     };
   }, []);
 
+  // 自动更新状态：主进程推送，弹窗里也能看到
+  useEffect(() => {
+    let unsubscribe = null;
+    window.electronAPI.update
+      ?.status?.()
+      .then((state) => setAutoUpdate(state))
+      .catch(() => {});
+    unsubscribe = window.electronAPI.update?.onStatus?.((state) => setAutoUpdate(state)) || null;
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
   // 在线心跳：进入大厅立刻报一次，之后每 20 秒一次（主进程判断游戏是否在跑）
   useEffect(() => {
     const ping = () => {
@@ -506,7 +519,38 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                 </div>
               )}
 
-              {updateInfo?.hasUpdate && (
+              {autoUpdate?.status === 'downloaded' && (
+                <div className="update-strip update-strip--ready">
+                  <Icon name="download" size={15} />
+                  <span>
+                    新版本 <b>v{autoUpdate.version}</b> 已下载，重启启动器后生效
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    onClick={() => window.electronAPI.update.install()}
+                  >
+                    立即重启安装
+                  </button>
+                </div>
+              )}
+
+              {autoUpdate &&
+                ['checking', 'available', 'downloading'].includes(autoUpdate.status) && (
+                  <div className="update-strip">
+                    <Icon name="refresh" size={15} />
+                    <span>
+                      {autoUpdate.status === 'checking' && '正在检查更新…'}
+                      {autoUpdate.status === 'available' &&
+                        `发现 v${autoUpdate.version}，正在后台下载…`}
+                      {autoUpdate.status === 'downloading' &&
+                        `正在下载新版本 ${autoUpdate.percent || 0}%`}
+                    </span>
+                  </div>
+                )}
+
+              {updateInfo?.hasUpdate &&
+                !['available', 'downloading', 'downloaded'].includes(autoUpdate?.status) && (
                 <div className="update-strip">
                   <Icon name="spark" size={15} />
                   <span>

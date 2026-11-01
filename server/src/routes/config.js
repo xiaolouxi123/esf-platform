@@ -27,6 +27,7 @@ router.get('/config', async (req, res, next) => {
         latestVersion: env.latestVersion,
         releaseNotes: env.releaseNotes,
         downloadUrl: env.downloadUrl,
+        updateFeedUrl: env.updateFeedUrl || '',
       },
     });
   } catch (err) {

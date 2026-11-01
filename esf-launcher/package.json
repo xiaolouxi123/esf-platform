@@ -1,7 +1,7 @@
 {
   "name": "esf-launcher",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "ESF 平台启动器（龙珠 Online 私服大厅）",
   "author": "ESF Platform",
   "type": "module",
@@ -16,6 +16,7 @@
     "dist:dir": "npm run build && electron-builder --win --dir"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "goldsrc-query": "^1.1.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
@@ -38,6 +39,7 @@
   "build": {
     "appId": "com.esf.platform.launcher",
     "productName": "ESF 平台",
+    "artifactName": "ESF-Platform-Setup-${version}.${ext}",
     "asar": true,
     "directories": {
       "output": "release"
@@ -67,6 +69,12 @@
         }
       ]
     },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://updates.example.com/esf/"
+      }
+    ],
     "nsis": {
       "oneClick": false,
       "perMachine": false,

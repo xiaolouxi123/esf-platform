@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from './Icon';
 import { isStaff } from '../lib/format';
 
@@ -24,8 +24,22 @@ export default function SettingsDrawer({
   const [draft, setDraft] = useState(settings || {});
   const [busy, setBusy] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
+  const [autoStatus, setAutoStatus] = useState(null);
   const [checking, setChecking] = useState(false);
   const staff = isStaff(user?.role);
+
+  useEffect(() => {
+    let unsubscribe = null;
+    window.electronAPI.update
+      ?.status?.()
+      .then((state) => setAutoStatus(state))
+      .catch(() => {});
+
+    unsubscribe = window.electronAPI.update?.onStatus?.((state) => setAutoStatus(state)) || null;
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   const update = (key) => (event) => setDraft((prev) => ({ ...prev, [key]: event.target.value }));
 
@@ -123,6 +137,22 @@ export default function SettingsDrawer({
                     />
                   </div>
                 </label>
+
+                <label className="field">
+                  <span className="field-label">自动更新源</span>
+                  <div className="field-input">
+                    <Icon name="refresh" size={16} />
+                    <input
+                      type="text"
+                      value={draft.updateFeedUrl || ''}
+                      placeholder="https://你的域名/esf/updates/"
+                      onChange={update('updateFeedUrl')}
+                    />
+                  </div>
+                  <span className="field-hint">
+                    留空则用后端下发的 UPDATE_FEED_URL；目录里放 latest.yml 与安装包
+                  </span>
+                </label>
               </>
             )}
 
@@ -196,18 +226,31 @@ export default function SettingsDrawer({
               type="button"
               className="btn btn-ghost btn-block"
               style={{ marginTop: 10 }}
-              disabled={checking}
+              disabled={checking || autoStatus?.status === 'downloading'}
               onClick={async () => {
                 setChecking(true);
                 try {
-                  const info = await window.electronAPI.update.check();
-                  setUpdateInfo(info);
-                  toast(
-                    info.hasUpdate
-                      ? `发现新版本 v${info.latest}（当前 v${info.current}）`
-                      : `已经是最新版本 v${info.current}`,
-                    'ok'
-                  );
+                  if (autoStatus?.status === 'downloaded') {
+                    await window.electronAPI.update.install();
+                    return;
+                  }
+
+                  const auto = await window.electronAPI.update.autoCheck();
+                  if (auto && (auto.status === 'dev' || auto.status === 'unconfigured')) {
+                    const info = await window.electronAPI.update.check();
+                    setUpdateInfo(info);
+                    toast(
+                      auto.status === 'dev'
+                        ? '开发模式下只做版本对比，不下载安装包'
+                        : '还没配置自动更新源，先用手动检查',
+                      'ok'
+                    );
+                    return;
+                  }
+
+                  if (auto?.status === 'error') {
+                    toast(auto.message || '检查更新失败', 'error');
+                  }
                 } catch (err) {
                   toast(err.message, 'error');
                 } finally {
@@ -215,9 +258,35 @@ export default function SettingsDrawer({
                 }
               }}
             >
-              {checking ? <span className="spinner" /> : <Icon name="refresh" size={14} />}
-              {checking ? '检查中…' : '检查更新'}
+              {checking ? (
+                <span className="spinner" />
+              ) : autoStatus?.status === 'downloaded' ? (
+                <Icon name="download" size={14} />
+              ) : (
+                <Icon name="refresh" size={14} />
+              )}
+              {checking
+                ? '检查中…'
+                : autoStatus?.status === 'downloaded'
+                  ? `重启安装 v${autoStatus.version || ''}`
+                  : '检查更新'}
             </button>
+
+            {autoStatus && ['checking', 'available', 'downloading', 'downloaded', 'error'].includes(autoStatus.status) && (
+              <p className="update-status">
+                {autoStatus.status === 'checking' && '正在检查更新…'}
+                {autoStatus.status === 'available' && `发现 v${autoStatus.version}，正在下载…`}
+                {autoStatus.status === 'downloading' && `下载中 ${autoStatus.percent || 0}%`}
+                {autoStatus.status === 'downloaded' && `v${autoStatus.version} 已下载，重启后生效`}
+                {autoStatus.status === 'error' && `更新失败：${autoStatus.message}`}
+              </p>
+            )}
+
+            {autoStatus?.status === 'downloading' && (
+              <div className="update-progress">
+                <span style={{ width: `${autoStatus.percent || 0}%` }} />
+              </div>
+            )}
 
             {updateInfo?.hasUpdate && updateInfo.downloadUrl ? (
               <button

@@ -53,7 +53,7 @@ npm run dev            # vite + electron
 | 角色化界面（owner / admin / ops / creator / user） | ✅ 管理台、审计、开发者工具按角色裁剪 |
 | 在线状态（大厅 / 游戏中）+ 大厅频道 | ✅ 大厅右栏，每 20 秒心跳 |
 | 头像自定义（emoji，底色按用户名生成） | ✅ 设置 → 账号 |
-| 版本检查更新（顶栏横幅 + 一键检查） | ✅ 设置 → 关于 |
+| 自动更新（electron-updater，含进度与重启安装） | ✅ 设置 → 关于 + 大厅横幅 |
 | 资源封面（GIF / 动态 WebP，16:9） | ✅ 上传预览 + 首屏缩略图 |
 | 打包分发（electron-builder + NSIS） | ✅ npm run dist → release/*.exe |
 

@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   esfModDir: '',
   apiBaseUrl: 'http://127.0.0.1:3000',
   localServerKey: 'fcx-1v1-1',
+  updateFeedUrl: '',
 };
 
 function baseDir() {

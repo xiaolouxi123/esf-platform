@@ -40,6 +40,7 @@ const env = {
   // 版本更新：启动器拿它和自身版本比较
   latestVersion: str(process.env.LATEST_VERSION, require('../package.json').version),
   releaseNotes: str(process.env.RELEASE_NOTES),
+  updateFeedUrl: process.env.UPDATE_FEED_URL || '',
   downloadUrl: str(process.env.DOWNLOAD_URL),
 
   // 资源库：模型 / 声音上传

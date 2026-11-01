@@ -3811,3 +3811,30 @@ select:focus {
   flex: none;
   border: 1px solid var(--line);
 }
+/* ============================ 自动更新状态 ============================ */
+.update-status {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.update-progress {
+  margin-top: 6px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.update-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--accent), #ffd9a0);
+  transition: width 0.3s ease;
+}
+
+.update-strip--ready {
+  border-color: rgba(61, 220, 151, 0.35);
+  background: rgba(61, 220, 151, 0.08);
+}

@@ -50,6 +50,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   update: {
     check: () => call('update:check'),
+    autoCheck: () => call('update:auto-check'),
+    install: () => call('update:auto-install'),
+    status: () => call('update:status'),
+    onStatus: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on('update:status', handler);
+      return () => ipcRenderer.removeListener('update:status', handler);
+    },
   },
 
   stats: {
