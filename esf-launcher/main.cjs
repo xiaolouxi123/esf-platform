@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 
 const core = require('./launcher-core.cjs');
@@ -44,6 +45,16 @@ function requireToken() {
     throw new api.ApiError('登录已过期，请重新登录', 'AUTH_REQUIRED', 401);
   }
   return current.token;
+}
+
+/** 管理台 / 开发者工具只对 admin、gm 开放（后端还会再校验一次） */
+function requireStaff() {
+  const current = getSession();
+  const role = current && current.user && current.user.role;
+  if (role !== 'admin' && role !== 'gm') {
+    throw new api.ApiError('没有权限执行该操作', 'FORBIDDEN', 403);
+  }
+  return role;
 }
 
 /** 统一处理 401：清掉本地登录态，让界面回到登录页 */
@@ -314,6 +325,131 @@ handle('shell:open-game-dir', async () => {
   checkGameDir();
   const error = await shell.openPath(getSettings().esfModDir);
   if (error) throw new Error(`打开目录失败：${error}`);
+  return true;
+});
+
+// ---- 资源库 ----
+const ASSET_KIND_EXT = {
+  model: ['mdl'],
+  sound: ['wav', 'mp3'],
+  other: ['zip', 'spr', 'tga', 'bmp'],
+};
+
+handle('assets:list', async ({ kind, q } = {}) => api.assets(getSettings(), { kind, q }));
+
+handle('assets:upload', async ({ kind, name, version, targetPath, description } = {}) => {
+  requireToken();
+
+  const extensions = ASSET_KIND_EXT[kind];
+  if (!extensions) throw new Error('资源类型不合法');
+
+  const picked = await dialog.showOpenDialog({
+    title: '选择要上传的资源文件',
+    properties: ['openFile'],
+    filters: [{ name: kind, extensions }],
+  });
+  if (picked.canceled || picked.filePaths.length === 0) {
+    throw new api.ApiError('已取消选择', 'CANCELED');
+  }
+
+  const filePath = picked.filePaths[0];
+  const stat = fs.statSync(filePath);
+  if (stat.size > 64 * 1024 * 1024) throw new Error('文件超过 64MB 上限');
+
+  const buffer = fs.readFileSync(filePath);
+  const asset = await apiCall(
+    api.uploadAsset,
+    getSettings(),
+    requireToken(),
+    { kind, name, version, targetPath, description },
+    buffer,
+    path.basename(filePath)
+  );
+
+  log(`📦 资源已提交: ${asset.name} ${asset.version} (${asset.status})`);
+  return asset;
+});
+
+/** 下载 → 校验 sha256 → 备份旧文件 → 写进模组目录 */
+handle('assets:install', async ({ id }) => {
+  requireToken();
+  checkGameDir();
+
+  const detail = await apiCall(api.assetDetail, getSettings(), id);
+  const asset = detail.asset;
+  const buffer = await apiCall(api.downloadAsset, getSettings(), requireToken(), id);
+
+  const digest = crypto.createHash('sha256').update(buffer).digest('hex');
+  if (digest !== asset.sha256) {
+    throw new Error('文件校验失败（sha256 不一致），请重试或联系资源作者');
+  }
+
+  const modDir = getSettings().esfModDir;
+  const { relative, absolute } = core.resolveInstallPath(modDir, asset.targetPath);
+
+  let backedUp = false;
+  if (fs.existsSync(absolute)) {
+    // 只备份一次原文件，避免反复安装产生一堆备份
+    const backup = path.join(modDir, '.esf-backup', relative);
+    if (!fs.existsSync(backup)) {
+      fs.mkdirSync(path.dirname(backup), { recursive: true });
+      fs.copyFileSync(absolute, backup);
+    }
+    backedUp = true;
+  }
+
+  fs.mkdirSync(path.dirname(absolute), { recursive: true });
+  fs.writeFileSync(absolute, buffer);
+
+  log(`📥 资源已安装: ${relative}（${buffer.length} bytes${backedUp ? '，已备份原文件' : ''}）`);
+  return { targetPath: relative, bytes: buffer.length, backedUp };
+});
+
+// ---- 管理台 ----
+handle('admin:overview', async () => {
+  requireStaff();
+  return apiCall(api.adminOverview, getSettings(), requireToken());
+});
+
+handle('admin:users', async (params = {}) => {
+  requireStaff();
+  return apiCall(api.adminUsers, getSettings(), requireToken(), params);
+});
+
+handle('admin:update-user', async ({ id, role, status } = {}) => {
+  requireStaff();
+  const patch = {};
+  if (role) patch.role = role;
+  if (status) patch.status = status;
+
+  const data = await apiCall(api.adminUpdateUser, getSettings(), requireToken(), id, patch);
+  log(`🛡️ 账号 ${id} 更新: ${JSON.stringify(patch)}`);
+  return data;
+});
+
+handle('admin:kick-user', async ({ id } = {}) => {
+  requireStaff();
+  const data = await apiCall(api.adminKickUser, getSettings(), requireToken(), id);
+  log(`🛡️ 账号 ${id} 已被强制下线`);
+  return data;
+});
+
+handle('admin:assets', async ({ status } = {}) => {
+  requireStaff();
+  return apiCall(api.adminAssets, getSettings(), requireToken(), status || 'pending');
+});
+
+handle('admin:asset-status', async ({ id, status } = {}) => {
+  requireStaff();
+  const data = await apiCall(api.setAssetStatus, getSettings(), requireToken(), id, status);
+  log(`🛡️ 资源 ${id} 状态: ${status}`);
+  return data.asset;
+});
+
+// ---- 开发者工具 ----
+handle('devtools:open', async () => {
+  requireStaff();
+  if (mainWindow) mainWindow.webContents.openDevTools({ mode: 'detach' });
   return true;
 });
 

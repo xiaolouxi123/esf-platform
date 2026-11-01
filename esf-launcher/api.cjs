@@ -92,6 +92,114 @@ const lookupServer = (settings, token, address) =>
 const launchToken = (settings, token, serverKey) =>
   request(settings, { method: 'POST', path: '/api/launch-token', token, body: { serverKey } });
 
+/* ---------------- 资源库 ---------------- */
+
+function queryString(params = {}) {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue;
+    search.set(key, String(value));
+  }
+  const text = search.toString();
+  return text ? `?${text}` : '';
+}
+
+const assets = (settings, params) => request(settings, { path: `/api/assets${queryString(params)}` });
+
+const assetDetail = (settings, id) => request(settings, { path: `/api/assets/${id}` });
+
+const setAssetStatus = (settings, token, id, status) =>
+  request(settings, { method: 'PATCH', path: `/api/assets/${id}/status`, token, body: { status } });
+
+/** 上传：multipart 里 kind 必须排在 file 前面，multer 靠它决定目录与扩展名白名单 */
+async function uploadAsset(settings, token, fields, fileBuffer, fileName) {
+  const base = normalizeBase(settings && settings.apiBaseUrl);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120000);
+
+  try {
+    const form = new FormData();
+    form.append('kind', fields.kind);
+    form.append('name', fields.name);
+    if (fields.version) form.append('version', fields.version);
+    form.append('targetPath', fields.targetPath);
+    if (fields.description) form.append('description', fields.description);
+    form.append('file', new Blob([fileBuffer]), fileName);
+
+    const res = await fetch(`${base}/api/assets`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+      body: form,
+      signal: controller.signal,
+    });
+    const payload = await res.json().catch(() => null);
+
+    if (!res.ok || !payload || payload.ok !== true) {
+      throw new ApiError(
+        (payload && payload.message) || `上传失败（HTTP ${res.status}）`,
+        (payload && payload.code) || `HTTP_${res.status}`,
+        res.status
+      );
+    }
+    return payload.data.asset;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (err.name === 'AbortError') throw new ApiError('上传超时，请检查网络或文件大小', 'TIMEOUT');
+    throw new ApiError(`上传失败：${err.message}`, 'UPLOAD_FAILED');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 下载资源为 Buffer，供主进程校验 sha256 后写入模组目录 */
+async function downloadAsset(settings, token, id) {
+  const base = normalizeBase(settings && settings.apiBaseUrl);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120000);
+
+  try {
+    const res = await fetch(`${base}/api/assets/${id}/download`, {
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      let message = `下载失败（HTTP ${res.status}）`;
+      try {
+        const payload = await res.json();
+        if (payload && payload.message) message = payload.message;
+      } catch {
+        /* 非 JSON 响应 */
+      }
+      throw new ApiError(message, `HTTP_${res.status}`, res.status);
+    }
+
+    return Buffer.from(await res.arrayBuffer());
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (err.name === 'AbortError') throw new ApiError('下载超时', 'TIMEOUT');
+    throw new ApiError(`下载失败：${err.message}`, 'DOWNLOAD_FAILED');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* ---------------- 管理台 ---------------- */
+
+const adminOverview = (settings, token) => request(settings, { path: '/api/admin/overview', token });
+
+const adminUsers = (settings, token, params) =>
+  request(settings, { path: `/api/admin/users${queryString(params)}`, token });
+
+const adminUpdateUser = (settings, token, id, patch) =>
+  request(settings, { method: 'PATCH', path: `/api/admin/users/${id}`, token, body: patch });
+
+const adminKickUser = (settings, token, id) =>
+  request(settings, { method: 'POST', path: `/api/admin/users/${id}/kick`, token });
+
+const adminAssets = (settings, token, status) =>
+  request(settings, { path: `/api/admin/assets${queryString({ status })}`, token });
+
 module.exports = {
   ApiError,
   normalizeBase,
@@ -105,4 +213,14 @@ module.exports = {
   servers,
   lookupServer,
   launchToken,
+  assets,
+  assetDetail,
+  setAssetStatus,
+  uploadAsset,
+  downloadAsset,
+  adminOverview,
+  adminUsers,
+  adminUpdateUser,
+  adminKickUser,
+  adminAssets,
 };

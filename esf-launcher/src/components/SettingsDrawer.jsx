@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import Icon from './Icon';
+import { isStaff } from '../lib/format';
 
 /**
  * 右侧滑出的设置抽屉：平台地址、本地服务器标识、游戏目录、账号。
  * 关闭时由父组件卸载，所以 draft 直接以 settings 初始化即可，不需要 effect 同步。
+ * 平台地址、数据目录这类开发向内容只对 admin / gm 展示。
  */
 export default function SettingsDrawer({
   settings,
   appInfo,
   backend,
+  user,
   onClose,
   onSave,
   onPickGameDir,
@@ -17,6 +20,7 @@ export default function SettingsDrawer({
 }) {
   const [draft, setDraft] = useState(settings || {});
   const [busy, setBusy] = useState(false);
+  const staff = isStaff(user?.role);
 
   const update = (key) => (event) => setDraft((prev) => ({ ...prev, [key]: event.target.value }));
 
@@ -83,33 +87,39 @@ export default function SettingsDrawer({
 
           <section className="drawer-section">
             <h3>平台连接</h3>
-            <p className="drawer-hint">后端地址。队友换机器时改这里指向同一台服务器。</p>
+            <p className="drawer-hint">
+              {staff ? '后端地址。队友换机器时改这里指向同一台服务器。' : '平台服务状态。地址由管理员维护。'}
+            </p>
 
-            <label className="field">
-              <span className="field-label">API 地址</span>
-              <div className="field-input">
-                <Icon name="wifi" size={16} />
-                <input
-                  type="text"
-                  value={draft.apiBaseUrl || ''}
-                  placeholder="http://127.0.0.1:3000"
-                  onChange={update('apiBaseUrl')}
-                />
-              </div>
-            </label>
+            {staff && (
+              <>
+                <label className="field">
+                  <span className="field-label">API 地址</span>
+                  <div className="field-input">
+                    <Icon name="wifi" size={16} />
+                    <input
+                      type="text"
+                      value={draft.apiBaseUrl || ''}
+                      placeholder="http://127.0.0.1:3000"
+                      onChange={update('apiBaseUrl')}
+                    />
+                  </div>
+                </label>
 
-            <label className="field">
-              <span className="field-label">本地开图用的服务器标识</span>
-              <div className="field-input">
-                <Icon name="server" size={16} />
-                <input
-                  type="text"
-                  value={draft.localServerKey || ''}
-                  placeholder="fcx-1v1-1"
-                  onChange={update('localServerKey')}
-                />
-              </div>
-            </label>
+                <label className="field">
+                  <span className="field-label">本地开图用的服务器标识</span>
+                  <div className="field-input">
+                    <Icon name="server" size={16} />
+                    <input
+                      type="text"
+                      value={draft.localServerKey || ''}
+                      placeholder="fcx-1v1-1"
+                      onChange={update('localServerKey')}
+                    />
+                  </div>
+                </label>
+              </>
+            )}
 
             <p className="inline-status">
               <span className={`dot dot--${backend?.ok ? 'on' : 'off'}`} />
@@ -135,30 +145,36 @@ export default function SettingsDrawer({
                 <dt>启动器</dt>
                 <dd>v{appInfo?.version || '—'}</dd>
               </div>
-              <div>
-                <dt>Electron</dt>
-                <dd>{appInfo?.electron || '—'}</dd>
-              </div>
-              <div>
-                <dt>数据目录</dt>
-                <dd className="kv-path">{appInfo?.userDataDir || '—'}</dd>
-              </div>
+              {staff && (
+                <>
+                  <div>
+                    <dt>Electron</dt>
+                    <dd>{appInfo?.electron || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt>数据目录</dt>
+                    <dd className="kv-path">{appInfo?.userDataDir || '—'}</dd>
+                  </div>
+                </>
+              )}
             </dl>
 
-            <button
-              type="button"
-              className="btn btn-ghost btn-block"
-              style={{ marginTop: 10 }}
-              onClick={async () => {
-                try {
-                  await window.electronAPI.shell.openDataDir();
-                } catch (err) {
-                  toast(err.message, 'error');
-                }
-              }}
-            >
-              <Icon name="external" size={14} /> 打开数据目录
-            </button>
+            {staff && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-block"
+                style={{ marginTop: 10 }}
+                onClick={async () => {
+                  try {
+                    await window.electronAPI.shell.openDataDir();
+                  } catch (err) {
+                    toast(err.message, 'error');
+                  }
+                }}
+              >
+                <Icon name="external" size={14} /> 打开数据目录
+              </button>
+            )}
           </section>
         </div>
 

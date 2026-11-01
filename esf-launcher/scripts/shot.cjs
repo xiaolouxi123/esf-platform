@@ -19,11 +19,13 @@ function argOf(name, fallback) {
 
 const state = argOf('state', 'dashboard');
 const clickSelector = argOf('click', '');
+const role = argOf('role', 'admin');
 const width = Number(argOf('width', 1320));
 const height = Number(argOf('height', 900));
 
 // 必须在创建 BrowserWindow 之前设置：渲染进程的环境变量在进程创建时就固化了
 process.env.MOCK_STATE = state === 'login' || state === 'register' ? 'login' : 'dashboard';
+process.env.MOCK_ROLE = role;
 
 app.disableHardwareAcceleration();
 

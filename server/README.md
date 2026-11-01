@@ -24,7 +24,7 @@ npm start            # http://127.0.0.1:3000
 ```bash
 curl http://127.0.0.1:3000/api/health
 npm run smoke        # 注册→登录→大厅→签发连服 Token 全链路
-npm test             # 11 项接口测试
+npm test             # 24 项接口测试
 ```
 
 > 开发库是**项目自己的实例**，数据目录在 `../.devdb/`（已 gitignore）。
@@ -55,6 +55,32 @@ npm test             # 11 项接口测试
 | GET | `/api/admin/assets?status=` | admin/gm | 审核列表（含待审） |
 | PATCH | `/api/assets/:id/status` | admin/gm | 通过 / 驳回 |
 | DELETE | `/api/assets/:id` | admin | 删除资源与磁盘文件 |
+| GET | `/api/admin/overview` | admin/gm | 管理台概览（账号 / 资源 / 服务器 / 今日进场） |
+| GET | `/api/admin/users?q=&role=&status=` | admin/gm | 玩家列表（含场次与累计时长） |
+| PATCH | `/api/admin/users/:id` | admin/gm | 改角色（仅 admin）/ 封禁（gm 只能动普通玩家） |
+| POST | `/api/admin/users/:id/kick` | admin/gm | 强制下线（`token_version + 1`） |
+
+## 权限模型
+
+| 角色 | 能做什么 |
+|---|---|
+| `user` 玩家 | 登录、连服、浏览与上传资源（进待审） |
+| `gm` 运营 | + 进管理台、审核资源、封禁 / 强制下线**普通玩家** |
+| `admin` 管理员 | + 改别人角色、封禁任何人、使用开发者工具 |
+
+后端强制的防呆规则：
+
+- 不能修改自己的角色或状态
+- 改角色只有 `admin` 能做
+- `gm` 不能碰 `admin` / `gm` 账号
+- 不能把最后一个管理员降级或封禁
+- 封禁 / 改角色后，该账号已签发的 JWT 立即失效
+
+把某个账号设为管理员：
+
+```bash
+npm run db:query -- "UPDATE users SET role='admin' WHERE username='yun'"
+```
 
 ## 账号约定
 
@@ -185,4 +211,5 @@ npm run asset:review -- 3 rejected # 驳回
 - 单文件默认上限 64MB（`.env` 的 `UPLOAD_MAX_MB`）
 - 同一 `kind + slug + version` 唯一，升级版本就换 `version`
 
-启动器侧按 `targetPath` 把文件落到模组目录（下一步接 UI）。
+启动器侧按 `targetPath` 把文件落到模组目录：下载 → 校验 sha256 → 原文件备份到 `.esf-backup/` → 写入。
+落地路径在客户端会再校验一次（禁止 `..` 与盘符），避免后端被绕过时写坏玩家磁盘。

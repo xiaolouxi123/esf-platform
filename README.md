@@ -37,7 +37,9 @@ npm run dev            # vite + electron
 | 启动器接入真实登录 / Token / 自动登录 | ✅ 主进程 IPC + safeStorage |
 | 界面重做（导航、按钮、图标、状态位） | ✅ 见 `shots/` |
 | 服务器直连查询（按 IP:端口） | ✅ 大厅顶部查询条 |
-| 资源库接口（模型 / 声音上传审核） | ✅ 接口 + CLI，启动器 UI 待接 |
+| 资源库接口（模型 / 声音上传审核） | ✅ 接口 + 启动器「资源库」页 |
+| 资源安装到模组（sha256 校验 + 原文件备份） | ✅ 资源库「安装到模组」 |
+| 角色化界面（admin / gm / 玩家） | ✅ 管理台、资源审核、开发者工具仅 staff 可见 |
 | 打包分发（electron-builder） | ⬜ 下一步 |
 
 详见 `Desktop\存档\第一步.md`、`Desktop\存档\第二步.md`。
@@ -48,9 +50,9 @@ npm run dev            # vite + electron
 cd esf-launcher
 npm run build
 node_modules\.bin\electron scripts/shot.cjs --state=dashboard
-node_modules\.bin\electron scripts/shot.cjs --state=servers --click=".nav-item:nth-child(2)"
-node_modules\.bin\electron scripts/shot.cjs --state=settings --click=".nav-item:nth-child(3)"
-node_modules\.bin\electron scripts/shot.cjs --state=login
+node_modules\.bin\electron scripts/shot.cjs --state=admin --role=admin --click=".nav-item:nth-child(4)"
+node_modules\.bin\electron scripts/shot.cjs --state=player --role=user
+node_modules\.bin\electron scripts/shot.cjs --state=assets --role=user --click=".nav-item:nth-child(3)"
 # 输出到 shots/*.png
 ```
 

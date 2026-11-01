@@ -1,5 +1,5 @@
 import Icon from './Icon';
-import { initials, roleLabel } from '../lib/format';
+import { initials, isStaff, roleLabel } from '../lib/format';
 
 /**
  * 自定义标题栏。
@@ -13,9 +13,13 @@ export default function TitleBar({
   onOpenSettings,
   minimal = false,
 }) {
+  const staff = isStaff(user?.role);
+
   const navItems = [
     { key: 'lobby', label: '大厅', icon: 'home' },
     { key: 'servers', label: '服务器', icon: 'server' },
+    { key: 'assets', label: '资源库', icon: 'spark' },
+    ...(staff ? [{ key: 'admin', label: '管理台', icon: 'shield' }] : []),
     { key: 'settings', label: '设置', icon: 'settings' },
   ];
 
@@ -61,7 +65,9 @@ export default function TitleBar({
             <span className="avatar">{initials(user.gameName || user.username)}</span>
             <span className="user-meta">
               <b>{user.gameName || user.username}</b>
-              <small>{roleLabel(user.role)}</small>
+              <small>
+                <span className={`role-badge role-${user.role}`}>{roleLabel(user.role)}</span>
+              </small>
             </span>
           </button>
         )}

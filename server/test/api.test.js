@@ -7,6 +7,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 
 const app = require('../src/app');
 const { q, ping, close } = require('../src/db');
@@ -14,6 +15,16 @@ const { q, ping, close } = require('../src/db');
 const stamp = Date.now().toString(36);
 const username = `t_${stamp}`;
 const password = 'Passw0rd_test';
+
+const adminUsername = `a_${stamp}`;
+const adminPassword = 'AdminPass_1';
+const gmUsername = `gm_${stamp}`;
+const gmPassword = 'GmPass_123';
+
+let adminId;
+let gmId;
+let adminToken;
+let gmToken;
 
 let server;
 let base;
@@ -37,6 +48,18 @@ before(async () => {
   const dbUp = await ping();
   assert.ok(dbUp, '数据库不可用：请先 npm run db:start 并 npm run migrate');
 
+  // 造一个管理员 + 一个待升级的普通账号
+  const admin = await q(
+    'INSERT INTO users (username, password_hash, game_name, role) VALUES (?, ?, ?, ?)',
+    [adminUsername, bcrypt.hashSync(adminPassword, 4), '测试管理员', 'admin']
+  );
+  const gm = await q(
+    'INSERT INTO users (username, password_hash, game_name, role) VALUES (?, ?, ?, ?)',
+    [gmUsername, bcrypt.hashSync(gmPassword, 4), '待升级玩家', 'user']
+  );
+  adminId = admin.insertId;
+  gmId = gm.insertId;
+
   await new Promise((resolve) => {
     server = app.listen(0, '127.0.0.1', resolve);
   });
@@ -45,7 +68,7 @@ before(async () => {
 
 after(async () => {
   if (server) await new Promise((resolve) => server.close(resolve));
-  await q('DELETE FROM users WHERE username = ?', [username]).catch(() => {});
+  await q('DELETE FROM users WHERE username IN (?, ?, ?)', [username, adminUsername, gmUsername]).catch(() => {});
   await close();
 });
 
@@ -199,6 +222,92 @@ test('资源：上传进待审 → 公开列表不可见 → 匿名下载 404', 
   if (rows[0]) {
     fs.rmSync(path.join(__dirname, '..', 'uploads', 'sound', rows[0].stored_name), { force: true });
   }
+});
+
+test('管理台：普通玩家访问管理接口返回 403', async () => {
+  const res = await api('GET', '/api/admin/users', { token: accessToken });
+  assert.equal(res.status, 403);
+  assert.equal(res.body.code, 'FORBIDDEN');
+});
+
+test('管理台：管理员能看概览与玩家列表', async () => {
+  const login = await api('POST', '/api/auth/login', {
+    body: { username: adminUsername, password: adminPassword },
+  });
+  assert.equal(login.status, 200, JSON.stringify(login.body));
+  adminToken = login.body.data.accessToken;
+
+  const overview = await api('GET', '/api/admin/overview', { token: adminToken });
+  assert.equal(overview.status, 200);
+  assert.ok(overview.body.data.users.total >= 2);
+  assert.equal(typeof overview.body.data.assets.pending, 'number');
+
+  const users = await api('GET', '/api/admin/users?limit=50', { token: adminToken });
+  assert.equal(users.status, 200);
+  assert.ok(users.body.data.users.some((item) => item.username === adminUsername));
+  assert.ok(users.body.data.users.some((item) => item.username === gmUsername));
+});
+
+test('管理台：管理员不能改自己的权限', async () => {
+  const res = await api('PATCH', `/api/admin/users/${adminId}`, {
+    token: adminToken,
+    body: { role: 'user' },
+  });
+  assert.equal(res.status, 400);
+});
+
+test('管理台：可以升为运营，但运营不能改别人的角色', async () => {
+  const promote = await api('PATCH', `/api/admin/users/${gmId}`, {
+    token: adminToken,
+    body: { role: 'gm' },
+  });
+  assert.equal(promote.status, 200, JSON.stringify(promote.body));
+  assert.equal(promote.body.data.user.role, 'gm');
+
+  const login = await api('POST', '/api/auth/login', {
+    body: { username: gmUsername, password: gmPassword },
+  });
+  assert.equal(login.status, 200);
+  gmToken = login.body.data.accessToken;
+
+  const staffList = await api('GET', '/api/admin/users', { token: gmToken });
+  assert.equal(staffList.status, 200, '运营可以看列表');
+
+  const forbidden = await api('PATCH', `/api/admin/users/${adminId}`, {
+    token: gmToken,
+    body: { role: 'gm' },
+  });
+  assert.equal(forbidden.status, 403, '运营不能改角色');
+});
+
+test('管理台：运营不能封禁管理员', async () => {
+  const res = await api('PATCH', `/api/admin/users/${adminId}`, {
+    token: gmToken,
+    body: { status: 'banned' },
+  });
+  assert.equal(res.status, 403);
+});
+
+test('管理台：强制下线后旧 JWT 立即失效', async () => {
+  const kick = await api('POST', `/api/admin/users/${gmId}/kick`, { token: adminToken });
+  assert.equal(kick.status, 200);
+
+  const me = await api('GET', '/api/me', { token: gmToken });
+  assert.equal(me.status, 401);
+});
+
+test('管理台：封禁后无法登录', async () => {
+  const ban = await api('PATCH', `/api/admin/users/${gmId}`, {
+    token: adminToken,
+    body: { status: 'banned' },
+  });
+  assert.equal(ban.status, 200);
+  assert.equal(ban.body.data.user.status, 'banned');
+
+  const login = await api('POST', '/api/auth/login', {
+    body: { username: gmUsername, password: gmPassword },
+  });
+  assert.equal(login.status, 403);
 });
 
 test('连服 Token：未知服务器 404', async () => {

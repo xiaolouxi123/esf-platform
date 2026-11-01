@@ -227,6 +227,36 @@ function resolveGameFiles(selectedDir) {
   return { hlPath: '', modDir: '', root };
 }
 
+// ================= 资源落地 =================
+
+/**
+ * 把资源库里的 targetPath 解析成模组目录内的绝对路径。
+ *
+ * 这是防止"模型作者把文件写到 C:\ 或 ..\..\" 的最后一道闸：
+ * 后端已经校验过一次，但客户端写入磁盘前必须再校验一次（纵深防御）。
+ */
+function resolveInstallPath(modDir, targetPath) {
+  const normalized = String(targetPath || '')
+    .replace(/\\/g, '/')
+    .trim();
+
+  if (!normalized) throw new Error('资源落地路径为空');
+  if (normalized.startsWith('/') || /^[a-zA-Z]:/.test(normalized)) {
+    throw new Error('资源落地路径必须是相对模组目录的路径');
+  }
+  if (normalized.split('/').some((part) => part === '..')) {
+    throw new Error('资源落地路径不能包含 ..');
+  }
+
+  const root = path.resolve(modDir);
+  const absolute = path.resolve(root, normalized);
+  if (absolute !== root && !absolute.startsWith(root + path.sep)) {
+    throw new Error('资源落地路径越界');
+  }
+
+  return { relative: normalized, absolute };
+}
+
 // ================= 日志 =================
 
 /** 追加一行日志到模组目录（超过 256KB 自动清空），写失败静默忽略 */
@@ -255,6 +285,7 @@ module.exports = {
   buildLocalArgs,
   buildJoinArgs,
   formatCommand,
+  resolveInstallPath,
   findHlExe,
   findModDir,
   resolveGameFiles,

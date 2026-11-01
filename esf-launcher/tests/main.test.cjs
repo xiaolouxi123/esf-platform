@@ -12,6 +12,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const assert = require('assert');
 const Module = require('module');
 const EventEmitter = require('events');
@@ -38,7 +39,7 @@ fs.writeFileSync(
 );
 
 // ---------- 临时 userData：设置 + 登录态 ----------
-const fakeUser = { id: 2, username: 'demo', gameName: '测试玩家', role: 'user' };
+const fakeUser = { id: 2, username: 'demo', gameName: '测试玩家', role: 'admin' };
 
 fs.writeFileSync(
   path.join(tmpUserData, 'settings.json'),
@@ -107,11 +108,16 @@ Module._load = function patched(request, parent, isMain) {
 };
 
 // ---------- 假后端 ----------
+const assetBytes = Buffer.from('FAKE ASSET BYTES');
+const assetSha = crypto.createHash('sha256').update(assetBytes).digest('hex');
+
 global.fetch = async (url, options = {}) => {
   const { pathname } = new URL(url);
   const body = options.body ? JSON.parse(options.body) : null;
+  const method = (options.method || 'GET').toUpperCase();
 
   const ok = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  const binary = (buffer) => ({ ok: true, status: 200, arrayBuffer: async () => buffer });
   const fail = (status, code, message) => ({
     ok: false,
     status,
@@ -120,6 +126,54 @@ global.fetch = async (url, options = {}) => {
 
   if (pathname === '/api/me') return ok({ user: fakeUser });
   if (pathname === '/api/me/stats') return ok({ sessions: 3, totalSeconds: 5400, lastPlayedAt: null });
+
+  if (pathname === '/api/admin/overview') {
+    return ok({
+      users: { total: 2, active: 2, banned: 0, admins: 1, gms: 0 },
+      assets: { pending: 1, approved: 0 },
+      servers: { total: 1, enabled: 1, online: 1 },
+      sessions: { total: 3, today: 1 },
+      tokens: { today: 1 },
+    });
+  }
+  if (pathname === '/api/admin/users') {
+    return ok({
+      users: [
+        {
+          id: 2,
+          username: 'demo',
+          gameName: '测试玩家',
+          role: 'admin',
+          status: 'active',
+          sessions: 3,
+          totalSeconds: 5400,
+          lastLoginAt: null,
+        },
+      ],
+      total: 1,
+    });
+  }
+  if (/^\/api\/admin\/users\/\d+$/.test(pathname) && method === 'PATCH') {
+    return ok({ user: { id: 3, username: 'x', gameName: 'x', role: body.role || 'user', status: body.status || 'active' } });
+  }
+  if (/^\/api\/admin\/users\/\d+\/kick$/.test(pathname)) return ok({ kicked: true });
+  if (pathname === '/api/admin/assets') return ok({ assets: [] });
+
+  if (pathname === '/api/assets') {
+    return ok({ assets: [{ id: 7, kind: 'sound', name: '测试音效', version: '1.0.0', targetPath: 'sound/test/beep.wav' }], total: 1 });
+  }
+  if (/^\/api\/assets\/\d+\/status$/.test(pathname) && method === 'PATCH') {
+    return ok({ asset: { id: 7, status: body.status } });
+  }
+  if (/^\/api\/assets\/7$/.test(pathname)) {
+    return ok({ asset: { id: 7, sha256: assetSha, targetPath: 'sound/test/beep.wav' } });
+  }
+  if (/^\/api\/assets\/8$/.test(pathname)) {
+    // 故意给一个越界路径，验证客户端也会拦
+    return ok({ asset: { id: 8, sha256: assetSha, targetPath: '../../evil.wav' } });
+  }
+  if (/^\/api\/assets\/\d+\/download$/.test(pathname)) return binary(assetBytes);
+
   if (pathname === '/api/servers/lookup') {
     const address = new URL(url).searchParams.get('address');
     return ok({
@@ -327,7 +381,55 @@ function ipc(channel, payload) {
   const min = await ipc('window:minimize');
   check('最小化不报错', () => assert.equal(min.ok, true));
 
-  console.log('== 8. 退出登录 ==');
+  console.log('== 8. 管理台 ==');
+  const overview = await ipc('admin:overview');
+  check('管理台概览', () => {
+    assert.equal(overview.ok, true, JSON.stringify(overview));
+    assert.equal(overview.data.users.total, 2);
+    assert.equal(overview.data.assets.pending, 1);
+  });
+
+  const userList = await ipc('admin:users', { q: 'demo' });
+  check('玩家列表', () => {
+    assert.equal(userList.ok, true);
+    assert.equal(userList.data.users[0].username, 'demo');
+  });
+
+  const updated = await ipc('admin:update-user', { id: 3, role: 'gm' });
+  check('修改权限', () => {
+    assert.equal(updated.ok, true);
+    assert.equal(updated.data.user.role, 'gm');
+  });
+
+  const kicked = await ipc('admin:kick-user', { id: 3 });
+  check('强制下线', () => assert.equal(kicked.data.kicked, true));
+
+  console.log('== 9. 资源库 ==');
+  const list = await ipc('assets:list', { kind: 'sound' });
+  check('资源列表', () => {
+    assert.equal(list.ok, true);
+    assert.equal(list.data.assets[0].id, 7);
+  });
+
+  const install = await ipc('assets:install', { id: 7 });
+  const installedPath = path.join(modDir, 'sound', 'test', 'beep.wav');
+  check('安装资源：写文件并校验 sha256', () => {
+    assert.equal(install.ok, true, JSON.stringify(install));
+    assert.equal(install.data.targetPath, 'sound/test/beep.wav');
+    assert.ok(fs.existsSync(installedPath), '文件应写入模组目录');
+    assert.equal(fs.readFileSync(installedPath, 'utf8'), 'FAKE ASSET BYTES');
+  });
+
+  const evil = await ipc('assets:install', { id: 8 });
+  check('越界落地路径被客户端拒绝', () => {
+    assert.equal(evil.ok, false);
+    assert.ok(!fs.existsSync(path.join(tmpUserData, 'evil.wav')), '不应写到模组目录之外');
+  });
+
+  const devtools = await ipc('devtools:open');
+  check('开发者工具接口可用（仅 staff）', () => assert.equal(devtools.ok, true));
+
+  console.log('== 10. 退出登录 ==');
   const logout = await ipc('auth:logout');
   check('退出返回成功', () => assert.equal(logout.ok, true));
 

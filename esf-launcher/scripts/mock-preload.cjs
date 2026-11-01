@@ -6,9 +6,10 @@ const { contextBridge } = require('electron');
  */
 
 const state = process.env.MOCK_STATE || 'dashboard';
+const role = process.env.MOCK_ROLE || 'admin';
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const user = { id: 2, username: 'demo', gameName: '测试玩家', role: 'user' };
+const user = { id: 2, username: 'demo', gameName: '测试玩家', role };
 
 const settings = {
   hlPath: 'G:\\FCX1\\FCX7.02融合版\\hl.exe',
@@ -143,6 +144,101 @@ const api = {
     join: async ({ ip, port }) => ({ address: `${ip}:${port}`, maskedToken: 'a1b2c3…' }),
     local: async (map) => ({ map, maskedToken: 'a1b2c3…' }),
   },
+  assets: {
+    list: async () => ({
+      assets: [
+        {
+          id: 1,
+          kind: 'sound',
+          name: '测试音效',
+          version: '1.0.0',
+          targetPath: 'sound/test/beep.wav',
+          description: '接口自测用的短音效',
+          fileSize: 2048,
+          downloads: 12,
+          authorName: 'demo',
+        },
+        {
+          id: 2,
+          kind: 'model',
+          name: '悟空新模型',
+          version: '1.2.0',
+          targetPath: 'models/player/goku/goku.mdl',
+          description: '替换默认模型，含骨骼修正',
+          fileSize: 5_242_880,
+          downloads: 87,
+          authorName: 'yun',
+        },
+        {
+          id: 3,
+          kind: 'model',
+          name: '比克披风',
+          version: '0.9.0',
+          targetPath: 'models/player/piccolo/piccolo.mdl',
+          description: '披风物理暂未调完',
+          fileSize: 3_145_728,
+          downloads: 5,
+          authorName: 'demo',
+        },
+      ],
+      total: 3,
+    }),
+    upload: async () => ({ id: 99, name: '新资源', version: '1.0.0', status: 'pending' }),
+    install: async () => ({ targetPath: 'sound/test/beep.wav', bytes: 2048, backedUp: false }),
+  },
+
+  admin: {
+    overview: async () => ({
+      users: { total: 2, active: 2, banned: 0, admins: 1, gms: 0 },
+      assets: { pending: 1, approved: 3 },
+      servers: { total: 1, enabled: 1, online: 1 },
+      sessions: { total: 5, today: 2 },
+      tokens: { today: 3 },
+    }),
+    users: async () => ({
+      users: [
+        {
+          id: 6,
+          username: 'yun',
+          gameName: 'yun',
+          role: 'admin',
+          status: 'active',
+          sessions: 1,
+          totalSeconds: 13,
+          lastLoginAt: new Date().toISOString(),
+        },
+        {
+          id: 2,
+          username: 'demo',
+          gameName: '测试玩家',
+          role: 'user',
+          status: 'active',
+          sessions: 4,
+          totalSeconds: 122,
+          lastLoginAt: new Date(Date.now() - 3600 * 1000).toISOString(),
+        },
+      ],
+      total: 2,
+    }),
+    updateUser: async (id, patch) => ({ user: { id, ...patch } }),
+    kickUser: async () => ({ kicked: true }),
+    assets: async () => ({
+      assets: [
+        {
+          id: 4,
+          kind: 'model',
+          name: '待审模型',
+          version: '1.0.0',
+          targetPath: 'models/player/gohan/gohan.mdl',
+          fileSize: 4_194_304,
+          authorName: 'demo',
+        },
+      ],
+    }),
+    setAssetStatus: async (id, status) => ({ id, status }),
+    openDevTools: async () => true,
+  },
+
   shell: {
     openDataDir: async () => true,
     openGameDir: async () => true,

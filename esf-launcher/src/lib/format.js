@@ -42,8 +42,25 @@ export function pingTone(ping) {
 
 export function roleLabel(role) {
   if (role === 'admin') return '管理员';
-  if (role === 'gm') return 'GM';
+  if (role === 'gm') return '运营';
   return '玩家';
+}
+
+/** 是否有管理台权限（界面层只做展示裁剪，真正校验在后端） */
+export function isStaff(role) {
+  return role === 'admin' || role === 'gm';
+}
+
+export function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value <= 0) return '—';
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+export function formatNumber(value) {
+  return new Intl.NumberFormat('zh-CN').format(Number(value) || 0);
 }
 
 export function loadFavoriteSet(key) {

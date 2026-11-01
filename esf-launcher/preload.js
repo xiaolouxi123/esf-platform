@@ -50,6 +50,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     scan: () => call('maps:scan'),
   },
 
+  assets: {
+    list: (params) => call('assets:list', params),
+    upload: (fields) => call('assets:upload', fields),
+    install: (id) => call('assets:install', { id }),
+  },
+
+  admin: {
+    overview: () => call('admin:overview'),
+    users: (params) => call('admin:users', params),
+    updateUser: (id, patch) => call('admin:update-user', { id, ...patch }),
+    kickUser: (id) => call('admin:kick-user', { id }),
+    assets: (status) => call('admin:assets', { status }),
+    setAssetStatus: (id, status) => call('admin:asset-status', { id, status }),
+    openDevTools: () => call('devtools:open'),
+  },
+
   launch: {
     token: (serverKey) => call('launch:token', { serverKey }),
     join: (payload) => call('launch:join', payload),

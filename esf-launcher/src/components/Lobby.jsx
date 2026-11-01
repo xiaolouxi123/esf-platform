@@ -3,10 +3,13 @@ import TitleBar from './TitleBar';
 import Icon from './Icon';
 import ServerHall from './ServerHall';
 import SettingsDrawer from './SettingsDrawer';
+import AdminPanel from './AdminPanel';
+import AssetLibrary from './AssetLibrary';
 import {
   formatDuration,
   formatRelative,
   initials,
+  isStaff,
   loadFavoriteSet,
   pingTone,
   roleLabel,
@@ -31,6 +34,8 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   const [favMaps, setFavMaps] = useState(() => loadFavoriteSet(FAV_MAPS));
 
   const hasGameDir = Boolean(settings?.hlPath && settings?.esfModDir);
+  const staff = isStaff(user?.role);
+  const activePage = page === 'admin' && !staff ? 'lobby' : page;
 
   const refreshServers = useCallback(async () => {
     setServersLoading(true);
@@ -231,13 +236,13 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   return (
     <div className="app-shell">
       <TitleBar
-        page={page}
+        page={activePage}
         onPage={setPage}
         user={user}
         onOpenSettings={openSettings}
       />
 
-      <div className={`workspace${page === 'servers' ? ' workspace--wide' : ''}`}>
+      <div className={`workspace${activePage !== 'lobby' ? ' workspace--wide' : ''}`}>
         <aside className="sidebar">
           <div className="side-head">
             <h2>地图库</h2>
@@ -297,7 +302,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
         </aside>
 
         <main className="center">
-          {page === 'servers' ? (
+          {activePage === 'servers' ? (
             <ServerHall
               servers={servers}
               loading={serversLoading}
@@ -306,6 +311,17 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
               favorites={favServers}
               onToggleFavorite={toggleServerFav}
               busyKey={joinBusyKey}
+            />
+          ) : activePage === 'assets' ? (
+            <AssetLibrary toast={toast} settings={settings} />
+          ) : activePage === 'admin' ? (
+            <AdminPanel
+              user={user}
+              settings={settings}
+              appInfo={appInfo}
+              backend={backend}
+              toast={toast}
+              onOpenSettings={openSettings}
             />
           ) : (
             <>
@@ -448,7 +464,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
           )}
         </main>
 
-        {page === 'lobby' && (
+        {activePage === 'lobby' && (
           <aside className="rail">
             <section className="card profile">
               <div className="profile-head">
@@ -555,6 +571,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
           settings={settings}
           appInfo={appInfo}
           backend={backend}
+          user={user}
           onClose={() => setSettingsOpen(false)}
           onSave={saveSettings}
           onPickGameDir={handlePickDir}
