@@ -49,12 +49,30 @@ function requireToken() {
   return current.token;
 }
 
-/** 管理台 / 开发者工具只对 admin、gm 开放（后端还会再校验一次） */
+/** 管理台只对运营/管理员/所有者开放（后端还会再校验一次） */
 function requireStaff() {
   const current = getSession();
   const role = current && current.user && current.user.role;
-  if (role !== 'admin' && role !== 'gm') {
+  if (!['ops', 'admin', 'owner'].includes(role)) {
     throw new api.ApiError('没有权限执行该操作', 'FORBIDDEN', 403);
+  }
+  return role;
+}
+
+/** 管理员及以上：改角色、看审计、开发者工具 */
+function requireAdminRole() {
+  const role = requireStaff();
+  if (!['admin', 'owner'].includes(role)) {
+    throw new api.ApiError('只有管理员可以执行该操作', 'FORBIDDEN', 403);
+  }
+  return role;
+}
+
+/** 所有者专属：转让所有权 */
+function requireOwner() {
+  const role = requireStaff();
+  if (role !== 'owner') {
+    throw new api.ApiError('只有所有者可以转让所有权', 'FORBIDDEN', 403);
   }
   return role;
 }
@@ -529,9 +547,21 @@ handle('admin:asset-status', async ({ id, status } = {}) => {
   return data.asset;
 });
 
+handle('admin:audit', async (params = {}) => {
+  requireAdminRole();
+  return apiCall(api.adminAudit, getSettings(), requireToken(), params);
+});
+
+handle('admin:transfer-owner', async ({ userId } = {}) => {
+  requireOwner();
+  const data = await apiCall(api.adminTransferOwner, getSettings(), requireToken(), userId);
+  log(`🛡️ 所有权已转让给 ${data.owner}`);
+  return data;
+});
+
 // ---- 开发者工具 ----
 handle('devtools:open', async () => {
-  requireStaff();
+  requireAdminRole();
   if (mainWindow) mainWindow.webContents.openDevTools({ mode: 'detach' });
   return true;
 });

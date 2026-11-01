@@ -40,15 +40,36 @@ export function pingTone(ping) {
   return 'bad';
 }
 
+const ROLE_LABELS = {
+  owner: '所有者',
+  admin: '管理员',
+  ops: '运营',
+  creator: '作者',
+  user: '玩家',
+};
+
+const ROLE_RANK = { user: 0, creator: 1, ops: 2, admin: 3, owner: 4 };
+
 export function roleLabel(role) {
-  if (role === 'admin') return '管理员';
-  if (role === 'gm') return '运营';
-  return '玩家';
+  return ROLE_LABELS[role] || '玩家';
 }
 
-/** 是否有管理台权限（界面层只做展示裁剪，真正校验在后端） */
+export function roleRank(role) {
+  return ROLE_RANK[role] ?? 0;
+}
+
+/** 能进管理台（运营及以上） */
 export function isStaff(role) {
-  return role === 'admin' || role === 'gm';
+  return ['ops', 'admin', 'owner'].includes(role);
+}
+
+/** 管理员及以上：改角色、看审计、开发者工具 */
+export function isAdminRole(role) {
+  return ['admin', 'owner'].includes(role);
+}
+
+export function isOwner(role) {
+  return role === 'owner';
 }
 
 export function formatBytes(bytes) {

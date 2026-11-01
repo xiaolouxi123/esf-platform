@@ -200,6 +200,12 @@ const adminKickUser = (settings, token, id) =>
 const adminAssets = (settings, token, status) =>
   request(settings, { path: `/api/admin/assets${queryString({ status })}`, token });
 
+const adminAudit = (settings, token, params) =>
+  request(settings, { path: `/api/admin/audit${queryString(params)}`, token });
+
+const adminTransferOwner = (settings, token, userId) =>
+  request(settings, { method: 'POST', path: '/api/admin/owner/transfer', token, body: { userId } });
+
 /* ---------------- 社交：在线状态 / 大厅频道 ---------------- */
 
 const pingPresence = (settings, token, payload) =>
@@ -239,6 +245,8 @@ module.exports = {
   adminUpdateUser,
   adminKickUser,
   adminAssets,
+  adminAudit,
+  adminTransferOwner,
   pingPresence,
   presenceList,
   chatList,

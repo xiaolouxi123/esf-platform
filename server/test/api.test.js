@@ -16,15 +16,22 @@ const stamp = Date.now().toString(36);
 const username = `t_${stamp}`;
 const password = 'Passw0rd_test';
 
+const ownerUsername = `o_${stamp}`;
+const ownerPassword = 'OwnerPass_1';
 const adminUsername = `a_${stamp}`;
 const adminPassword = 'AdminPass_1';
-const gmUsername = `gm_${stamp}`;
-const gmPassword = 'GmPass_123';
+const opsUsername = `ops_${stamp}`;
+const opsPassword = 'OpsPass_123';
+const victimUsername = `v_${stamp}`;
+const victimPassword = 'VictimPass_1';
 
+let ownerId;
 let adminId;
-let gmId;
+let opsId;
+let victimId;
+let ownerToken;
 let adminToken;
-let gmToken;
+let opsToken;
 
 let server;
 let base;
@@ -48,17 +55,19 @@ before(async () => {
   const dbUp = await ping();
   assert.ok(dbUp, '数据库不可用：请先 npm run db:start 并 npm run migrate');
 
-  // 造一个管理员 + 一个待升级的普通账号
-  const admin = await q(
-    'INSERT INTO users (username, password_hash, game_name, role) VALUES (?, ?, ?, ?)',
-    [adminUsername, bcrypt.hashSync(adminPassword, 4), '测试管理员', 'admin']
-  );
-  const gm = await q(
-    'INSERT INTO users (username, password_hash, game_name, role) VALUES (?, ?, ?, ?)',
-    [gmUsername, bcrypt.hashSync(gmPassword, 4), '待升级玩家', 'user']
-  );
-  adminId = admin.insertId;
-  gmId = gm.insertId;
+  // 造 4 个账号：所有者 / 管理员 / 待升级（运营）/ 被封禁目标
+  const insertUser = (name, pwd, nick, role) =>
+    q('INSERT INTO users (username, password_hash, game_name, role) VALUES (?, ?, ?, ?)', [
+      name,
+      bcrypt.hashSync(pwd, 4),
+      nick,
+      role,
+    ]);
+
+  ownerId = (await insertUser(ownerUsername, ownerPassword, '测试所有者', 'owner')).insertId;
+  adminId = (await insertUser(adminUsername, adminPassword, '测试管理员', 'admin')).insertId;
+  opsId = (await insertUser(opsUsername, opsPassword, '待升级运营', 'user')).insertId;
+  victimId = (await insertUser(victimUsername, victimPassword, '待封禁玩家', 'user')).insertId;
 
   await new Promise((resolve) => {
     server = app.listen(0, '127.0.0.1', resolve);
@@ -68,7 +77,14 @@ before(async () => {
 
 after(async () => {
   if (server) await new Promise((resolve) => server.close(resolve));
-  await q('DELETE FROM users WHERE username IN (?, ?, ?)', [username, adminUsername, gmUsername]).catch(() => {});
+  await q('DELETE FROM users WHERE username IN (?, ?, ?, ?, ?)', [
+    username,
+    ownerUsername,
+    adminUsername,
+    opsUsername,
+    victimUsername,
+  ]).catch(() => {});
+  await q('DELETE FROM audit_logs WHERE target_id IN (?, ?, ?, ?)', [ownerId, adminId, opsId, victimId]).catch(() => {});
   await close();
 });
 
@@ -230,84 +246,130 @@ test('管理台：普通玩家访问管理接口返回 403', async () => {
   assert.equal(res.body.code, 'FORBIDDEN');
 });
 
-test('管理台：管理员能看概览与玩家列表', async () => {
+test('管理台：所有者能看概览与玩家列表，角色按等级排序', async () => {
   const login = await api('POST', '/api/auth/login', {
-    body: { username: adminUsername, password: adminPassword },
+    body: { username: ownerUsername, password: ownerPassword },
   });
   assert.equal(login.status, 200, JSON.stringify(login.body));
-  adminToken = login.body.data.accessToken;
+  assert.equal(login.body.data.user.role, 'owner');
+  ownerToken = login.body.data.accessToken;
 
-  const overview = await api('GET', '/api/admin/overview', { token: adminToken });
+  const overview = await api('GET', '/api/admin/overview', { token: ownerToken });
   assert.equal(overview.status, 200);
-  assert.ok(overview.body.data.users.total >= 2);
-  assert.equal(typeof overview.body.data.assets.pending, 'number');
+  assert.ok(overview.body.data.users.total >= 4);
+  assert.ok(overview.body.data.users.owners >= 1);
 
-  const users = await api('GET', '/api/admin/users?limit=50', { token: adminToken });
+  const users = await api('GET', '/api/admin/users?limit=50', { token: ownerToken });
   assert.equal(users.status, 200);
+  const roles = users.body.data.users.map((item) => item.username === ownerUsername ? item.role : null);
+  assert.ok(roles.includes('owner'));
   assert.ok(users.body.data.users.some((item) => item.username === adminUsername));
-  assert.ok(users.body.data.users.some((item) => item.username === gmUsername));
 });
 
-test('管理台：管理员不能改自己的权限', async () => {
-  const res = await api('PATCH', `/api/admin/users/${adminId}`, {
-    token: adminToken,
+test('管理台：所有者不能改自己', async () => {
+  const res = await api('PATCH', `/api/admin/users/${ownerId}`, {
+    token: ownerToken,
     body: { role: 'user' },
   });
   assert.equal(res.status, 400);
 });
 
-test('管理台：可以升为运营，但运营不能改别人的角色', async () => {
-  const promote = await api('PATCH', `/api/admin/users/${gmId}`, {
-    token: adminToken,
-    body: { role: 'gm' },
-  });
-  assert.equal(promote.status, 200, JSON.stringify(promote.body));
-  assert.equal(promote.body.data.user.role, 'gm');
-
+test('管理台：管理员也不能修改所有者', async () => {
   const login = await api('POST', '/api/auth/login', {
-    body: { username: gmUsername, password: gmPassword },
+    body: { username: adminUsername, password: adminPassword },
   });
-  assert.equal(login.status, 200);
-  gmToken = login.body.data.accessToken;
+  adminToken = login.body.data.accessToken;
 
-  const staffList = await api('GET', '/api/admin/users', { token: gmToken });
-  assert.equal(staffList.status, 200, '运营可以看列表');
-
-  const forbidden = await api('PATCH', `/api/admin/users/${adminId}`, {
-    token: gmToken,
-    body: { role: 'gm' },
-  });
-  assert.equal(forbidden.status, 403, '运营不能改角色');
-});
-
-test('管理台：运营不能封禁管理员', async () => {
-  const res = await api('PATCH', `/api/admin/users/${adminId}`, {
-    token: gmToken,
+  const res = await api('PATCH', `/api/admin/users/${ownerId}`, {
+    token: adminToken,
     body: { status: 'banned' },
   });
   assert.equal(res.status, 403);
+  assert.match(res.body.message, /所有者/);
+});
+
+test('管理台：可以升为运营，但运营不能改角色、碰不了管理员', async () => {
+  const promote = await api('PATCH', `/api/admin/users/${opsId}`, {
+    token: ownerToken,
+    body: { role: 'ops' },
+  });
+  assert.equal(promote.status, 200, JSON.stringify(promote.body));
+  assert.equal(promote.body.data.user.role, 'ops');
+
+  const login = await api('POST', '/api/auth/login', {
+    body: { username: opsUsername, password: opsPassword },
+  });
+  assert.equal(login.status, 200);
+  opsToken = login.body.data.accessToken;
+
+  const staffList = await api('GET', '/api/admin/users', { token: opsToken });
+  assert.equal(staffList.status, 200, '运营可以看列表');
+
+  const roleChange = await api('PATCH', `/api/admin/users/${adminId}`, {
+    token: opsToken,
+    body: { role: 'ops' },
+  });
+  assert.equal(roleChange.status, 403, '运营不能改角色');
+
+  const touchAdmin = await api('PATCH', `/api/admin/users/${adminId}`, {
+    token: opsToken,
+    body: { status: 'banned' },
+  });
+  assert.equal(touchAdmin.status, 403, '运营不能封管理员');
+});
+
+test('管理台：运营只能封禁玩家或作者', async () => {
+  const ok = await api('PATCH', `/api/admin/users/${victimId}`, {
+    token: opsToken,
+    body: { status: 'banned' },
+  });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+
+  const audit = await q(
+    "SELECT action, actor_name FROM audit_logs WHERE action = 'user.ban' AND target_id = ? ORDER BY id DESC LIMIT 1",
+    [victimId]
+  );
+  assert.equal(audit.length, 1);
+  assert.equal(audit[0].actor_name, opsUsername);
 });
 
 test('管理台：强制下线后旧 JWT 立即失效', async () => {
-  const kick = await api('POST', `/api/admin/users/${gmId}/kick`, { token: adminToken });
+  const kick = await api('POST', `/api/admin/users/${opsId}/kick`, { token: ownerToken });
   assert.equal(kick.status, 200);
 
-  const me = await api('GET', '/api/me', { token: gmToken });
+  const me = await api('GET', '/api/me', { token: opsToken });
   assert.equal(me.status, 401);
 });
 
 test('管理台：封禁后无法登录', async () => {
-  const ban = await api('PATCH', `/api/admin/users/${gmId}`, {
-    token: adminToken,
+  const ban = await api('PATCH', `/api/admin/users/${opsId}`, {
+    token: ownerToken,
     body: { status: 'banned' },
   });
   assert.equal(ban.status, 200);
   assert.equal(ban.body.data.user.status, 'banned');
 
   const login = await api('POST', '/api/auth/login', {
-    body: { username: gmUsername, password: gmPassword },
+    body: { username: opsUsername, password: opsPassword },
   });
   assert.equal(login.status, 403);
+});
+
+test('管理台：审计日志可查，且普通玩家无权看', async () => {
+  const denied = await api('GET', '/api/admin/audit', { token: accessToken });
+  assert.equal(denied.status, 403);
+
+  const res = await api('GET', '/api/admin/audit?limit=20', { token: ownerToken });
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.ok(res.body.data.logs.length >= 3);
+  const actions = res.body.data.logs.map((item) => item.action);
+  assert.ok(actions.includes('user.role'));
+  assert.ok(actions.includes('user.ban'));
+  assert.ok(actions.includes('user.kick'));
+
+  const filtered = await api('GET', '/api/admin/audit?action=user.kick', { token: ownerToken });
+  assert.equal(filtered.status, 200);
+  assert.ok(filtered.body.data.logs.every((item) => item.action === 'user.kick'));
 });
 
 test('连服 Token：未知服务器 404', async () => {
@@ -428,4 +490,32 @@ test('退出登录：旧 JWT 立即失效', async () => {
   const me = await api('GET', '/api/me', { token: accessToken });
   assert.equal(me.status, 401);
   assert.equal(me.body.code, 'AUTH_REQUIRED');
+});
+
+// 转让所有权会改两个人的角色并让双方 token 失效，放在最后跑
+test('所有者可以转让所有权，双方旧 JWT 失效且写入审计', async () => {
+  const res = await api('POST', '/api/admin/owner/transfer', {
+    token: ownerToken,
+    body: { userId: adminId },
+  });
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal(res.body.data.owner, adminUsername);
+
+  const rows = await q('SELECT username, role FROM users WHERE username IN (?, ?)', [
+    ownerUsername,
+    adminUsername,
+  ]);
+  const byName = Object.fromEntries(rows.map((row) => [row.username, row.role]));
+  assert.equal(byName[adminUsername], 'owner', '接手人应成为所有者');
+  assert.equal(byName[ownerUsername], 'admin', '原所有者降为管理员');
+
+  const oldOwner = await api('GET', '/api/me', { token: ownerToken });
+  assert.equal(oldOwner.status, 401, '原所有者旧 JWT 应失效');
+  const oldAdmin = await api('GET', '/api/me', { token: adminToken });
+  assert.equal(oldAdmin.status, 401, '接手人旧 JWT 也应失效');
+
+  const logs = await q(
+    "SELECT action, detail FROM audit_logs WHERE action = 'owner.transfer' ORDER BY id DESC LIMIT 1"
+  );
+  assert.equal(logs.length, 1);
 });

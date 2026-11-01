@@ -19,7 +19,8 @@ function argOf(name, fallback) {
 
 const state = argOf('state', 'dashboard');
 const clickSelector = argOf('click', '');
-const role = argOf('role', 'admin');
+const role = argOf('role', 'owner');
+const scrollPx = Number(argOf('scroll', 0));
 const width = Number(argOf('width', 1320));
 const height = Number(argOf('height', 900));
 
@@ -66,6 +67,25 @@ app.whenReady().then(async () => {
     `);
     console.log('click', clickSelector, 'matched =', clicked);
     await new Promise((resolve) => setTimeout(resolve, 700));
+  }
+
+  if (scrollPx > 0) {
+    const info = await win.webContents.executeJavaScript(`
+      (() => {
+        const candidates = ['.center', '.admin', '.workspace', '.rail'];
+        const out = [];
+        for (const sel of candidates) {
+          const el = document.querySelector(sel);
+          if (!el) continue;
+          out.push({ sel, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight, overflow: getComputedStyle(el).overflowY });
+        }
+        const el = document.querySelector('.center') || document.scrollingElement;
+        if (el) el.scrollTop = ${scrollPx};
+        return { applied: el ? el.scrollTop : -1, out };
+      })()
+    `);
+    console.log('scroll', JSON.stringify(info));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   await new Promise((resolve) => setTimeout(resolve, 300));

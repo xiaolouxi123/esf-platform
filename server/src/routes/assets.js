@@ -11,6 +11,8 @@ const { z } = require('zod');
 const env = require('../env');
 const { q, one } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { requireRole, isStaff } = require('../middleware/roles');
+const { logAction } = require('../services/audit');
 const { badRequest, notFound, forbidden } = require('../lib/errors');
 
 const router = express.Router();
@@ -34,13 +36,6 @@ const MIME = {
 };
 
 const extOf = (name) => path.extname(String(name || '')).toLowerCase();
-
-function requireRole(...roles) {
-  return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) return next(forbidden('没有权限执行该操作'));
-    next();
-  };
-}
 
 /**
  * 落地路径必须是模组目录内的相对路径：
@@ -178,8 +173,8 @@ router.post('/assets', requireAuth, upload.single('file'), async (req, res, next
     const slug = body.slug || slugify(body.name);
     const sha256 = await sha256File(req.file.path);
 
-    // 管理员/游戏管理员直接上架，普通作者进待审队列
-    const status = ['admin', 'gm'].includes(req.user.role) ? 'approved' : 'pending';
+    // 管理员 / 运营 / 所有者直接上架，作者与玩家进待审队列
+    const status = isStaff(req.user) ? 'approved' : 'pending';
 
     const result = await q(
       `INSERT INTO assets
@@ -201,6 +196,13 @@ router.post('/assets', requireAuth, upload.single('file'), async (req, res, next
         status,
       ]
     );
+
+    await logAction(req, {
+      action: 'asset.upload',
+      targetType: 'asset',
+      targetId: result.insertId,
+      detail: { kind: body.kind, name: body.name, version, targetPath, status },
+    });
 
     const row = await one(`${SELECT_WITH_AUTHOR} WHERE a.id = ? LIMIT 1`, [result.insertId]);
     res.status(201).json({ ok: true, data: { asset: publicAsset(row) } });
@@ -248,7 +250,7 @@ router.get('/assets', async (req, res, next) => {
 });
 
 /** 管理端：按状态查看（含待审） */
-router.get('/admin/assets', requireAuth, requireRole('admin', 'gm'), async (req, res, next) => {
+router.get('/admin/assets', requireAuth, requireRole('ops', 'admin', 'owner'), async (req, res, next) => {
   try {
     const status = String(req.query.status || 'pending');
     if (!['pending', 'approved', 'rejected', 'all'].includes(status)) throw badRequest('status 不合法');
@@ -283,9 +285,9 @@ router.get('/assets/:id/download', async (req, res, next) => {
 
     if (row.status !== 'approved') {
       const user = await resolveOptionalUser(req);
-      const isOwner = user && Number(user.id) === Number(row.author_id);
-      const isAdmin = user && ['admin', 'gm'].includes(user.role);
-      if (!isOwner && !isAdmin) throw notFound('资源不存在');
+      const isAuthor = user && Number(user.id) === Number(row.author_id);
+      const isStaffViewer = user && ['ops', 'admin', 'owner'].includes(user.role);
+      if (!isAuthor && !isStaffViewer) throw notFound('资源不存在');
     }
 
     const kindDir = KIND_EXT[row.kind] ? row.kind : 'other';
@@ -307,15 +309,23 @@ router.get('/assets/:id/download', async (req, res, next) => {
 });
 
 /** 审核 */
-router.patch('/assets/:id/status', requireAuth, requireRole('admin', 'gm'), async (req, res, next) => {
+router.patch('/assets/:id/status', requireAuth, requireRole('ops', 'admin', 'owner'), async (req, res, next) => {
   try {
     const schema = z.object({ status: z.enum(['pending', 'approved', 'rejected']) });
     const { status } = schema.parse(req.body);
 
-    const row = await one('SELECT id FROM assets WHERE id = ? LIMIT 1', [req.params.id]);
+    const row = await one('SELECT id, name FROM assets WHERE id = ? LIMIT 1', [req.params.id]);
     if (!row) throw notFound('资源不存在');
 
     await q('UPDATE assets SET status = ? WHERE id = ?', [status, row.id]);
+
+    await logAction(req, {
+      action: status === 'approved' ? 'asset.approve' : status === 'rejected' ? 'asset.reject' : 'asset.pending',
+      targetType: 'asset',
+      targetId: row.id,
+      detail: { status, name: row.name },
+    });
+
     const updated = await one(`${SELECT_WITH_AUTHOR} WHERE a.id = ? LIMIT 1`, [row.id]);
     res.json({ ok: true, data: { asset: publicAsset(updated) } });
   } catch (err) {
@@ -323,7 +333,7 @@ router.patch('/assets/:id/status', requireAuth, requireRole('admin', 'gm'), asyn
   }
 });
 
-router.delete('/assets/:id', requireAuth, requireRole('admin'), async (req, res, next) => {
+router.delete('/assets/:id', requireAuth, requireRole('admin', 'owner'), async (req, res, next) => {
   try {
     const row = await one('SELECT * FROM assets WHERE id = ? LIMIT 1', [req.params.id]);
     if (!row) throw notFound('资源不存在');
@@ -331,6 +341,14 @@ router.delete('/assets/:id', requireAuth, requireRole('admin'), async (req, res,
     const kindDir = KIND_EXT[row.kind] ? row.kind : 'other';
     await fsp.unlink(path.join(UPLOAD_ROOT, kindDir, row.stored_name)).catch(() => {});
     await q('DELETE FROM assets WHERE id = ?', [row.id]);
+
+    await logAction(req, {
+      action: 'asset.delete',
+      targetType: 'asset',
+      targetId: row.id,
+      detail: { kind: row.kind, name: row.name, version: row.version },
+    });
+
     res.json({ ok: true, data: { deleted: true } });
   } catch (err) {
     next(err);

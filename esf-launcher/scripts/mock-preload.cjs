@@ -6,10 +6,10 @@ const { contextBridge } = require('electron');
  */
 
 const state = process.env.MOCK_STATE || 'dashboard';
-const role = process.env.MOCK_ROLE || 'admin';
+const role = process.env.MOCK_ROLE || 'owner';
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const user = { id: 2, username: 'demo', gameName: '测试玩家', role };
+const user = { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', role };
 
 const settings = {
   hlPath: 'G:\\FCX1\\FCX7.02融合版\\hl.exe',
@@ -260,7 +260,7 @@ const api = {
 
   admin: {
     overview: async () => ({
-      users: { total: 2, active: 2, banned: 0, admins: 1, gms: 0 },
+      users: { total: 5, active: 5, banned: 0, owners: 1, admins: 1, ops: 1, creators: 1 },
       assets: { pending: 1, approved: 3 },
       servers: { total: 1, enabled: 1, online: 1 },
       sessions: { total: 5, today: 2 },
@@ -269,27 +269,62 @@ const api = {
     users: async () => ({
       users: [
         {
+          id: 2,
+          username: 'demo',
+          gameName: '测试玩家',
+          avatar: '🐉',
+          role,
+          status: 'active',
+          sessions: 4,
+          totalSeconds: 19800,
+          lastLoginAt: new Date().toISOString(),
+        },
+        {
           id: 6,
           username: 'yun',
           gameName: 'yun',
+          avatar: '',
           role: 'admin',
           status: 'active',
           sessions: 1,
           totalSeconds: 13,
-          lastLoginAt: new Date().toISOString(),
-        },
-        {
-          id: 2,
-          username: 'demo',
-          gameName: '测试玩家',
-          role: 'user',
-          status: 'active',
-          sessions: 4,
-          totalSeconds: 122,
           lastLoginAt: new Date(Date.now() - 3600 * 1000).toISOString(),
         },
+        {
+          id: 7,
+          username: 'xiao_k',
+          gameName: '小K',
+          avatar: '⚡',
+          role: 'ops',
+          status: 'active',
+          sessions: 12,
+          totalSeconds: 7200,
+          lastLoginAt: new Date(Date.now() - 7200 * 1000).toISOString(),
+        },
+        {
+          id: 8,
+          username: 'goku_author',
+          gameName: '模型作者',
+          avatar: '🥋',
+          role: 'creator',
+          status: 'active',
+          sessions: 3,
+          totalSeconds: 900,
+          lastLoginAt: new Date(Date.now() - 86400 * 1000).toISOString(),
+        },
+        {
+          id: 9,
+          username: 'newbie',
+          gameName: '新人',
+          avatar: '',
+          role: 'user',
+          status: 'banned',
+          sessions: 0,
+          totalSeconds: 0,
+          lastLoginAt: null,
+        },
       ],
-      total: 2,
+      total: 5,
     }),
     updateUser: async (id, patch) => ({ user: { id, ...patch } }),
     kickUser: async () => ({ kicked: true }),
@@ -302,11 +337,57 @@ const api = {
           version: '1.0.0',
           targetPath: 'models/player/gohan/gohan.mdl',
           fileSize: 4_194_304,
-          authorName: 'demo',
+          authorName: '模型作者',
         },
       ],
     }),
     setAssetStatus: async (id, status) => ({ id, status }),
+    audit: async () => ({
+      total: 4,
+      logs: [
+        {
+          id: 4,
+          actorName: '测试玩家',
+          action: 'user.role',
+          targetType: 'user',
+          targetId: 7,
+          detail: { username: 'xiao_k', from: { role: 'user' }, to: { role: 'ops' } },
+          ip: '127.0.0.1',
+          createdAt: new Date(Date.now() - 120 * 1000).toISOString(),
+        },
+        {
+          id: 3,
+          actorName: '测试玩家',
+          action: 'asset.approve',
+          targetType: 'asset',
+          targetId: 1,
+          detail: { status: 'approved', name: '测试音效' },
+          ip: '127.0.0.1',
+          createdAt: new Date(Date.now() - 900 * 1000).toISOString(),
+        },
+        {
+          id: 2,
+          actorName: 'cli',
+          action: 'server.add',
+          targetType: 'server',
+          targetId: 1,
+          detail: { serverKey: 'fcx-1v1-1', address: '114.132.84.150:27016' },
+          ip: 'cli',
+          createdAt: new Date(Date.now() - 3600 * 1000).toISOString(),
+        },
+        {
+          id: 1,
+          actorName: '测试玩家',
+          action: 'user.ban',
+          targetType: 'user',
+          targetId: 9,
+          detail: { username: 'newbie', from: { status: 'active' }, to: { status: 'banned' } },
+          ip: '127.0.0.1',
+          createdAt: new Date(Date.now() - 86400 * 1000).toISOString(),
+        },
+      ],
+    }),
+    transferOwner: async () => ({ owner: 'yun' }),
     openDevTools: async () => true,
   },
 

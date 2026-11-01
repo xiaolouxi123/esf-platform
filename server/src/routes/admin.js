@@ -1,15 +1,16 @@
 'use strict';
 
 /**
- * 管理台接口（admin / gm）。
+ * 管理台接口。
  *
- * 权限模型：
- *   admin —— 全部：改角色、封禁任何人、强制下线、审资源
- *   gm    —— 运营：只能处理普通玩家（封禁/解封/强制下线），不能改角色
+ * 角色（方案 B）：
+ *   owner  所有者   唯一；不可被降级/封禁；可转让所有权
+ *   admin  管理员   账号与角色、封禁任何人、审计、开发者工具
+ *   ops    运营     看账号、处理玩家/作者、审核资源、公告、服务器登记
+ *   creator 作者    上传自己的资源
+ *   user   玩家
  *
- * 防呆：
- *   - 不能改自己（避免把自己降级/封禁后没人管）
- *   - 不能把最后一个管理员降级或封禁
+ * 所有写操作都会落 audit_logs（谁、对谁、改前改后）。
  */
 
 const express = require('express');
@@ -17,12 +18,17 @@ const { z } = require('zod');
 
 const { q, one } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { requireRole, isAdmin } = require('../middleware/roles');
+const { requireRole, isAdmin, ROLES } = require('../middleware/roles');
 const { badRequest, notFound, forbidden, conflict } = require('../lib/errors');
+const { logAction, listAudit } = require('../services/audit');
 
 const router = express.Router();
 
 router.use(requireAuth);
+
+// owner 只能通过「转让所有权」交接，不能直接 PATCH 出来
+const ASSIGNABLE_ROLES = ['user', 'creator', 'ops', 'admin'];
+const STAFF_ROLES = ['ops', 'admin', 'owner'];
 
 function publicUser(row) {
   return {
@@ -39,15 +45,24 @@ function publicUser(row) {
   };
 }
 
-/** 平台概览：管理台顶部的四张卡 */
-router.get('/admin/overview', requireRole('admin', 'gm'), async (req, res, next) => {
+async function countActiveAdmins() {
+  const row = await one(
+    "SELECT COUNT(*) AS c FROM users WHERE role IN ('admin','owner') AND status = 'active'"
+  );
+  return Number(row.c || 0);
+}
+
+/** 平台概览：管理台顶部卡片 */
+router.get('/admin/overview', requireRole(...STAFF_ROLES), async (req, res, next) => {
   try {
     const users = await one(
       `SELECT COUNT(*) AS total,
               SUM(status = 'active') AS active,
               SUM(status = 'banned') AS banned,
+              SUM(role = 'owner')    AS owners,
               SUM(role = 'admin')    AS admins,
-              SUM(role = 'gm')       AS gms
+              SUM(role = 'ops')      AS ops,
+              SUM(role = 'creator')  AS creators
          FROM users`
     );
 
@@ -57,17 +72,11 @@ router.get('/admin/overview', requireRole('admin', 'gm'), async (req, res, next)
          FROM assets`
     );
 
-    const servers = await one(
-      `SELECT COUNT(*) AS total, SUM(enabled = 1) AS enabled FROM servers`
-    );
+    const servers = await one('SELECT COUNT(*) AS total, SUM(enabled = 1) AS enabled FROM servers');
     const online = await one('SELECT COUNT(*) AS c FROM server_status WHERE online = 1');
-
     const sessions = await one(
-      `SELECT COUNT(*) AS total,
-              SUM(DATE(started_at) = CURDATE()) AS today
-         FROM play_sessions`
+      `SELECT COUNT(*) AS total, SUM(DATE(started_at) = CURDATE()) AS today FROM play_sessions`
     );
-
     const tokens = await one(
       'SELECT COUNT(*) AS today FROM launch_tokens WHERE DATE(created_at) = CURDATE()'
     );
@@ -79,8 +88,10 @@ router.get('/admin/overview', requireRole('admin', 'gm'), async (req, res, next)
           total: Number(users.total || 0),
           active: Number(users.active || 0),
           banned: Number(users.banned || 0),
+          owners: Number(users.owners || 0),
           admins: Number(users.admins || 0),
-          gms: Number(users.gms || 0),
+          ops: Number(users.ops || 0),
+          creators: Number(users.creators || 0),
         },
         assets: {
           pending: Number(assets.pending || 0),
@@ -91,10 +102,7 @@ router.get('/admin/overview', requireRole('admin', 'gm'), async (req, res, next)
           enabled: Number(servers.enabled || 0),
           online: Number(online.c || 0),
         },
-        sessions: {
-          total: Number(sessions.total || 0),
-          today: Number(sessions.today || 0),
-        },
+        sessions: { total: Number(sessions.total || 0), today: Number(sessions.today || 0) },
         tokens: { today: Number(tokens.today || 0) },
       },
     });
@@ -104,7 +112,7 @@ router.get('/admin/overview', requireRole('admin', 'gm'), async (req, res, next)
 });
 
 /** 玩家列表 */
-router.get('/admin/users', requireRole('admin', 'gm'), async (req, res, next) => {
+router.get('/admin/users', requireRole(...STAFF_ROLES), async (req, res, next) => {
   try {
     const keyword = String(req.query.q || '').trim();
     const role = String(req.query.role || '').trim();
@@ -119,7 +127,7 @@ router.get('/admin/users', requireRole('admin', 'gm'), async (req, res, next) =>
       where.push('(u.username LIKE ? OR u.game_name LIKE ?)');
       params.push(`%${keyword}%`, `%${keyword}%`);
     }
-    if (role && ['user', 'gm', 'admin'].includes(role)) {
+    if (role && ROLES.includes(role)) {
       where.push('u.role = ?');
       params.push(role);
     }
@@ -134,7 +142,7 @@ router.get('/admin/users', requireRole('admin', 'gm'), async (req, res, next) =>
               (SELECT COALESCE(SUM(p.duration_sec), 0) FROM play_sessions p WHERE p.user_id = u.id) AS total_seconds
          FROM users u
         WHERE ${where.join(' AND ')}
-        ORDER BY u.id DESC
+        ORDER BY FIELD(u.role, 'owner', 'admin', 'ops', 'creator', 'user'), u.id DESC
         LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
@@ -152,13 +160,13 @@ router.get('/admin/users', requireRole('admin', 'gm'), async (req, res, next) =>
 
 const updateSchema = z
   .object({
-    role: z.enum(['user', 'gm', 'admin']).optional(),
+    role: z.enum(ASSIGNABLE_ROLES).optional(),
     status: z.enum(['active', 'banned']).optional(),
   })
   .refine((v) => v.role || v.status, { message: '至少要改 role 或 status 其中一项' });
 
 /** 改角色 / 封禁 */
-router.patch('/admin/users/:id', requireRole('admin', 'gm'), async (req, res, next) => {
+router.patch('/admin/users/:id', requireRole(...STAFF_ROLES), async (req, res, next) => {
   try {
     const target = await one('SELECT * FROM users WHERE id = ? LIMIT 1', [req.params.id]);
     if (!target) throw notFound('账号不存在');
@@ -168,28 +176,28 @@ router.patch('/admin/users/:id', requireRole('admin', 'gm'), async (req, res, ne
     if (Number(target.id) === Number(req.user.id)) {
       throw badRequest('不能修改自己的权限或状态');
     }
+    if (target.role === 'owner') {
+      throw forbidden('不能修改所有者；如需交接请使用「转让所有权」');
+    }
 
     if (body.role && body.role !== target.role) {
       if (!isAdmin(req.user)) throw forbidden('只有管理员可以调整权限');
 
-      // 不允许把最后一个管理员降级
-      if (target.role === 'admin') {
-        const admins = await one(
-          "SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND status = 'active'"
-        );
-        if (Number(admins.c) <= 1) throw conflict('至少要保留一个管理员');
+      // 不允许把最后一个管理员降级（owner 也算管理权限）
+      if (target.role === 'admin' && (await countActiveAdmins()) <= 1) {
+        throw conflict('至少要保留一个管理员');
       }
     }
 
     if (body.status && body.status !== target.status) {
-      if (req.user.role === 'gm' && target.role !== 'user') {
-        throw forbidden('运营只能封禁普通玩家');
+      if (req.user.role === 'ops' && !['user', 'creator'].includes(target.role)) {
+        throw forbidden('运营只能封禁玩家或作者');
       }
-      if (target.role === 'admin' && body.status === 'banned') {
-        const admins = await one(
-          "SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND status = 'active'"
-        );
-        if (Number(admins.c) <= 1) throw conflict('至少要保留一个可用的管理员');
+      if (!isAdmin(req.user) && ['admin', 'owner'].includes(target.role)) {
+        throw forbidden('只有管理员可以处理管理员账号');
+      }
+      if (body.status === 'banned' && target.role === 'admin' && (await countActiveAdmins()) <= 1) {
+        throw conflict('至少要保留一个可用管理员');
       }
     }
 
@@ -200,10 +208,27 @@ router.patch('/admin/users/:id', requireRole('admin', 'gm'), async (req, res, ne
     const assignments = Object.keys(patch).map((key) => `${key} = ?`).join(', ');
     await q(`UPDATE users SET ${assignments} WHERE id = ?`, [...Object.values(patch), target.id]);
 
-    // 被封禁/降级后，已经签发的 JWT 立刻失效
-    if (patch.status === 'banned' || patch.role) {
+    // 降级或封禁后，旧 JWT 立即失效
+    if (patch.role || patch.status === 'banned') {
       await q('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [target.id]);
     }
+
+    const action = body.role
+      ? 'user.role'
+      : body.status === 'banned'
+        ? 'user.ban'
+        : 'user.unban';
+
+    await logAction(req, {
+      action,
+      targetType: 'user',
+      targetId: target.id,
+      detail: {
+        username: target.username,
+        from: { role: target.role, status: target.status },
+        to: { role: patch.role || target.role, status: patch.status || target.status },
+      },
+    });
 
     const updated = await one(
       `SELECT u.id, u.username, u.game_name, u.avatar, u.role, u.status, u.created_at, u.last_login_at,
@@ -218,16 +243,74 @@ router.patch('/admin/users/:id', requireRole('admin', 'gm'), async (req, res, ne
   }
 });
 
-/** 强制下线（token_version + 1） */
-router.post('/admin/users/:id/kick', requireRole('admin', 'gm'), async (req, res, next) => {
+/** 强制下线 */
+router.post('/admin/users/:id/kick', requireRole(...STAFF_ROLES), async (req, res, next) => {
   try {
-    const target = await one('SELECT id, role FROM users WHERE id = ? LIMIT 1', [req.params.id]);
+    const target = await one('SELECT id, username, role FROM users WHERE id = ? LIMIT 1', [
+      req.params.id,
+    ]);
     if (!target) throw notFound('账号不存在');
+    if (target.role === 'owner') throw forbidden('不能强制所有者下线');
     if (Number(target.id) === Number(req.user.id)) throw badRequest('不能把自己踢下线');
-    if (req.user.role === 'gm' && target.role !== 'user') throw forbidden('运营只能处理普通玩家');
+    if (req.user.role === 'ops' && !['user', 'creator'].includes(target.role)) {
+      throw forbidden('运营只能处理玩家或作者');
+    }
 
     await q('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [target.id]);
+    await logAction(req, {
+      action: 'user.kick',
+      targetType: 'user',
+      targetId: target.id,
+      detail: { username: target.username, role: target.role },
+    });
+
     res.json({ ok: true, data: { kicked: true } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 转让所有权：owner → 目标账号，自己降为 admin，双方旧 JWT 立即失效 */
+router.post('/admin/owner/transfer', requireRole('owner'), async (req, res, next) => {
+  try {
+    const schema = z.object({ userId: z.coerce.number().int().positive() });
+    const { userId } = schema.parse(req.body);
+
+    if (Number(userId) === Number(req.user.id)) throw badRequest('你已经是所有者');
+    const target = await one('SELECT id, username, role FROM users WHERE id = ? LIMIT 1', [userId]);
+    if (!target) throw notFound('账号不存在');
+    if (target.role === 'owner') throw conflict('对方已经是所有者');
+
+    await q("UPDATE users SET role = 'admin', token_version = token_version + 1 WHERE id = ?", [
+      req.user.id,
+    ]);
+    await q("UPDATE users SET role = 'owner', token_version = token_version + 1 WHERE id = ?", [
+      target.id,
+    ]);
+
+    await logAction(req, {
+      action: 'owner.transfer',
+      targetType: 'user',
+      targetId: target.id,
+      detail: { from: req.user.username, to: target.username },
+    });
+
+    res.json({ ok: true, data: { owner: target.username } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 审计日志（admin / owner 可见） */
+router.get('/admin/audit', requireRole('admin', 'owner'), async (req, res, next) => {
+  try {
+    const data = await listAudit({
+      action: String(req.query.action || '').trim() || undefined,
+      actor: String(req.query.actor || '').trim() || undefined,
+      limit: Number(req.query.limit) || 50,
+      offset: Number(req.query.offset) || 0,
+    });
+    res.json({ ok: true, data });
   } catch (err) {
     next(err);
   }

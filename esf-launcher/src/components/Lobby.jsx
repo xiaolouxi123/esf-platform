@@ -338,6 +338,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
               backend={backend}
               toast={toast}
               onOpenSettings={openSettings}
+              onLogout={onLogout}
             />
           ) : (
             <>

@@ -6,23 +6,52 @@ import {
   formatDuration,
   formatNumber,
   formatRelative,
+  isAdminRole,
+  isOwner,
   isStaff,
   roleLabel,
 } from '../lib/format';
 
 const ROLE_OPTIONS = [
   { value: 'user', label: '玩家' },
-  { value: 'gm', label: '运营' },
+  { value: 'creator', label: '作者' },
+  { value: 'ops', label: '运营' },
   { value: 'admin', label: '管理员' },
 ];
 
+const ROLE_FILTERS = [{ value: '', label: '全部角色' }, ...ROLE_OPTIONS, { value: 'owner', label: '所有者' }];
+
+const ACTION_LABELS = {
+  'user.role': '调整角色',
+  'user.ban': '封禁账号',
+  'user.unban': '解封账号',
+  'user.kick': '强制下线',
+  'asset.upload': '上传资源',
+  'asset.approve': '通过资源',
+  'asset.reject': '驳回资源',
+  'asset.pending': '打回待审',
+  'asset.delete': '删除资源',
+  'owner.transfer': '转让所有权',
+  'server.add': '登记服务器',
+  'server.disable': '下架服务器',
+};
+
+function actionTone(action) {
+  if (action.endsWith('.ban') || action.endsWith('.reject') || action.endsWith('.delete')) return 'bad';
+  if (action.endsWith('.approve') || action.endsWith('.unban')) return 'good';
+  if (action === 'owner.transfer') return 'warn';
+  return 'neutral';
+}
+
 /**
- * 管理台：平台概览 + 玩家权限 + 资源审核 + 开发者工具。
- * 只有 admin / gm 能进来（导航与后端双重校验）；开发者工具只给 admin。
+ * 管理台：概览 + 玩家权限 + 资源审核 + 审计日志 + 开发者工具。
+ * 运营能进；改角色/审计/开发者工具只给管理员；转让所有权只给所有者。
  */
-export default function AdminPanel({ user, settings, appInfo, backend, toast, onOpenSettings }) {
+export default function AdminPanel({ user, settings, appInfo, backend, toast, onOpenSettings, onLogout }) {
   const staff = isStaff(user?.role);
-  const isAdmin = user?.role === 'admin';
+  const canAssign = isAdminRole(user?.role);
+  const canSeeAudit = isAdminRole(user?.role);
+  const owner = isOwner(user?.role);
 
   const [overview, setOverview] = useState(null);
   const [users, setUsers] = useState([]);
@@ -32,6 +61,13 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
   const [roleFilter, setRoleFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
+
+  const [audit, setAudit] = useState({ logs: [], total: 0 });
+  const [auditAction, setAuditAction] = useState('');
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  const [transferId, setTransferId] = useState('');
+  const [transferring, setTransferring] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!staff) return;
@@ -62,12 +98,34 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
     return () => clearTimeout(timer);
   }, [refresh]);
 
+  const loadAudit = useCallback(async () => {
+    if (!canSeeAudit) return;
+    setAuditLoading(true);
+    try {
+      const data = await window.electronAPI.admin.audit({
+        action: auditAction || undefined,
+        limit: 30,
+      });
+      setAudit(data);
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [canSeeAudit, auditAction, toast]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => loadAudit(), 200);
+    return () => clearTimeout(timer);
+  }, [loadAudit]);
+
   const act = async (id, action, successMessage) => {
     setBusyId(id);
     try {
       await action();
       toast(successMessage, 'ok');
       await refresh();
+      if (canSeeAudit) await loadAudit();
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -108,6 +166,23 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
     }
   };
 
+  const transferOwner = async () => {
+    const target = users.find((item) => String(item.id) === String(transferId));
+    if (!target) return toast('请选择接手账号', 'error');
+    if (!window.confirm(`确认把所有权转让给「${target.gameName}」？\n你会降为管理员，双方都需要重新登录。`)) return;
+
+    setTransferring(true);
+    try {
+      await window.electronAPI.admin.transferOwner(Number(target.id));
+      toast(`所有权已转让给 ${target.gameName}，请重新登录`, 'ok');
+      setTimeout(() => onLogout?.(), 1200);
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setTransferring(false);
+    }
+  };
+
   if (!staff) {
     return (
       <div className="empty">
@@ -122,7 +197,9 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
       key: 'users',
       label: '账号',
       value: overview ? formatNumber(overview.users.total) : '—',
-      hint: overview ? `封禁 ${overview.users.banned} · 管理员 ${overview.users.admins}` : '',
+      hint: overview
+        ? `封禁 ${overview.users.banned} · 管理员 ${overview.users.admins} · 运营 ${overview.users.ops}`
+        : '',
       icon: 'users',
     },
     {
@@ -148,6 +225,8 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
     },
   ];
 
+  const transferCandidates = users.filter((item) => item.role !== 'owner' && item.id !== user?.id);
+
   return (
     <div className="admin">
       <header className="admin-head">
@@ -156,7 +235,7 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
             管理台
             <span className={`role-badge role-${user?.role}`}>{roleLabel(user?.role)}</span>
           </h2>
-          <p>账号权限、资源审核与开发者工具。普通玩家看不到这个页面。</p>
+          <p>账号权限、资源审核、操作审计与开发者工具。普通玩家看不到这个页面。</p>
         </div>
 
         <button type="button" className="btn btn-ghost" onClick={refresh} disabled={loading}>
@@ -199,9 +278,8 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
             </div>
 
             <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-              <option value="">全部角色</option>
-              {ROLE_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
+              {ROLE_FILTERS.map((item) => (
+                <option key={item.value || 'all'} value={item.value}>
                   {item.label}
                 </option>
               ))}
@@ -231,6 +309,10 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
               ) : (
                 users.map((row) => {
                   const self = Number(row.id) === Number(user?.id);
+                  const isTargetOwner = row.role === 'owner';
+                  const opsLimited = user?.role === 'ops' && !['user', 'creator'].includes(row.role);
+                  const locked = self || isTargetOwner || opsLimited;
+
                   return (
                     <tr key={row.id} className={self ? 'is-self' : ''}>
                       <td>
@@ -243,10 +325,10 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
                         </div>
                       </td>
                       <td>
-                        {isAdmin ? (
+                        {canAssign && !isTargetOwner && !self ? (
                           <select
                             value={row.role}
-                            disabled={self || busyId === row.id}
+                            disabled={busyId === row.id}
                             onChange={(event) => changeRole(row, event.target.value)}
                           >
                             {ROLE_OPTIONS.map((item) => (
@@ -271,6 +353,10 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
                       <td>
                         {self ? (
                           <span className="admin-muted">当前账号</span>
+                        ) : isTargetOwner ? (
+                          <span className="admin-muted">所有者不可操作</span>
+                        ) : opsLimited ? (
+                          <span className="admin-muted">无权限</span>
                         ) : (
                           <div className="admin-actions">
                             <button
@@ -284,7 +370,7 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
                             <button
                               type="button"
                               className="btn btn-sm btn-ghost"
-                              disabled={busyId === row.id}
+                              disabled={busyId === row.id || locked}
                               onClick={() => kick(row)}
                             >
                               下线
@@ -347,6 +433,108 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
         )}
       </section>
 
+      {canSeeAudit && (
+        <section className="admin-section">
+          <div className="admin-section-head">
+            <h3>
+              <Icon name="clock" size={15} /> 操作审计
+              <span className="pill">{audit.total}</span>
+            </h3>
+
+            <div className="admin-filters">
+              <select value={auditAction} onChange={(event) => setAuditAction(event.target.value)}>
+                <option value="">全部动作</option>
+                {Object.entries(ACTION_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={loadAudit} disabled={auditLoading}>
+                {auditLoading ? <span className="spinner" /> : <Icon name="refresh" size={13} />} 刷新
+              </button>
+            </div>
+          </div>
+
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>时间</th>
+                  <th>操作人</th>
+                  <th>动作</th>
+                  <th>对象</th>
+                  <th>详情</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {audit.logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="admin-empty">
+                      {auditLoading ? '加载中…' : '还没有审计记录'}
+                    </td>
+                  </tr>
+                ) : (
+                  audit.logs.map((log) => (
+                    <tr key={log.id}>
+                      <td className="admin-muted">{formatRelative(log.createdAt)}</td>
+                      <td>{log.actorName || '系统/CLI'}</td>
+                      <td>
+                        <span className={`audit-tag audit-tag--${actionTone(log.action)}`}>
+                          {ACTION_LABELS[log.action] || log.action}
+                        </span>
+                      </td>
+                      <td className="admin-muted">
+                        {log.targetType ? `${log.targetType}#${log.targetId ?? '-'}` : '—'}
+                      </td>
+                      <td className="audit-detail">
+                        {log.detail ? JSON.stringify(log.detail).slice(0, 120) : '—'}
+                      </td>
+                      <td className="admin-muted">{log.ip || '—'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {owner && (
+        <section className="admin-section">
+          <div className="admin-section-head">
+            <h3>
+              <Icon name="shield" size={15} /> 转让所有权
+              <span className="tag tag--soon">仅所有者</span>
+            </h3>
+          </div>
+
+          <p className="admin-muted">
+            所有权是唯一且不可被降级的身份。转让后你会降为管理员，双方都需要重新登录。
+          </p>
+
+          <div className="owner-transfer">
+            <select value={transferId} onChange={(event) => setTransferId(event.target.value)}>
+              <option value="">选择接手账号…</option>
+              {transferCandidates.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.gameName}（{roleLabel(item.role)}）
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn btn-danger-ghost"
+              disabled={!transferId || transferring}
+              onClick={transferOwner}
+            >
+              {transferring ? <span className="spinner" /> : <Icon name="alert" size={14} />} 转让
+            </button>
+          </div>
+        </section>
+      )}
+
       <section className="admin-section admin-section--dev">
         <div className="admin-section-head">
           <h3>
@@ -355,7 +543,7 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
           </h3>
         </div>
 
-        {isAdmin ? (
+        {canAssign ? (
           <>
             <div className="dev-grid">
               <button type="button" className="dev-btn" onClick={() => window.electronAPI.admin.openDevTools()}>

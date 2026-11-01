@@ -11,7 +11,7 @@
 
 const { q, one, ping, close } = require('../src/db');
 
-const ROLES = ['user', 'gm', 'admin'];
+const ROLES = ['user', 'creator', 'ops', 'admin', 'owner'];
 
 (async () => {
   const [username, role] = process.argv.slice(2);
@@ -27,7 +27,7 @@ const ROLES = ['user', 'gm', 'admin'];
         'SELECT id, username, game_name AS gameName, role, status FROM users ORDER BY id'
       );
       console.table(rows);
-      console.log('设置角色: npm run user:role -- <用户名> <user|gm|admin>');
+      console.log('设置角色: npm run user:role -- <用户名> <user|creator|ops|admin|owner>');
       return;
     }
 
@@ -44,8 +44,24 @@ const ROLES = ['user', 'gm', 'admin'];
       return;
     }
 
-    if (user.role === 'admin' && role !== 'admin') {
-      const admins = await one("SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND status = 'active'");
+    if (user.role === 'owner' && role !== 'owner') {
+      console.error('[user] 所有者不能直接降级；确需交接请走管理台的「转让所有权」');
+      process.exitCode = 1;
+      return;
+    }
+
+    // 所有者唯一：已经有 owner 时不允许再造一个
+    if (role === 'owner' && user.role !== 'owner') {
+      const owners = await one("SELECT COUNT(*) AS c FROM users WHERE role = 'owner'");
+      if (Number(owners.c) > 0) {
+        console.error('[user] 已经存在所有者；请让现任所有者在管理台使用「转让所有权」');
+        process.exitCode = 1;
+        return;
+      }
+    }
+
+    if (user.role === 'admin' && role !== 'admin' && role !== 'owner') {
+      const admins = await one("SELECT COUNT(*) AS c FROM users WHERE role IN ('admin','owner') AND status = 'active'");
       if (Number(admins.c) <= 1) {
         console.error('[user] 这是最后一个管理员，不能降级');
         process.exitCode = 1;

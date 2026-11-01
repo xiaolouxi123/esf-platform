@@ -8,7 +8,20 @@
  *   npm run server:add -- --key fcx-1v1-2 --disable      # 下架
  */
 
-const { q, ping, close } = require('../src/db');
+const { q, one, ping, close } = require('../src/db');
+
+/** 命令行操作也进审计，保持"谁改了什么"完整 */
+async function auditCli(action, targetId, detail) {
+  try {
+    await q(
+      `INSERT INTO audit_logs (actor_id, actor_name, action, target_type, target_id, detail, ip)
+       VALUES (NULL, 'cli', ?, 'server', ?, ?, 'cli')`,
+      [action, targetId || null, detail ? JSON.stringify(detail) : null]
+    );
+  } catch (err) {
+    console.warn('[server] 审计写入失败:', err.message);
+  }
+}
 
 function parseArgs(argv) {
   const out = {};
@@ -47,6 +60,7 @@ function parseArgs(argv) {
     if (args.disable) {
       const result = await q('UPDATE servers SET enabled = 0 WHERE server_key = ?', [args.key]);
       if (!result.affectedRows) throw new Error(`没有 server_key = ${args.key} 的服务器`);
+      await auditCli('server.disable', null, { serverKey: args.key });
       console.log(`[server] 已下架 ${args.key}`);
       return;
     }
@@ -66,6 +80,13 @@ function parseArgs(argv) {
          enabled = 1, sort = VALUES(sort)`,
       [args.key, args.name, args.ip, port, Number(args.sort) || 0]
     );
+
+    const row = await one('SELECT id FROM servers WHERE server_key = ? LIMIT 1', [args.key]);
+    await auditCli('server.add', row && row.id, {
+      serverKey: args.key,
+      name: args.name,
+      address: `${args.ip}:${port}`,
+    });
 
     console.log(`[server] 已登记 ${args.key} → ${args.ip}:${port}（${args.name}）`);
     console.log('[server] 后台 15 秒内会自动查询一次状态，启动器刷新列表即可看到');

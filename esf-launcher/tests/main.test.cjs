@@ -39,7 +39,7 @@ fs.writeFileSync(
 );
 
 // ---------- 临时 userData：设置 + 登录态 ----------
-const fakeUser = { id: 2, username: 'demo', gameName: '测试玩家', role: 'admin' };
+const fakeUser = { id: 2, username: 'demo', gameName: '测试玩家', role: 'owner' };
 // 模拟"改资料后在服务端生效"
 const profileState = { avatar: '', gameName: fakeUser.gameName };
 
@@ -169,6 +169,34 @@ global.fetch = async (url, options = {}) => {
   }
   if (/^\/api\/admin\/users\/\d+\/kick$/.test(pathname)) return ok({ kicked: true });
   if (pathname === '/api/admin/assets') return ok({ assets: [] });
+  if (pathname === '/api/admin/audit') {
+    return ok({
+      total: 2,
+      logs: [
+        {
+          id: 2,
+          actorName: 'demo',
+          action: 'user.role',
+          targetType: 'user',
+          targetId: 3,
+          detail: { from: { role: 'user' }, to: { role: 'ops' } },
+          ip: '127.0.0.1',
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: 1,
+          actorName: 'cli',
+          action: 'server.add',
+          targetType: 'server',
+          targetId: 1,
+          detail: { serverKey: 'fcx-1v1-1' },
+          ip: 'cli',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+  }
+  if (pathname === '/api/admin/owner/transfer') return ok({ owner: 'yun' });
 
   if (pathname === '/api/assets') {
     return ok({ assets: [{ id: 7, kind: 'sound', name: '测试音效', version: '1.0.0', targetPath: 'sound/test/beep.wav' }], total: 1 });
@@ -465,14 +493,27 @@ function ipc(channel, payload) {
     assert.equal(userList.data.users[0].username, 'demo');
   });
 
-  const updated = await ipc('admin:update-user', { id: 3, role: 'gm' });
+  const updated = await ipc('admin:update-user', { id: 3, role: 'ops' });
   check('修改权限', () => {
     assert.equal(updated.ok, true);
-    assert.equal(updated.data.user.role, 'gm');
+    assert.equal(updated.data.user.role, 'ops');
   });
 
   const kicked = await ipc('admin:kick-user', { id: 3 });
   check('强制下线', () => assert.equal(kicked.data.kicked, true));
+
+  const audit = await ipc('admin:audit', { limit: 10 });
+  check('审计日志', () => {
+    assert.equal(audit.ok, true, JSON.stringify(audit));
+    assert.ok(audit.data.logs.length >= 1);
+    assert.equal(audit.data.logs[0].action, 'user.role');
+  });
+
+  const transfer = await ipc('admin:transfer-owner', { userId: 6 });
+  check('转让所有权', () => {
+    assert.equal(transfer.ok, true, JSON.stringify(transfer));
+    assert.equal(transfer.data.owner, 'yun');
+  });
 
   console.log('== 10. 资源库 ==');
   const list = await ipc('assets:list', { kind: 'sound' });

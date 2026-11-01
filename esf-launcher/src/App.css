@@ -1764,10 +1764,23 @@
   background: rgba(255, 138, 31, 0.14);
 }
 
-.role-gm {
+.role-owner {
+  color: #ffe0a3;
+  border-color: rgba(255, 200, 97, 0.55);
+  background: rgba(255, 200, 97, 0.18);
+  box-shadow: 0 0 12px rgba(255, 200, 97, 0.18);
+}
+
+.role-ops {
   color: #8fe6ff;
   border-color: rgba(63, 208, 255, 0.4);
   background: rgba(63, 208, 255, 0.12);
+}
+
+.role-creator {
+  color: #c9b6ff;
+  border-color: rgba(150, 120, 255, 0.4);
+  background: rgba(150, 120, 255, 0.14);
 }
 
 .avatar--sm {
@@ -2108,6 +2121,54 @@ select:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--muted);
+}
+
+/* ---------- 审计 ---------- */
+.audit-tag {
+  display: inline-flex;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.audit-tag--good {
+  color: #86f0bd;
+  border-color: rgba(61, 220, 151, 0.3);
+  background: rgba(61, 220, 151, 0.1);
+}
+
+.audit-tag--bad {
+  color: #ff9aa3;
+  border-color: rgba(255, 95, 109, 0.3);
+  background: rgba(255, 95, 109, 0.1);
+}
+
+.audit-tag--warn {
+  color: #ffd9a0;
+  border-color: rgba(255, 200, 97, 0.3);
+  background: rgba(255, 200, 97, 0.1);
+}
+
+.audit-detail {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.owner-transfer {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.owner-transfer select {
+  min-width: 240px;
 }
 
 /* ---------- 资源库 ---------- */

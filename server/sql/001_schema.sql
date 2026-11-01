@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   username      VARCHAR(32)  NOT NULL COMMENT '登录名，字母数字下划线',
   password_hash VARCHAR(255) NOT NULL COMMENT 'bcrypt',
   game_name     VARCHAR(32)  NOT NULL COMMENT '游戏内昵称，允许中文',
-  role          ENUM('user','gm','admin') NOT NULL DEFAULT 'user',
+  role          ENUM('user','creator','ops','admin','owner') NOT NULL DEFAULT 'user',
   status        ENUM('active','banned')   NOT NULL DEFAULT 'active',
   token_version INT UNSIGNED NOT NULL DEFAULT 1 COMMENT '递增即可让所有旧 JWT 失效',
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
