@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import Icon from './Icon';
+import Avatar from './Avatar';
 import {
   formatBytes,
   formatDuration,
   formatNumber,
   formatRelative,
-  initials,
   isStaff,
   roleLabel,
 } from '../lib/format';
@@ -235,7 +235,7 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
                     <tr key={row.id} className={self ? 'is-self' : ''}>
                       <td>
                         <div className="admin-user">
-                          <span className="avatar avatar--sm">{initials(row.gameName)}</span>
+                          <Avatar user={row} size="sm" />
                           <div>
                             <b>{row.gameName}</b>
                             <small>@{row.username}</small>

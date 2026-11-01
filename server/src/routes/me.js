@@ -19,6 +19,7 @@ router.get('/me', requireAuth, (req, res) => {
         id: Number(req.user.id),
         username: req.user.username,
         gameName: req.user.game_name,
+        avatar: req.user.avatar || '',
         role: req.user.role,
       },
     },
@@ -53,6 +54,7 @@ router.get('/me/stats', requireAuth, async (req, res, next) => {
 const patchSchema = z
   .object({
     gameName: z.string().trim().min(1).max(16).optional(),
+    avatar: z.string().trim().max(8).optional(),
     oldPassword: z.string().min(1).max(72).optional(),
     newPassword: z.string().min(8).max(72).optional(),
   })
@@ -67,6 +69,12 @@ router.patch('/me', requireAuth, async (req, res, next) => {
 
     if (body.gameName) {
       await q('UPDATE users SET game_name = ? WHERE id = ?', [body.gameName, req.user.id]);
+    }
+
+    if (body.avatar !== undefined) {
+      // 头像允许是 emoji 或留空（留空则用昵称首字）
+      const avatar = body.avatar.replace(/[\r\n\t]/g, '').slice(0, 8);
+      await q('UPDATE users SET avatar = ? WHERE id = ?', [avatar, req.user.id]);
     }
 
     if (body.newPassword) {

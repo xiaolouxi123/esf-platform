@@ -40,6 +40,8 @@ fs.writeFileSync(
 
 // ---------- 临时 userData：设置 + 登录态 ----------
 const fakeUser = { id: 2, username: 'demo', gameName: '测试玩家', role: 'admin' };
+// 模拟"改资料后在服务端生效"
+const profileState = { avatar: '', gameName: fakeUser.gameName };
 
 fs.writeFileSync(
   path.join(tmpUserData, 'settings.json'),
@@ -90,6 +92,10 @@ const electronStub = {
 };
 
 const cpStub = {
+  spawnSync() {
+    // 在线状态依赖 tasklist，测试里直接当作"游戏没在跑"
+    return { stdout: '', status: 0 };
+  },
   spawn(exe, args, options) {
     spawned.push({ exe, args, options });
     const child = new EventEmitter();
@@ -124,7 +130,12 @@ global.fetch = async (url, options = {}) => {
     json: async () => ({ ok: false, code, message }),
   });
 
-  if (pathname === '/api/me') return ok({ user: fakeUser });
+  if (pathname === '/api/me' && method === 'PATCH') {
+    if (body.avatar !== undefined) profileState.avatar = body.avatar;
+    if (body.gameName) profileState.gameName = body.gameName;
+    return ok({ updated: true });
+  }
+  if (pathname === '/api/me') return ok({ user: { ...fakeUser, ...profileState } });
   if (pathname === '/api/me/stats') return ok({ sessions: 3, totalSeconds: 5400, lastPlayedAt: null });
 
   if (pathname === '/api/admin/overview') {
@@ -219,7 +230,26 @@ global.fetch = async (url, options = {}) => {
       reused: false,
     });
   }
-  if (pathname === '/api/config') return ok({ version: '0.1.0', db: 'up', notice: '' });
+  if (pathname === '/api/config') return ok({ version: '0.1.0', latestVersion: '9.9.9', db: 'up', notice: '', releaseNotes: '测试版本说明', downloadUrl: 'https://example.com/dl' });
+  if (pathname === '/api/presence' && method === 'POST') return ok({ state: body?.state || 'lobby', serverKey: body?.serverKey || null });
+  if (pathname === '/api/presence') {
+    return ok({
+      online: [
+        { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', role: 'admin', state: 'lobby' },
+        { id: 6, username: 'yun', gameName: 'yun', avatar: '', role: 'admin', state: 'ingame', serverKey: 'fcx-1v1-1' },
+      ],
+    });
+  }
+  if (pathname === '/api/chat' && method === 'POST') {
+    return ok({
+      message: { id: 12, body: body.body, createdAt: new Date().toISOString(), user: fakeUser },
+    });
+  }
+  if (pathname === '/api/chat') {
+    return ok({
+      messages: [{ id: 11, body: '历史消息', createdAt: new Date().toISOString(), user: fakeUser }],
+    });
+  }
   if (pathname === '/api/auth/logout') return ok({ loggedOut: true });
   if (pathname === '/api/auth/login') return ok({ accessToken: 'new-jwt', expiresIn: 60, user: fakeUser });
   if (pathname === '/api/health') return ok({ db: 'up' });
@@ -355,7 +385,47 @@ function ipc(channel, payload) {
   const badMap = await ipc('launch:local', { map: '' });
   check('空地图被拒绝', () => assert.equal(badMap.ok, false));
 
-  console.log('== 6. 目录选择 ==');
+  console.log('== 6. 在线状态 / 大厅频道 / 版本更新 ==');
+  const ping = await ipc('presence:ping');
+  check('心跳返回大厅状态（测试环境没有游戏进程）', () => {
+    assert.equal(ping.ok, true, JSON.stringify(ping));
+    assert.equal(ping.data.state, 'lobby');
+  });
+
+  const online = await ipc('presence:list');
+  check('在线列表返回两名玩家', () => {
+    assert.equal(online.data.online.length, 2);
+    assert.ok(online.data.online.some((item) => item.state === 'ingame'));
+  });
+
+  const chatList = await ipc('chat:list', {});
+  check('拉取大厅消息', () => {
+    assert.equal(chatList.data.messages[0].body, '历史消息');
+  });
+
+  const sent = await ipc('chat:send', { body: '你好' });
+  check('发送大厅消息', () => {
+    assert.equal(sent.ok, true, JSON.stringify(sent));
+    assert.equal(sent.data.message.body, '你好');
+  });
+
+  const emptyChat = await ipc('chat:send', { body: '   ' });
+  check('空消息被拒绝', () => assert.equal(emptyChat.ok, false));
+
+  const update = await ipc('update:check');
+  check('检查更新识别到新版本', () => {
+    assert.equal(update.data.hasUpdate, true);
+    assert.equal(update.data.latest, '9.9.9');
+    assert.equal(update.data.current, '0.1.0');
+  });
+
+  const profile = await ipc('auth:update-profile', { avatar: '🔥' });
+  check('修改头像', () => {
+    assert.equal(profile.ok, true, JSON.stringify(profile));
+    assert.equal(profile.data.user.avatar, '🔥');
+  });
+
+  console.log('== 7. 目录选择 ==');
   dialogResult = { canceled: false, filePaths: [gameRoot] };
   const picked = await ipc('dialog:pick-game-dir');
   check('选择根目录能解析出 esf', () => {
@@ -371,7 +441,7 @@ function ipc(channel, payload) {
     assert.equal(canceled.code, 'CANCELED');
   });
 
-  console.log('== 7. 打开目录 / 窗口 ==');
+  console.log('== 8. 打开目录 / 窗口 ==');
   await ipc('shell:open-data-dir');
   await ipc('shell:open-game-dir');
   check('openPath 只打开受控目录', () => {
@@ -381,7 +451,7 @@ function ipc(channel, payload) {
   const min = await ipc('window:minimize');
   check('最小化不报错', () => assert.equal(min.ok, true));
 
-  console.log('== 8. 管理台 ==');
+  console.log('== 9. 管理台 ==');
   const overview = await ipc('admin:overview');
   check('管理台概览', () => {
     assert.equal(overview.ok, true, JSON.stringify(overview));
@@ -404,7 +474,7 @@ function ipc(channel, payload) {
   const kicked = await ipc('admin:kick-user', { id: 3 });
   check('强制下线', () => assert.equal(kicked.data.kicked, true));
 
-  console.log('== 9. 资源库 ==');
+  console.log('== 10. 资源库 ==');
   const list = await ipc('assets:list', { kind: 'sound' });
   check('资源列表', () => {
     assert.equal(list.ok, true);
@@ -429,7 +499,7 @@ function ipc(channel, payload) {
   const devtools = await ipc('devtools:open');
   check('开发者工具接口可用（仅 staff）', () => assert.equal(devtools.ok, true));
 
-  console.log('== 10. 退出登录 ==');
+  console.log('== 11. 退出登录 ==');
   const logout = await ipc('auth:logout');
   check('退出返回成功', () => assert.equal(logout.ok, true));
 

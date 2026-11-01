@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import TitleBar from './TitleBar';
 import Icon from './Icon';
+import Avatar from './Avatar';
 import ServerHall from './ServerHall';
 import SettingsDrawer from './SettingsDrawer';
 import AdminPanel from './AdminPanel';
 import AssetLibrary from './AssetLibrary';
+import PresencePanel from './PresencePanel';
+import ChatPanel from './ChatPanel';
 import {
   formatDuration,
   formatRelative,
-  initials,
   isStaff,
   loadFavoriteSet,
   pingTone,
@@ -19,7 +21,7 @@ import {
 const FAV_SERVERS = 'esf:favServers';
 const FAV_MAPS = 'esf:favMaps';
 
-export default function Lobby({ user, settings, appInfo, backend, notice, toast, onSettingsChanged, onLogout }) {
+export default function Lobby({ user, settings, appInfo, backend, notice, toast, onSettingsChanged, onLogout, onAvatarChange }) {
   const [page, setPage] = useState('lobby');
   const [maps, setMaps] = useState([]);
   const [mapKeyword, setMapKeyword] = useState('');
@@ -32,6 +34,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [favServers, setFavServers] = useState(() => loadFavoriteSet(FAV_SERVERS));
   const [favMaps, setFavMaps] = useState(() => loadFavoriteSet(FAV_MAPS));
+  const [updateInfo, setUpdateInfo] = useState(null);
 
   const hasGameDir = Boolean(settings?.hlPath && settings?.esfModDir);
   const staff = isStaff(user?.role);
@@ -91,10 +94,28 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
       })
       .catch(() => {});
 
+    window.electronAPI.update
+      .check()
+      .then((info) => {
+        if (alive) setUpdateInfo(info);
+      })
+      .catch(() => {});
+
     return () => {
       alive = false;
     };
   }, [toast]);
+
+  // 在线心跳：进入大厅立刻报一次，之后每 20 秒一次（主进程判断游戏是否在跑）
+  useEffect(() => {
+    const ping = () => {
+      window.electronAPI.presence.ping().catch(() => {});
+    };
+
+    ping();
+    const timer = setInterval(ping, 20000);
+    return () => clearInterval(timer);
+  }, []);
 
   const onlineServers = useMemo(() => servers.filter((server) => server.online), [servers]);
   const bestPing = useMemo(() => {
@@ -144,6 +165,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
     try {
       const result = await window.electronAPI.launch.local(selectedMap);
       toast(`已启动本地游戏：${result.map}`, 'ok');
+      window.electronAPI.presence.ping().catch(() => {});
       refreshStats();
     } catch (err) {
       toast(err.message, 'error');
@@ -163,6 +185,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
         port: server.port,
       });
       toast(`正在连接 ${result.address}`, 'ok');
+      window.electronAPI.presence.ping().catch(() => {});
       refreshStats();
     } catch (err) {
       toast(err.message, 'error');
@@ -224,13 +247,6 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
       hint: '启动失败 / 连不上怎么办',
       onClick: () => toast('排错顺序：后端是否启动 → MySQL 3307 → AMXX 日志', 'ok'),
     },
-  ];
-
-  const railShortcuts = [
-    { key: 'quest', icon: 'trophy', title: '任务' },
-    { key: 'event', icon: 'gift', title: '活动' },
-    { key: 'rank', icon: 'users', title: '排行' },
-    { key: 'store', icon: 'spark', title: '商城' },
   ];
 
   return (
@@ -325,6 +341,33 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
             />
           ) : (
             <>
+              {updateInfo?.hasUpdate && (
+                <div className="update-strip">
+                  <Icon name="spark" size={15} />
+                  <span>
+                    发现新版本 <b>v{updateInfo.latest}</b>（当前 v{updateInfo.current}）
+                    {updateInfo.releaseNotes ? ` · ${updateInfo.releaseNotes}` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    onClick={async () => {
+                      if (!updateInfo.downloadUrl) {
+                        toast('管理员还没填下载地址，请联系服主获取新版本', 'ok');
+                        return;
+                      }
+                      try {
+                        await window.electronAPI.shell.openExternal(updateInfo.downloadUrl);
+                      } catch (err) {
+                        toast(err.message, 'error');
+                      }
+                    }}
+                  >
+                    去下载
+                  </button>
+                </div>
+              )}
+
               <section className="hero">
                 <div className="hero-content">
                   <span className="eyebrow">
@@ -468,7 +511,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
           <aside className="rail">
             <section className="card profile">
               <div className="profile-head">
-                <span className="avatar avatar--lg">{initials(user?.gameName || user?.username)}</span>
+                <Avatar user={user} size="lg" />
                 <div>
                   <h3>{user?.gameName || user?.username || '玩家'}</h3>
                   <p>
@@ -494,37 +537,9 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
               </p>
             </section>
 
-            <section className="card">
-              <div className="section-head section-head--tight">
-                <h2>平台功能</h2>
-                <span className="tag tag--soon">筹备中</span>
-              </div>
+            <PresencePanel user={user} />
 
-              <div className="shortcut-grid">
-                {railShortcuts.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    className="shortcut"
-                    onClick={() => toast(`${item.title}功能尚未开放，先占个位`, 'ok')}
-                  >
-                    <Icon name={item.icon} size={16} />
-                    <span>{item.title}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="card card--notice">
-              <h3>
-                <Icon name="help" size={14} /> 小贴士
-              </h3>
-              <ul className="tips">
-                <li>首次使用先到设置里选择游戏目录</li>
-                <li>连服失败先看游戏目录里的 esf_launcher.log</li>
-                <li>换图后被踢 = 凭证失效，回平台重进一次</li>
-              </ul>
-            </section>
+            <ChatPanel user={user} toast={toast} />
 
             <section className="card card--muted">
               <button type="button" className="rail-link" onClick={openSettings}>
@@ -577,6 +592,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
           onPickGameDir={handlePickDir}
           onLogout={onLogout}
           toast={toast}
+          onAvatarChange={onAvatarChange}
         />
       )}
     </div>

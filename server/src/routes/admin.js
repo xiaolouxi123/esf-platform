@@ -29,6 +29,7 @@ function publicUser(row) {
     id: Number(row.id),
     username: row.username,
     gameName: row.game_name,
+    avatar: row.avatar || '',
     role: row.role,
     status: row.status,
     sessions: Number(row.sessions || 0),
@@ -128,7 +129,7 @@ router.get('/admin/users', requireRole('admin', 'gm'), async (req, res, next) =>
     }
 
     const rows = await q(
-      `SELECT u.id, u.username, u.game_name, u.role, u.status, u.created_at, u.last_login_at,
+      `SELECT u.id, u.username, u.game_name, u.avatar, u.role, u.status, u.created_at, u.last_login_at,
               (SELECT COUNT(*) FROM play_sessions p WHERE p.user_id = u.id) AS sessions,
               (SELECT COALESCE(SUM(p.duration_sec), 0) FROM play_sessions p WHERE p.user_id = u.id) AS total_seconds
          FROM users u
@@ -205,7 +206,7 @@ router.patch('/admin/users/:id', requireRole('admin', 'gm'), async (req, res, ne
     }
 
     const updated = await one(
-      `SELECT u.id, u.username, u.game_name, u.role, u.status, u.created_at, u.last_login_at,
+      `SELECT u.id, u.username, u.game_name, u.avatar, u.role, u.status, u.created_at, u.last_login_at,
               0 AS sessions, 0 AS total_seconds
          FROM users u WHERE u.id = ? LIMIT 1`,
       [target.id]

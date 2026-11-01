@@ -363,6 +363,64 @@ test('GET /api/me/stats 需要登录，返回聚合数据', async () => {
   assert.equal(typeof res.body.data.totalSeconds, 'number');
 });
 
+test('头像：PATCH /api/me 能保存 emoji', async () => {
+  const res = await api('PATCH', '/api/me', {
+    token: accessToken,
+    body: { avatar: '🐉' },
+  });
+  assert.equal(res.status, 200);
+
+  const me = await api('GET', '/api/me', { token: accessToken });
+  assert.equal(me.body.data.user.avatar, '🐉');
+});
+
+test('在线状态：心跳后出现在在线列表并标注状态', async () => {
+  const ping = await api('POST', '/api/presence', {
+    token: accessToken,
+    body: { state: 'ingame', serverKey: 'fcx-1v1-1' },
+  });
+  assert.equal(ping.status, 200);
+  assert.equal(ping.body.data.state, 'ingame');
+
+  const list = await api('GET', '/api/presence', { token: accessToken });
+  assert.equal(list.status, 200);
+  const self = list.body.data.online.find((item) => item.username === username);
+  assert.ok(self, '自己应该在在线列表里');
+  assert.equal(self.state, 'ingame');
+  assert.equal(self.serverKey, 'fcx-1v1-1');
+});
+
+test('大厅频道：发消息并拉取', async () => {
+  const sent = await api('POST', '/api/chat', {
+    token: accessToken,
+    body: { body: '接口自测消息' },
+  });
+  assert.equal(sent.status, 201, JSON.stringify(sent.body));
+  assert.equal(sent.body.data.message.body, '接口自测消息');
+  assert.equal(sent.body.data.message.user.username, username);
+
+  const list = await api('GET', '/api/chat', { token: accessToken });
+  assert.equal(list.status, 200);
+  assert.ok(list.body.data.messages.some((item) => item.body === '接口自测消息'));
+
+  const after = await api('GET', `/api/chat?after=${sent.body.data.message.id}`, { token: accessToken });
+  assert.equal(after.status, 200);
+  assert.equal(after.body.data.messages.length, 0);
+});
+
+test('大厅频道：空消息被拒绝', async () => {
+  const res = await api('POST', '/api/chat', { token: accessToken, body: { body: '   ' } });
+  assert.equal(res.status, 400);
+});
+
+test('版本信息：config 返回 latestVersion 与下载地址字段', async () => {
+  const res = await api('GET', '/api/config');
+  assert.equal(res.status, 200);
+  assert.equal(typeof res.body.data.latestVersion, 'string');
+  assert.ok('releaseNotes' in res.body.data);
+  assert.ok('downloadUrl' in res.body.data);
+});
+
 test('退出登录：旧 JWT 立即失效', async () => {
   const res = await api('POST', '/api/auth/logout', { token: accessToken });
   assert.equal(res.status, 200);

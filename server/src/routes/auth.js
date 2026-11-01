@@ -32,6 +32,7 @@ function publicUser(row) {
     id: Number(row.id),
     username: row.username,
     gameName: row.game_name,
+    avatar: row.avatar || '',
     role: row.role,
   };
 }

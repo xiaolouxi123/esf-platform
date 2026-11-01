@@ -200,6 +200,22 @@ const adminKickUser = (settings, token, id) =>
 const adminAssets = (settings, token, status) =>
   request(settings, { path: `/api/admin/assets${queryString({ status })}`, token });
 
+/* ---------------- 社交：在线状态 / 大厅频道 ---------------- */
+
+const pingPresence = (settings, token, payload) =>
+  request(settings, { method: 'POST', path: '/api/presence', token, body: payload });
+
+const presenceList = (settings, token) => request(settings, { path: '/api/presence', token });
+
+const chatList = (settings, token, after) =>
+  request(settings, { path: `/api/chat${queryString({ after })}`, token });
+
+const chatSend = (settings, token, body) =>
+  request(settings, { method: 'POST', path: '/api/chat', token, body: { body } });
+
+const updateProfile = (settings, token, patch) =>
+  request(settings, { method: 'PATCH', path: '/api/me', token, body: patch });
+
 module.exports = {
   ApiError,
   normalizeBase,
@@ -223,4 +239,9 @@ module.exports = {
   adminUpdateUser,
   adminKickUser,
   adminAssets,
+  pingPresence,
+  presenceList,
+  chatList,
+  chatSend,
+  updateProfile,
 };

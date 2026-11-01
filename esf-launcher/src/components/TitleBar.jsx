@@ -1,5 +1,6 @@
 import Icon from './Icon';
-import { initials, isStaff, roleLabel } from '../lib/format';
+import Avatar from './Avatar';
+import { isStaff, roleLabel } from '../lib/format';
 
 /**
  * 自定义标题栏。
@@ -62,7 +63,7 @@ export default function TitleBar({
       <div className="titlebar-right">
         {user && !minimal && (
           <button type="button" className="user-chip" onClick={onOpenSettings} title="账号与平台设置">
-            <span className="avatar">{initials(user.gameName || user.username)}</span>
+            <Avatar user={user} />
             <span className="user-meta">
               <b>{user.gameName || user.username}</b>
               <small>

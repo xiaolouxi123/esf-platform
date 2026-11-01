@@ -26,6 +26,8 @@ app.use('/api', require('./routes/launch'));
 app.use('/api', require('./routes/servers'));
 app.use('/api', require('./routes/assets'));
 app.use('/api', require('./routes/admin'));
+app.use('/api', require('./routes/presence'));
+app.use('/api', require('./routes/chat'));
 
 app.use(notFoundHandler);
 app.use(errorHandler);

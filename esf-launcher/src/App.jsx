@@ -127,6 +127,16 @@ export default function App() {
     checkBackend();
   };
 
+  const handleAvatarChange = async (avatar) => {
+    try {
+      const result = await window.electronAPI.auth.updateProfile({ avatar });
+      setUser(result.user);
+      showToast(avatar ? `头像已换成 ${avatar}` : '头像已改回昵称首字', 'ok');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   if (booting) return <Splash message={bootMessage} />;
 
   return (
@@ -141,6 +151,7 @@ export default function App() {
           toast={showToast}
           onSettingsChanged={handleSettingsChanged}
           onLogout={handleLogout}
+          onAvatarChange={handleAvatarChange}
         />
       ) : (
         <div className="auth-shell">

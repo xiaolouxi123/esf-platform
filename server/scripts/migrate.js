@@ -87,6 +87,13 @@ async function main() {
       'authorized_until',
       'DATETIME NULL COMMENT "已在本服放行过的复用窗口" AFTER used_at'
     );
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'users',
+      'avatar',
+      "VARCHAR(16) NOT NULL DEFAULT '' COMMENT '头像（emoji 或留空）' AFTER game_name"
+    );
 
     // 3. 应用账号
     await createAccount(conn, env.db.user, env.db.allowedHost, env.db.password);

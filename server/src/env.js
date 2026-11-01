@@ -37,6 +37,11 @@ const env = {
   maintenance: str(process.env.MAINTENANCE, '0') === '1',
   minLauncherVersion: str(process.env.MIN_LAUNCHER_VERSION, '0.0.0'),
 
+  // 版本更新：启动器拿它和自身版本比较
+  latestVersion: str(process.env.LATEST_VERSION, require('../package.json').version),
+  releaseNotes: str(process.env.RELEASE_NOTES),
+  downloadUrl: str(process.env.DOWNLOAD_URL),
+
   // 资源库：模型 / 声音上传
   uploadDir: str(process.env.UPLOAD_DIR, path.join(__dirname, '..', 'uploads')),
   uploadMaxBytes: num(process.env.UPLOAD_MAX_MB, 64) * 1024 * 1024,

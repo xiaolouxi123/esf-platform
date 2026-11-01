@@ -7,6 +7,8 @@ import { isStaff } from '../lib/format';
  * 关闭时由父组件卸载，所以 draft 直接以 settings 初始化即可，不需要 effect 同步。
  * 平台地址、数据目录这类开发向内容只对 admin / gm 展示。
  */
+const AVATAR_CHOICES = ['🐉', '🔥', '⚡', '🛡️', '🐒', '🥋', '💫', '👑'];
+
 export default function SettingsDrawer({
   settings,
   appInfo,
@@ -16,10 +18,13 @@ export default function SettingsDrawer({
   onSave,
   onPickGameDir,
   onLogout,
+  onAvatarChange,
   toast,
 }) {
   const [draft, setDraft] = useState(settings || {});
   const [busy, setBusy] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [checking, setChecking] = useState(false);
   const staff = isStaff(user?.role);
 
   const update = (key) => (event) => setDraft((prev) => ({ ...prev, [key]: event.target.value }));
@@ -131,6 +136,30 @@ export default function SettingsDrawer({
 
           <section className="drawer-section">
             <h3>账号</h3>
+            <p className="drawer-hint">头像会显示在标题栏、在线列表和大厅频道里。</p>
+
+            <div className="avatar-picker">
+              {AVATAR_CHOICES.map((choice) => (
+                <button
+                  key={choice}
+                  type="button"
+                  className={`avatar-option${user?.avatar === choice ? ' is-active' : ''}`}
+                  onClick={() => onAvatarChange?.(choice)}
+                  title={`使用 ${choice} 作为头像`}
+                >
+                  {choice}
+                </button>
+              ))}
+              <button
+                type="button"
+                className={`avatar-option avatar-option--reset${user?.avatar ? '' : ' is-active'}`}
+                onClick={() => onAvatarChange?.('')}
+                title="用昵称首字"
+              >
+                首字
+              </button>
+            </div>
+
             <div className="drawer-actions">
               <button type="button" className="btn btn-ghost btn-block" onClick={onLogout}>
                 <Icon name="logout" size={15} /> 退出登录
@@ -144,6 +173,10 @@ export default function SettingsDrawer({
               <div>
                 <dt>启动器</dt>
                 <dd>v{appInfo?.version || '—'}</dd>
+              </div>
+              <div>
+                <dt>最新版本</dt>
+                <dd>{updateInfo ? `v${updateInfo.latest}` : '点下面检查'}</dd>
               </div>
               {staff && (
                 <>
@@ -159,11 +192,55 @@ export default function SettingsDrawer({
               )}
             </dl>
 
+            <button
+              type="button"
+              className="btn btn-ghost btn-block"
+              style={{ marginTop: 10 }}
+              disabled={checking}
+              onClick={async () => {
+                setChecking(true);
+                try {
+                  const info = await window.electronAPI.update.check();
+                  setUpdateInfo(info);
+                  toast(
+                    info.hasUpdate
+                      ? `发现新版本 v${info.latest}（当前 v${info.current}）`
+                      : `已经是最新版本 v${info.current}`,
+                    'ok'
+                  );
+                } catch (err) {
+                  toast(err.message, 'error');
+                } finally {
+                  setChecking(false);
+                }
+              }}
+            >
+              {checking ? <span className="spinner" /> : <Icon name="refresh" size={14} />}
+              {checking ? '检查中…' : '检查更新'}
+            </button>
+
+            {updateInfo?.hasUpdate && updateInfo.downloadUrl ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-block"
+                style={{ marginTop: 8 }}
+                onClick={async () => {
+                  try {
+                    await window.electronAPI.shell.openExternal(updateInfo.downloadUrl);
+                  } catch (err) {
+                    toast(err.message, 'error');
+                  }
+                }}
+              >
+                <Icon name="external" size={14} /> 下载 v{updateInfo.latest}
+              </button>
+            ) : null}
+
             {staff && (
               <button
                 type="button"
                 className="btn btn-ghost btn-block"
-                style={{ marginTop: 10 }}
+                style={{ marginTop: 8 }}
                 onClick={async () => {
                   try {
                     await window.electronAPI.shell.openDataDir();

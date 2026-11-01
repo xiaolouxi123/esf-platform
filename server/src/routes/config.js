@@ -19,6 +19,9 @@ router.get('/config', async (req, res) => {
       version: env.version,
       db: dbUp ? 'up' : 'down',
       inviteRequired: Boolean(env.inviteCode),
+      latestVersion: env.latestVersion,
+      releaseNotes: env.releaseNotes,
+      downloadUrl: env.downloadUrl,
     },
   });
 });

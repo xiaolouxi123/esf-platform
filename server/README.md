@@ -59,6 +59,10 @@ npm test             # 24 项接口测试
 | GET | `/api/admin/users?q=&role=&status=` | admin/gm | 玩家列表（含场次与累计时长） |
 | PATCH | `/api/admin/users/:id` | admin/gm | 改角色（仅 admin）/ 封禁（gm 只能动普通玩家） |
 | POST | `/api/admin/users/:id/kick` | admin/gm | 强制下线（`token_version + 1`） |
+| POST | `/api/presence` | JWT | 心跳：`{state:'lobby'\|'ingame', serverKey?}`，75 秒无心跳视为离线 |
+| GET | `/api/presence` | JWT | 在线玩家（含大厅/游戏中状态与所在服务器） |
+| GET | `/api/chat?after=` | JWT | 大厅频道消息，`after` 用于增量轮询 |
+| POST | `/api/chat` | JWT | 发消息（≤200 字，10 条/分钟） |
 
 ## 权限模型
 
@@ -213,3 +217,22 @@ npm run asset:review -- 3 rejected # 驳回
 
 启动器侧按 `targetPath` 把文件落到模组目录：下载 → 校验 sha256 → 原文件备份到 `.esf-backup/` → 写入。
 落地路径在客户端会再校验一次（禁止 `..` 与盘符），避免后端被绕过时写坏玩家磁盘。
+
+## 版本迭代与检查更新
+
+1. 改 `esf-launcher/package.json` 的 `version`（例如 0.2.0）
+2. `cd esf-launcher && npm run build`，再打包分发（第四步）
+3. 后端 `server/.env` 设 `LATEST_VERSION=0.2.0`、`DOWNLOAD_URL=<下载页>`、`RELEASE_NOTES=<一句话说明>`，重启 API
+4. 玩家端：大厅顶部会出现「发现新版本」横幅，或 设置 → 关于 → 检查更新
+
+`GET /api/config` 会返回 `latestVersion / releaseNotes / downloadUrl`，启动器拿自身版本做比较。
+真正的自动下载替换要等打包接入 `electron-updater`（第四步）。
+
+## 账号管理命令
+
+```bash
+npm run user:passwd -- yun 新密码至少8位   # 忘记密码 / 重置（会让旧登录全部失效）
+npm run user:role -- yun admin             # 设为管理员
+npm run user:role -- demo user             # 降为普通玩家
+npm run user:role -- list                  # 列出所有账号
+```

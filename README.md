@@ -40,6 +40,9 @@ npm run dev            # vite + electron
 | 资源库接口（模型 / 声音上传审核） | ✅ 接口 + 启动器「资源库」页 |
 | 资源安装到模组（sha256 校验 + 原文件备份） | ✅ 资源库「安装到模组」 |
 | 角色化界面（admin / gm / 玩家） | ✅ 管理台、资源审核、开发者工具仅 staff 可见 |
+| 在线状态（大厅 / 游戏中）+ 大厅频道 | ✅ 大厅右栏，每 20 秒心跳 |
+| 头像自定义（emoji，底色按用户名生成） | ✅ 设置 → 账号 |
+| 版本检查更新（顶栏横幅 + 一键检查） | ✅ 设置 → 关于 |
 | 打包分发（electron-builder） | ⬜ 下一步 |
 
 详见 `Desktop\存档\第一步.md`、`Desktop\存档\第二步.md`。
@@ -76,6 +79,8 @@ npm run db:console                   # 交互式终端
 npm run server:add -- --key fcx-2 --name "新服" --ip 1.2.3.4 --port 27016
 npm run asset:list                   # 待审资源
 npm run asset:review -- 1 approved   # 审核通过
+npm run user:passwd -- yun <新密码>   # 重置密码（忘记密码时用）
+npm run user:role -- yun admin        # 设置角色（user / gm / admin）
 
 # 本机 listen server 验证 AMXX（不开 Electron）
 node amxx/local-verify.cjs <token> <昵称> <地图>

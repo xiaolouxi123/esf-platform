@@ -21,7 +21,9 @@
     "migrate": "node scripts/migrate.js",
     "smoke": "node scripts/smoke.cjs",
     "token": "node scripts/issue-token.cjs",
-    "test": "node --test test/"
+    "test": "node --test test/",
+    "user:passwd": "node scripts/user-passwd.cjs",
+    "user:role": "node scripts/user-role.cjs"
   },
   "engines": {
     "node": ">=20"

@@ -28,4 +28,10 @@ const registerLimiter = makeLimiter({
   message: '注册过于频繁，请 1 分钟后再试',
 });
 
-module.exports = { loginLimiter, registerLimiter };
+const chatLimiter = makeLimiter({
+  windowMs: 60_000,
+  limit: 10,
+  message: '发言太快了，请稍等一会儿',
+});
+
+module.exports = { loginLimiter, registerLimiter, chatLimiter };

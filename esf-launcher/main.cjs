@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron')
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 const core = require('./launcher-core.cjs');
 const store = require('./store.cjs');
@@ -12,6 +12,8 @@ const api = require('./api.cjs');
 let mainWindow = null;
 let settings = null;
 let session = null;
+// 最近一次连的是哪台服，用于在线状态里显示"在哪个服玩"
+let lastServerKey = '';
 
 function log(...args) {
   const line = `[${new Date().toLocaleString('zh-CN', { hour12: false })}] ${args.join(' ')}`;
@@ -55,6 +57,31 @@ function requireStaff() {
     throw new api.ApiError('没有权限执行该操作', 'FORBIDDEN', 403);
   }
   return role;
+}
+
+/** 游戏进程是否在跑（在线状态用它区分"大厅"和"游戏中"） */
+function isGameRunning() {
+  try {
+    const result = spawnSync('tasklist', ['/FI', 'IMAGENAME eq hl.exe', '/NH'], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 5000,
+    });
+    return /hl\.exe/i.test(result.stdout || '');
+  } catch {
+    return false;
+  }
+}
+
+function compareVersions(a, b) {
+  const left = String(a).split('.').map((part) => Number(part) || 0);
+  const right = String(b).split('.').map((part) => Number(part) || 0);
+  for (let i = 0; i < Math.max(left.length, right.length, 3); i++) {
+    const x = left[i] || 0;
+    const y = right[i] || 0;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
 }
 
 /** 统一处理 401：清掉本地登录态，让界面回到登录页 */
@@ -247,6 +274,15 @@ handle('auth:logout', async () => {
   return { loggedOut: true };
 });
 
+handle('auth:update-profile', async (patch = {}) => {
+  await apiCall(api.updateProfile, getSettings(), requireToken(), patch);
+  const data = await apiCall(api.me, getSettings(), requireToken());
+  session = { ...getSession(), user: data.user };
+  store.saveSession(session);
+  log(`👤 资料已更新: ${JSON.stringify(patch)}`);
+  return { user: data.user };
+});
+
 // ---- 数据 ----
 handle('stats:get', async () => apiCall(api.stats, getSettings(), requireToken()));
 
@@ -258,6 +294,51 @@ handle('servers:lookup', async ({ address }) => {
 
   const data = await apiCall(api.lookupServer, getSettings(), requireToken(), value);
   return data.server;
+});
+
+// ---- 在线状态 / 大厅频道 ----
+handle('presence:ping', async () => {
+  requireToken();
+
+  const running = isGameRunning();
+  const state = running ? 'ingame' : 'lobby';
+  const serverKey = running ? lastServerKey || getSettings().localServerKey : undefined;
+
+  return apiCall(api.pingPresence, getSettings(), requireToken(), { state, serverKey });
+});
+
+handle('presence:list', async () => apiCall(api.presenceList, getSettings(), requireToken()));
+
+handle('chat:list', async ({ after } = {}) =>
+  apiCall(api.chatList, getSettings(), requireToken(), after || 0)
+);
+
+handle('chat:send', async ({ body } = {}) => {
+  const text = String(body || '').trim();
+  if (!text) throw new Error('消息不能为空');
+  return apiCall(api.chatSend, getSettings(), requireToken(), text);
+});
+
+// ---- 版本更新 ----
+handle('update:check', async () => {
+  const config = await api.config(getSettings());
+  const current = app.getVersion();
+  const latest = config.latestVersion || config.version || current;
+
+  return {
+    current,
+    latest,
+    hasUpdate: compareVersions(current, latest) < 0,
+    releaseNotes: config.releaseNotes || '',
+    downloadUrl: config.downloadUrl || '',
+  };
+});
+
+handle('shell:open-external', async ({ url } = {}) => {
+  const value = String(url || '');
+  if (!/^https?:\/\//i.test(value)) throw new Error('只允许打开 http/https 链接');
+  await shell.openExternal(value);
+  return true;
 });
 
 handle('maps:scan', async () => {
@@ -293,6 +374,7 @@ handle('launch:join', async ({ serverKey, ip, port }) => {
   prepareLaunch(issued.token, username);
 
   const address = `${ip}:${port}`;
+  lastServerKey = serverKey;
   await spawnGame(core.buildJoinArgs(modName(), address));
   log(`🌐 正在连接 ${address}`);
   return { address, maskedToken: maskToken(issued.token) };
@@ -310,6 +392,7 @@ handle('launch:local', async ({ map }) => {
   const username = (current.user && (current.user.gameName || current.user.username)) || 'Player';
 
   prepareLaunch(issued.token, username);
+  lastServerKey = getSettings().localServerKey;
   await spawnGame(core.buildLocalArgs(modName(), safeMap));
   return { map: safeMap, maskedToken: maskToken(issued.token) };
 });

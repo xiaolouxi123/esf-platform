@@ -2279,6 +2279,224 @@ select:focus {
   color: var(--dim);
 }
 
+/* ============================ 社交：在线 / 聊天 / 头像 ============================ */
+.avatar--md {
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+}
+
+/* ---------- 在线玩家 ---------- */
+.card--presence {
+  padding: 14px 14px 10px;
+}
+
+.presence-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.presence-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #cfd3e2;
+}
+
+.presence-sub {
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.presence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.presence-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 8px;
+}
+
+.presence-row.is-self {
+  background: rgba(255, 138, 31, 0.06);
+}
+
+.presence-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.presence-meta b {
+  display: block;
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.presence-meta small {
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.presence-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(63, 208, 255, 0.15);
+}
+
+.presence-dot.is-ingame {
+  background: var(--green);
+  box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.16);
+}
+
+/* ---------- 大厅频道 ---------- */
+.card--chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  padding: 14px;
+}
+
+.chat-list {
+  flex: 1;
+  min-height: 110px;
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 2px;
+}
+
+.chat-row {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-row.is-self .chat-meta b {
+  color: #ffc98f;
+}
+
+.chat-body {
+  min-width: 0;
+}
+
+.chat-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.chat-meta b {
+  font-size: 11px;
+  color: #cfd3e2;
+}
+
+.chat-body p {
+  margin-top: 1px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.chat-input {
+  display: flex;
+  gap: 6px;
+}
+
+.chat-input input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  font-size: 11.5px;
+  outline: none;
+}
+
+.chat-input input:focus {
+  border-color: rgba(255, 138, 31, 0.45);
+}
+
+.chat-input .btn {
+  padding: 6px 10px;
+}
+
+/* ---------- 更新提示 ---------- */
+.update-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(63, 208, 255, 0.3);
+  background: rgba(63, 208, 255, 0.08);
+  color: #bfe9ff;
+  font-size: 12px;
+}
+
+.update-strip b {
+  color: #8fe6ff;
+}
+
+.update-strip .btn {
+  margin-left: auto;
+}
+
+/* ---------- 头像选择 ---------- */
+.avatar-picker {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.avatar-option {
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 17px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.avatar-option:hover {
+  border-color: rgba(255, 138, 31, 0.4);
+}
+
+.avatar-option.is-active {
+  border-color: rgba(255, 138, 31, 0.7);
+  background: var(--accent-soft);
+}
+
+.avatar-option--reset {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
 /* ============================ 自适应 ============================ */
 @media (max-width: 1260px) {
   .workspace {

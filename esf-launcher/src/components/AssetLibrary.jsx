@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Icon from './Icon';
-import { formatBytes, formatNumber, initials } from '../lib/format';
+import Avatar from './Avatar';
+import { formatBytes, formatNumber } from '../lib/format';
 
 const KIND_FILTERS = [
   { value: '', label: '全部' },
@@ -248,7 +249,7 @@ export default function AssetLibrary({ toast, settings }) {
 
               <footer className="asset-foot">
                 <span className="asset-author">
-                  <span className="avatar avatar--xs">{initials(asset.authorName || '?')}</span>
+                  <Avatar user={{ gameName: asset.authorName || '?' }} size="xs" />
                   {asset.authorName || '未知作者'}
                 </span>
                 <span>{formatBytes(asset.fileSize)}</span>

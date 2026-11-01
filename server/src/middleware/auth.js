@@ -24,7 +24,7 @@ async function requireAuth(req, res, next) {
     }
 
     const user = await one(
-      'SELECT id, username, game_name, role, status, token_version FROM users WHERE id = ? LIMIT 1',
+      'SELECT id, username, game_name, avatar, role, status, token_version FROM users WHERE id = ? LIMIT 1',
       [payload.sub]
     );
     if (!user) throw unauthorized('账号不存在');

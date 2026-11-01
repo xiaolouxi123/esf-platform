@@ -35,6 +35,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     register: (payload) => call('auth:register', payload),
     me: () => call('auth:me'),
     logout: () => call('auth:logout'),
+    updateProfile: (patch) => call('auth:update-profile', patch),
+  },
+
+  presence: {
+    ping: () => call('presence:ping'),
+    list: () => call('presence:list'),
+  },
+
+  chat: {
+    list: (after) => call('chat:list', { after }),
+    send: (body) => call('chat:send', { body }),
+  },
+
+  update: {
+    check: () => call('update:check'),
   },
 
   stats: {
@@ -75,6 +90,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   shell: {
     openDataDir: () => call('shell:open-data-dir'),
     openGameDir: () => call('shell:open-game-dir'),
+    openExternal: (url) => call('shell:open-external', { url }),
   },
 
   win: {
