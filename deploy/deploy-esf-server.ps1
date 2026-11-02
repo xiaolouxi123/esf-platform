@@ -15,7 +15,7 @@
        powershell -ExecutionPolicy Bypass -File C:\esf-setup\deploy-esf-server.ps1
 #>
 
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'   # 外部程序写 stderr 时不要中止脚本（npm/mysql 警告很常见）
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
@@ -40,7 +40,8 @@ function Step($msg) {
 function Download($url, $out) {
   if (Test-Path $out) { return }
   Write-Host "下载 $url"
-  Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -TimeoutSec 900
+  Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -TimeoutSec 900 -ErrorAction Stop
+  if (-not (Test-Path $out)) { throw "下载失败: $url" }
 }
 
 function Random-Hex([int]$bytes) {
@@ -48,6 +49,18 @@ function Random-Hex([int]$bytes) {
   $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
   $rng.GetBytes($buf)
   ($buf | ForEach-Object { $_.ToString('x2') }) -join ''
+}
+
+function Write-MysqlCnf([string]$password) {
+  $cnf = Join-Path $Root 'mysql-root.cnf'
+  @"
+[client]
+host=127.0.0.1
+port=$DbPort
+user=root
+password=$password
+"@ | Set-Content -Path $cnf -Encoding ASCII
+  return $cnf
 }
 
 function Test-Tcp([string]$targetHost, [int]$port, [int]$timeoutMs = 1500) {
@@ -202,7 +215,8 @@ if ($rootPass -eq '') { $rootPass = Random-Hex 16 }
 
 # 1) 先用“已知密码”试；2) 再试空密码；3) 都不行就用 init-file 建 root@127.0.0.1
 $rootReady = $false
-& $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root --password=$rootPass -e "SELECT 1;" 2>$null | Out-Null
+$rootCnf = Write-MysqlCnf $rootPass
+& $mysqlClient --defaults-extra-file=$rootCnf -e "SELECT 1;" 2>$null | Out-Null
 if ($LASTEXITCODE -eq 0) { $rootReady = $true }
 
 if (-not $rootReady) {
@@ -233,7 +247,7 @@ FLUSH PRIVILEGES;
   if (-not (Wait-Tcp '127.0.0.1' $DbPort 90)) { throw 'MySQL 用 init-file 启动失败，请查看事件查看器' }
   Start-Sleep -Seconds 3
 
-  & $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root --password=$rootPass -e "SHUTDOWN;" 2>$null | Out-Null
+  & $mysqlClient --defaults-extra-file=$rootCnf -e "SHUTDOWN;" 2>$null | Out-Null
   Start-Sleep -Seconds 3
   if (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue) { Stop-Process -Id $proc.Id -Force }
   Remove-Item $initSql -Force -ErrorAction SilentlyContinue
@@ -243,7 +257,7 @@ FLUSH PRIVILEGES;
 }
 
 # 最终验证一次（必须能走 TCP + 密码）
-& $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root --password=$rootPass -e "SELECT 1;" 2>$null | Out-Null
+& $mysqlClient --defaults-extra-file=$rootCnf -e "SELECT 1;" 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "root@127.0.0.1 登录失败，请手动检查 MySQL 账号" }
 Write-Host 'root 账号已就绪（TCP + 密码）'
 
@@ -295,6 +309,7 @@ Step '4/7 部署后端代码'
 $serverDir = Join-Path $Root 'server'
 New-Item -ItemType Directory -Force -Path $serverDir | Out-Null
 Expand-Archive -Path $bundle -DestinationPath $serverDir -Force
+if (-not (Test-Path (Join-Path $serverDir 'package.json'))) { throw "解压失败，请检查 $bundle" }
 Write-Host "代码已解压到 $serverDir"
 
 Write-Host '安装后端依赖（npmmirror）…'
@@ -315,6 +330,8 @@ try {
 } finally {
   Pop-Location
 }
+
+Remove-Item $rootCnf -Force -ErrorAction SilentlyContinue
 
 # ---------- 6. 服务 ----------
 Step '6/7 注册 Windows 服务 ESFAPI'
@@ -345,6 +362,8 @@ Start-Sleep -Seconds 1
 & $nssm set ESFAPI Start SERVICE_AUTO_START
 & $nssm set ESFAPI AppRestartDelay 5000
 Start-Service ESFAPI
+Start-Sleep -Seconds 2
+if ((Get-Service ESFAPI).Status -ne 'Running') { throw 'ESFAPI 服务没有启动，请看 C:\esf\logs\api.err.log' }
 Write-Host '服务已启动'
 
 # ---------- 7. 健康检查 ----------
