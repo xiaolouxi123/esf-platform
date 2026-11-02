@@ -29,3 +29,6 @@ yarn-error.log*
 .DS_Store
 *.suo
 *.sw?
+
+# 自动更新产物（安装包太大，不入库）
+server/updates/
