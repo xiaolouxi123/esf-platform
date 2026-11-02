@@ -90,7 +90,26 @@ export default function MemberSidebar({
       const data = await window.electronAPI.members.detail(member.id);
       if (data?.member) setProfile(data.member);
     } catch {
-      /* 详情失败就用列表里的基础资料 */
+      // 详情接口不可用时，staff 用管理台账号数据补战绩
+      try {
+        const data = await window.electronAPI.admin.users({ q: member.username, limit: 5 });
+        const row = (data?.users || []).find((item) => Number(item.id) === Number(member.id));
+        if (row) {
+          setProfile((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  sessions: row.sessions,
+                  totalSeconds: row.totalSeconds,
+                  createdAt: row.createdAt,
+                  lastLoginAt: row.lastLoginAt,
+                }
+              : prev
+          );
+        }
+      } catch {
+        /* 普通玩家看不到战绩就先显示基础资料 */
+      }
     }
   };
 
