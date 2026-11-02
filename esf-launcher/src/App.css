@@ -4489,3 +4489,68 @@ select:focus {
 @media (max-width: 700px) {
   .drawer { width: 100%; max-width: 100%; }
 }
+/* ============================ 更细的动效 ============================ */
+@keyframes pageRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cardRise {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rowRise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes chatRise {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+.center > .hero,
+.center > .hall,
+.center > .assets-page,
+.center > .admin,
+.center > .section,
+.center > .update-strip,
+.center > .notice { animation: pageRise 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.center > *:nth-child(2) { animation-delay: 0.04s; }
+.center > *:nth-child(3) { animation-delay: 0.08s; }
+.center > *:nth-child(4) { animation-delay: 0.12s; }
+
+.asset-card { animation: cardRise 0.36s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.asset-card:nth-child(2) { animation-delay: 0.04s; }
+.asset-card:nth-child(3) { animation-delay: 0.08s; }
+.asset-card:nth-child(4) { animation-delay: 0.12s; }
+.asset-card:nth-child(5) { animation-delay: 0.16s; }
+.asset-card:nth-child(6) { animation-delay: 0.2s; }
+
+.room-row { animation: rowRise 0.24s ease both; }
+.room-row:nth-child(2) { animation-delay: 0.03s; }
+.room-row:nth-child(3) { animation-delay: 0.06s; }
+
+.chat-row { animation: chatRise 0.2s ease both; }
+
+.update-bar i {
+  position: relative;
+  overflow: hidden;
+}
+.update-bar i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: translateX(-100%);
+  animation: updateShimmer 1.6s ease-in-out infinite;
+}
+@keyframes updateShimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
