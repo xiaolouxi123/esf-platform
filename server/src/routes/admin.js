@@ -14,8 +14,13 @@
  */
 
 const express = require('express');
+const fs = require('fs');
+const fsp = require('fs/promises');
+const path = require('path');
+const { pipeline } = require('stream/promises');
 const { z } = require('zod');
 
+const env = require('../env');
 const { q, one } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { requireRole, isAdmin, ROLES } = require('../middleware/roles');
@@ -24,6 +29,33 @@ const { logAction, listAudit } = require('../services/audit');
 const { getPlatformSettings, updatePlatformSettings } = require('../services/platform');
 
 const router = express.Router();
+
+/**
+ * 发布更新包：把安装包 / latest.yml / blockmap 直接推到 UPDATE_DIR。
+ * 用一个独立的随机令牌鉴权（不是管理员 JWT），方便运维脚本上传大文件。
+ */
+router.post('/admin/update-upload', async (req, res, next) => {
+  try {
+    const token = String(req.get('x-update-token') || '');
+    if (!env.updateUploadToken || token !== env.updateUploadToken) {
+      throw forbidden('上传令牌无效');
+    }
+
+    const name = path.basename(String(req.query.name || ''));
+    if (!/^[A-Za-z0-9._ -]+\.(exe|blockmap|yml)$/i.test(name)) {
+      throw badRequest('文件名不合法，只允许 .exe / .blockmap / .yml');
+    }
+
+    await fsp.mkdir(env.updateDir, { recursive: true });
+    const dest = path.join(env.updateDir, name);
+    await pipeline(req, fs.createWriteStream(dest));
+    const stat = await fsp.stat(dest);
+
+    res.json({ ok: true, data: { name, size: stat.size } });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.use(requireAuth);
 

@@ -50,6 +50,9 @@ const env = {
   // 启动器更新源目录（放 latest.yml 与安装包，通过 /updates 静态提供）
   updateDir: str(process.env.UPDATE_DIR, path.join(__dirname, '..', 'updates')),
 
+  // 发布更新包用的一次性令牌（POST /api/admin/update-upload）
+  updateUploadToken: str(process.env.UPDATE_UPLOAD_TOKEN),
+
   db: {
     host: str(process.env.DB_HOST, '127.0.0.1'),
     port: num(process.env.DB_PORT, 3306),

@@ -24,12 +24,12 @@ $Root      = 'C:\esf'
 $SetupDir  = 'C:\esf-setup'
 $ApiPort   = 3000
 $DbPort    = 3307
-$LatestVer = '0.2.1'
+$LatestVer = '0.2.4'
 $ServerIp  = '119.91.99.176'
 # =================================================
 
 $NodeUrl  = 'https://npmmirror.com/mirrors/node/v18.20.8/node-v18.20.8-x64.msi'
-$MysqlUrl = 'https://mirrors.163.com/mysql/Downloads/MySQL-8.0/mysql-8.0.28-winx64.zip'
+$MysqlUrl = 'https://mirrors.huaweicloud.com/mysql/Downloads/MySQL-8.0/mysql-8.0.29-winx64.zip'
 
 function Step($msg) {
   Write-Host ''

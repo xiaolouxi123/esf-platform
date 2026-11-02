@@ -15,7 +15,7 @@ const { app, safeStorage } = require('electron');
 const DEFAULT_SETTINGS = {
   hlPath: '',
   esfModDir: '',
-  apiBaseUrl: 'http://127.0.0.1:3000',
+  apiBaseUrl: 'http://119.91.99.176:3000',
   localServerKey: 'fcx-1v1-1',
   updateFeedUrl: '',
 };
