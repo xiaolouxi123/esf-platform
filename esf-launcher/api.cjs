@@ -226,6 +226,8 @@ const pingPresence = (settings, token, payload) =>
 
 const presenceList = (settings, token) => request(settings, { path: '/api/presence', token });
 
+const membersList = (settings, token) => request(settings, { path: '/api/members', token });
+
 const chatList = (settings, token, after) =>
   request(settings, { path: `/api/chat${queryString({ after })}`, token });
 
@@ -280,6 +282,7 @@ module.exports = {
   adminUpdatePlatform,
   pingPresence,
   presenceList,
+  membersList,
   chatList,
   chatSend,
   updateProfile,

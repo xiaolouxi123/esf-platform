@@ -28,9 +28,38 @@ export default function PresencePanel({
   titles = [],
 }) {
   const [online, setOnline] = useState([]);
+  const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
   const [presenceFailures, setPresenceFailures] = useState(0);
   const [showNodes, setShowNodes] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+
+    const load = async () => {
+      try {
+        const data = await window.electronAPI.members.list();
+        if (alive) setRoster(Array.isArray(data?.members) ? data.members : []);
+      } catch {
+        /* 名册失败时回退到在线列表 */
+      }
+    };
+
+    load();
+    const timer = setInterval(load, 20000);
+    const refresh = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, []);
 
   const titleById = new Map(titles.map((item) => [Number(item.id), item]));
   const metaOf = (member) => {
@@ -44,9 +73,11 @@ export default function PresencePanel({
       rank: (ROLE_RANK[member.role] ?? 0) * 10,
     };
   };
-  const members = [...online].sort((a, b) => {
+  const source = roster.length > 0 ? roster : online.map((item) => ({ ...item, online: true }));
+  const members = [...source].sort((a, b) => {
     const diff = metaOf(b).rank - metaOf(a).rank;
     if (diff !== 0) return diff;
+    if (Boolean(a.online) !== Boolean(b.online)) return a.online ? -1 : 1;
     return String(a.gameName || '').localeCompare(String(b.gameName || ''));
   });
   const groups = [];
@@ -93,8 +124,6 @@ export default function PresencePanel({
       document.removeEventListener('visibilitychange', refresh);
     };
   }, []);
-
-  const inGame = online.filter((item) => item.state === 'ingame').length;
 
   const nodes = [
     { key: 'api', label: '平台服务', state: backend?.ok ? 'ok' : 'off' },
@@ -145,7 +174,7 @@ export default function PresencePanel({
         </button>
 
         <span className="presence-sub">
-          {online.length} 人在线 · {inGame} 游戏中
+          {members.length} 位成员 · {online.length} 在线
         </span>
       </div>
 
@@ -173,7 +202,10 @@ export default function PresencePanel({
                 <em>{group.members.length}</em>
               </div>
               {group.members.map((item) => (
-                <div key={item.id} className={`presence-row${item.id === user?.id ? ' is-self' : ''}`}>
+                <div
+                  key={item.id}
+                  className={`presence-row${item.id === user?.id ? ' is-self' : ''}${item.online ? '' : ' is-offline'}`}
+                >
                   <Avatar user={item} size="sm" />
                   <div className="presence-meta">
                     <b style={{ color: metaOf(item).color }}>
@@ -181,12 +213,17 @@ export default function PresencePanel({
                       {item.id === user?.id ? ' · 我' : ''}
                     </b>
                     <small>
-                      {item.state === 'ingame'
-                        ? `游戏中 · ${item.serverMap || item.serverName || '服务器'}`
-                        : '在大厅'}
+                      <span className="member-level">{roleLabel(item.role)}</span>
+                      {item.online
+                        ? item.state === 'ingame'
+                          ? `游戏中 · ${item.serverMap || item.serverName || '服务器'}`
+                          : '在大厅'
+                        : '离线'}
                     </small>
                   </div>
-                  <span className={`presence-dot${item.state === 'ingame' ? ' is-ingame' : ''}`} />
+                  <span
+                    className={`presence-dot${item.online ? (item.state === 'ingame' ? ' is-ingame' : '') : ' is-offline'}`}
+                  />
                 </div>
               ))}
             </div>

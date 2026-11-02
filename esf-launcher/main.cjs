@@ -448,6 +448,8 @@ handle('presence:ping', async () => {
 
 handle('presence:list', async () => apiCall(api.presenceList, getSettings(), requireToken()));
 
+handle('members:list', async () => apiCall(api.membersList, getSettings(), requireToken()));
+
 handle('titles:list', async () => apiCall(api.titles, getSettings(), requireToken()));
 
 handle('titles:create', async (payload = {}) =>

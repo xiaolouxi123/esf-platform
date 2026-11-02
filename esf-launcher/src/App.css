@@ -4683,3 +4683,39 @@ select:focus {
   color: var(--dim);
 }
 .presence-group-dot { width: 6px; height: 6px; border-radius: 50%; }
+/* ============================ 成员名册 ============================ */
+.presence-row.is-offline { opacity: 0.5; }
+.presence-row.is-offline:hover { opacity: 0.8; }
+.presence-dot.is-offline { background: #5b6274; box-shadow: none; }
+.member-level {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+/* 成员名册：比在线列表高一点，尽量一屏看到所有人 */
+.presence-list { max-height: 240px; }
+@media (max-height: 850px) {
+  .presence-list { max-height: 150px; }
+}
+/* 右栏：成员名册占剩余高度，聊天固定高度，保证输入框始终可见 */
+.rail { display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.rail > .card--presence {
+  flex: 1 1 auto;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.rail > .card--presence .presence-list {
+  flex: 1;
+  max-height: none;
+  min-height: 0;
+}
+.rail > .card--chat { flex: 0 0 268px; }
+.rail > .card--chat { flex: 0 0 232px; }
+.rail { height: 100%; min-height: 0; }

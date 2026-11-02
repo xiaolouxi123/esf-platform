@@ -133,6 +133,17 @@ test('自定义头像保存与清除', async () => {
   assert.equal(after.body.data.user.avatarUrl, '');
 });
 
+test('成员名册包含离线成员和权限等级', async () => {
+  const res = await api('GET', '/api/members', { token: tokens.user });
+  assert.equal(res.status, 200);
+  const list = res.body.data.members;
+  assert.ok(Array.isArray(list));
+  const target = list.find((item) => item.id === ids.owner);
+  assert.ok(target, '名册里应该有成员');
+  assert.equal(target.role, 'owner');
+  assert.equal(typeof target.online, 'boolean');
+});
+
 test('管理员删除头衔，成员自动清空', async () => {
   const removed = await api('DELETE', `/api/titles/${titleId}`, { token: tokens.owner });
   assert.equal(removed.status, 200);

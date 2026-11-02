@@ -126,7 +126,9 @@ router.patch('/assign-title', requireAuth, requireAtLeast('ops'), async (req, re
     if (body.titleId !== null) {
       const title = await one('SELECT id, name, sort_rank FROM titles WHERE id = ? LIMIT 1', [body.titleId]);
       if (!title) throw badRequest('头衔不存在');
-      if (user.role === 'owner') throw badRequest('不能修改所有者的头衔');
+      if (user.role === 'owner' && req.user.role !== 'owner') {
+        throw badRequest('只有所有者本人可以修改自己的头衔');
+      }
     }
 
     await q('UPDATE users SET title_id = ? WHERE id = ?', [body.titleId, body.userId]);

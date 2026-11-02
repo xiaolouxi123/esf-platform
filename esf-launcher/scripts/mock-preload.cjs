@@ -164,8 +164,18 @@ const api = {
     assign: async () => ({ ok: true }),
   },
 
-  chat: {
+  members: {
     list: async () => ({
+      members: [
+        { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', titleId: 1, role: 'owner', online: true, state: 'lobby' },
+        { id: 6, username: 'yun', gameName: 'yun', avatar: '🥋', titleId: 2, role: 'admin', online: true, state: 'ingame', serverName: '[ESF-FCX]单挑房[1]', serverMap: 'ape_foreshadow' },
+        { id: 9, username: 'krillin', gameName: '克林', avatar: '', titleId: 5, role: 'user', online: false, state: 'offline' },
+        { id: 10, username: 'goku', gameName: '悟空', avatar: '🐒', titleId: 4, role: 'creator', online: false, state: 'offline' },
+      ],
+    }),
+  },
+
+  chat: {    list: async () => ({
       messages: [
         {
           id: 1,
