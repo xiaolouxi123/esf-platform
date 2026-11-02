@@ -1,4 +1,4 @@
-﻿#Requires -RunAsAdministrator
+#Requires -RunAsAdministrator
 <#
   ESF 平台 · Windows 服务器一键部署
   适用：Windows Server 2012 R2 / 2016 / 2019 / 2022（x64）
@@ -200,20 +200,52 @@ if ($existingEnv) {
 }
 if ($rootPass -eq '') { $rootPass = Random-Hex 16 }
 
-# root 目前是否还是空密码？（自建新实例会是空）
-$emptyRootOk = $false
-if (Test-Path $mysqlClient) {
-  & $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root -e "SELECT 1;" 2>$null | Out-Null
-  if ($LASTEXITCODE -eq 0) { $emptyRootOk = $true }
+# 1) 先用“已知密码”试；2) 再试空密码；3) 都不行就用 init-file 建 root@127.0.0.1
+$rootReady = $false
+& $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root --password=$rootPass -e "SELECT 1;" 2>$null | Out-Null
+if ($LASTEXITCODE -eq 0) { $rootReady = $true }
+
+if (-not $rootReady) {
+  & $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root --skip-password -e "SELECT 1;" 2>$null | Out-Null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host '为 MySQL root 设置密码（localhost + 127.0.0.1）…'
+    & $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root --skip-password -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPass'; CREATE USER IF NOT EXISTS 'root'@'127.0.0.1' IDENTIFIED WITH mysql_native_password BY '$rootPass'; GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION; FLUSH PRIVILEGES;"
+    if ($LASTEXITCODE -ne 0) { throw 'root 账号初始化失败' }
+    $rootReady = $true
+  }
 }
 
-if ($emptyRootOk) {
-  Write-Host '为 MySQL root 设置随机密码…'
-  & $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPass'; FLUSH PRIVILEGES;"
-  if ($LASTEXITCODE -ne 0) { Write-Host 'root 密码设置失败，请手动处理。' -ForegroundColor Yellow }
-} elseif (-not $existingEnv) {
-  throw "检测到已存在 MySQL，但 root 不是空密码。请手动创建 $envFile 并填写 DB_ROOT_PASSWORD 后重跑。"
+if (-not $rootReady) {
+  Write-Host '通过 init-file 创建 root@127.0.0.1（仅首次需要）…'
+  $initSql = Join-Path $Root 'mysql-init.sql'
+  @"
+CREATE USER IF NOT EXISTS 'root'@'127.0.0.1' IDENTIFIED WITH mysql_native_password BY '$rootPass';
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPass';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+"@ | Set-Content -Path $initSql -Encoding ASCII
+
+  Stop-Service 'ESFMySQL' -Force
+  Start-Sleep -Seconds 2
+  $proc = Start-Process -FilePath $mysqlExe `
+    -ArgumentList @("--defaults-file=$myIni", "--init-file=$initSql") `
+    -PassThru -WindowStyle Hidden
+  if (-not (Wait-Tcp '127.0.0.1' $DbPort 90)) { throw 'MySQL 用 init-file 启动失败，请查看事件查看器' }
+  Start-Sleep -Seconds 3
+
+  & $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root --password=$rootPass -e "SHUTDOWN;" 2>$null | Out-Null
+  Start-Sleep -Seconds 3
+  if (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue) { Stop-Process -Id $proc.Id -Force }
+  Remove-Item $initSql -Force -ErrorAction SilentlyContinue
+
+  Start-Service 'ESFMySQL'
+  if (-not (Wait-Tcp '127.0.0.1' $DbPort 90)) { throw 'MySQL 重启失败' }
 }
+
+# 最终验证一次（必须能走 TCP + 密码）
+& $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root --password=$rootPass -e "SELECT 1;" 2>$null | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "root@127.0.0.1 登录失败，请手动检查 MySQL 账号" }
+Write-Host 'root 账号已就绪（TCP + 密码）'
 
 if (-not $existingEnv) {
   $jwt      = Random-Hex 32
