@@ -40,10 +40,13 @@ export default function MemberSidebar({
   const canManageRoles = user?.role === 'admin' || user?.role === 'owner';
 
   const openMenu = (event, member) => {
-    if (!staff || member.id === user?.id || member.role === 'owner') return;
+    if (!staff) return;
+    const isSelf = Number(member.id) === Number(user?.id);
+    if (!isSelf && member.role === 'owner') return;
     event.preventDefault();
     setMenu({
       member,
+      isSelf,
       x: Math.min(event.clientX, window.innerWidth - 244),
       y: Math.min(event.clientY, window.innerHeight - 440),
     });
@@ -272,7 +275,7 @@ export default function MemberSidebar({
                 </button>
               ))}
 
-              {canManageRoles && (
+              {canManageRoles && !menu.isSelf && (
                 <>
                   <div className="member-menu-label">权限等级</div>
                   {['user', 'creator', 'ops', 'admin'].map((role) => (

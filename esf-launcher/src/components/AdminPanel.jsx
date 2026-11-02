@@ -463,7 +463,7 @@ export default function AdminPanel({
                         )}
                       </td>
                       <td>
-                        {staff && !isTargetOwner && !self ? (
+                        {staff && (!isTargetOwner || self) ? (
                           <select
                             value={row.titleId || ''}
                             disabled={busyId === row.id}
