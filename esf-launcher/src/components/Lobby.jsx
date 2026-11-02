@@ -1,22 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import TitleBar from './TitleBar';
 import Icon from './Icon';
-import Avatar from './Avatar';
 import ServerHall from './ServerHall';
 import SettingsDrawer from './SettingsDrawer';
 import AdminPanel from './AdminPanel';
 import AssetLibrary from './AssetLibrary';
-import PresencePanel from './PresencePanel';
+import MemberSidebar from './MemberSidebar';
 import ChatPanel from './ChatPanel';
 import ServerRoomList from './ServerRoomList';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import dragonBall from '../assets/dragon-ball.webp';
 import {
-  formatDuration,
   formatRelative,
   isStaff,
   loadFavoriteSet,
-  roleLabel,
   saveFavoriteSet,
 } from '../lib/format';
 
@@ -448,7 +445,7 @@ export default function Lobby({
         onOpenSettings={openSettings}
       />
 
-      <div className={`workspace${activePage !== 'lobby' ? ' workspace--wide' : ''}`}>
+      <div className={`workspace${['servers', 'assets', 'admin'].includes(activePage) ? ' workspace--wide' : ''}`}>
         <aside className="game-rail">
           <button
             type="button"
@@ -595,7 +592,11 @@ export default function Lobby({
         </aside>
 
         <main className="center">
-          {activePage === 'servers' ? (
+          {activePage === 'channel' ? (
+            <div className="channel-page">
+              <ChatPanel user={user} toast={toast} titles={titles} />
+            </div>
+          ) : activePage === 'servers' ? (
             <ServerHall
               servers={servers}
               loading={serversLoading}
@@ -898,89 +899,16 @@ export default function Lobby({
           )}
         </main>
 
-        {activePage === 'lobby' && (
-          <aside className="rail">
-            <section className="card profile">
-              <div className="profile-head">
-                <Avatar user={user} size="lg" />
-                <div>
-                  <h3>{user?.gameName || user?.username || '玩家'}</h3>
-                  <p>
-                    <span className="badge">{roleLabel(user?.role)}</span>
-                    <code>@{user?.username}</code>
-                  </p>
-                </div>
-              </div>
-
-              <div className="profile-stats">
-                <div>
-                  <b>{stats ? stats.sessions : '—'}</b>
-                  <span>进场次数</span>
-                </div>
-                <div>
-                  <b>{stats ? formatDuration(stats.totalSeconds) : '—'}</b>
-                  <span>累计时长</span>
-                </div>
-              </div>
-
-              <p className="profile-last">
-                <Icon name="clock" size={13} /> {formatRelative(stats?.lastPlayedAt)}
-              </p>
-
-              <div className="profile-actions">
-                <button type="button" className="rail-link" onClick={openSettings}>
-                  <Icon name="settings" size={14} /> 设置
-                </button>
-                <button
-                  type="button"
-                  className="rail-link"
-                  onClick={async () => {
-                    try {
-                      await window.electronAPI.shell.openGameDir();
-                    } catch (err) {
-                      toast(err.message, 'error');
-                    }
-                  }}
-                >
-                  <Icon name="folder" size={14} /> 目录
-                </button>
-                <button type="button" className="rail-link rail-link--danger" onClick={onLogout}>
-                  <Icon name="logout" size={14} /> 退出
-                </button>
-              </div>
-
-              {staff && (
-                <div className="profile-strip">
-                  <span>
-                    待审 <b>{adminSummary ? adminSummary.assets.pending : '—'}</b>
-                  </span>
-                  <span>
-                    今日 <b>{adminSummary ? adminSummary.sessions.today : '—'}</b>
-                  </span>
-                  <button type="button" className="link" onClick={() => setPage('admin')}>
-                    管理台 <Icon name="chevronRight" size={12} />
-                  </button>
-                </div>
-              )}
-
-              {user?.role === 'creator' && (
-                <button type="button" className="link profile-strip profile-strip--link" onClick={() => setPage('assets')}>
-                  作者中心 · 上传资源 <Icon name="chevronRight" size={12} />
-                </button>
-              )}
-            </section>
-
-            <PresencePanel
+        {(activePage === 'lobby' || activePage === 'channel') && (
+          <aside className="rail rail--members">
+            <MemberSidebar
               user={user}
-              backend={backend}
-              hasGameDir={hasGameDir}
-              settings={settings}
-              serversCount={servers.length}
-              updateInfo={updateInfo}
               titles={titles}
+              stats={stats}
+              staff={staff}
+              onOpenSettings={openSettings}
+              onOpenAdmin={() => setPage('admin')}
             />
-
-            <ChatPanel user={user} toast={toast} titles={titles} />
           </aside>
         )}
       </div>

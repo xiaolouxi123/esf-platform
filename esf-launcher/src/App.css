@@ -4719,3 +4719,100 @@ select:focus {
 .rail > .card--chat { flex: 0 0 268px; }
 .rail > .card--chat { flex: 0 0 232px; }
 .rail { height: 100%; min-height: 0; }
+/* ============================ Discord 式成员名单栏 ============================ */
+.rail--members { overflow: hidden; gap: 0; }
+.rail--members > .member-sidebar { flex: 1 1 auto; min-height: 0; height: 100%; }
+.member-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+.member-sidebar-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.member-sidebar-head h3 { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #eef2fa; }
+.member-sidebar-head span { font-size: 10px; color: var(--dim); white-space: nowrap; }
+
+.member-self {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.member-self:hover { background: rgba(255, 255, 255, 0.06); border-color: var(--line-strong); }
+.member-self-meta { flex: 1; min-width: 0; }
+.member-self-meta b { display: block; font-size: 12.5px; }
+.member-self-meta small { display: block; margin-top: 2px; font-size: 10.5px; }
+
+.member-admin-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: #ffc48c;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.member-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--dim);
+}
+.member-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 11.5px;
+  outline: none;
+}
+
+.member-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-right: 2px; }
+.member-group + .member-group { margin-top: 10px; }
+.member-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 4px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.member-group-head em { margin-left: auto; font-style: normal; font-size: 9px; color: var(--dim); }
+.member-group-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 5px;
+  border-radius: 8px;
+}
+.member-row:hover { background: rgba(255, 255, 255, 0.035); }
+.member-row.is-self { background: rgba(255, 138, 31, 0.07); }
+.member-row.is-offline { opacity: 0.5; }
+.member-row-meta { flex: 1; min-width: 0; }
+.member-row-meta b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.member-row-meta small { display: block; margin-top: 1px; font-size: 10px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.member-dot { width: 6px; height: 6px; border-radius: 50%; background: #3ddc97; flex: none; }
+.member-dot.is-ingame { background: #3fd0ff; }
+.member-dot.is-offline { background: #5b6274; }
+
+.channel-page { height: 100%; min-height: 0; display: flex; }
+.channel-page .card--chat { flex: 1; min-height: 0; height: 100%; }
