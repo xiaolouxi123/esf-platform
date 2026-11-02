@@ -1,4 +1,4 @@
-#Requires -RunAsAdministrator
+﻿#Requires -RunAsAdministrator
 <#
   ESF 平台 · Windows 服务器一键部署
   适用：Windows Server 2012 R2 / 2016 / 2019 / 2022（x64）
