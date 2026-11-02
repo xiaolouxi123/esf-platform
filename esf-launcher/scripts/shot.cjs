@@ -23,6 +23,7 @@ const role = argOf('role', 'owner');
 const scrollPx = Number(argOf('scroll', 0));
 const width = Number(argOf('width', 1320));
 const height = Number(argOf('height', 900));
+const zoom = Number(argOf('zoom', 1));
 
 // 必须在创建 BrowserWindow 之前设置：渲染进程的环境变量在进程创建时就固化了
 process.env.MOCK_STATE = state === 'login' || state === 'register' ? 'login' : 'dashboard';
@@ -47,6 +48,7 @@ app.whenReady().then(async () => {
 
 
   await win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+  win.webContents.setZoomFactor(zoom);
   await new Promise((resolve) => setTimeout(resolve, 900));
 
   if (state === 'register') {

@@ -4425,3 +4425,67 @@ select:focus {
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.24); background-clip: content-box; }
 
 ::selection { background: rgba(255, 140, 30, 0.32); color: #fff; }
+/* ============================ 900px 以下收折（覆盖 200% 缩放） ============================ */
+@media (max-width: 900px) {
+  .titlebar { gap: 6px; padding: 0 8px; }
+  .brand-text small { display: none; }
+  .brand-text b { font-size: 11px; letter-spacing: 0.08em; }
+  .nav { margin-left: 4px; }
+  .nav-item { padding: 8px 9px; }
+  .nav-item span { display: none; }
+  .user-meta { display: none; }
+  .workspace { grid-template-columns: 58px minmax(0, 1fr); gap: 8px; padding: 8px; }
+  .workspace--wide { grid-template-columns: 58px minmax(0, 1fr); }
+  .rail { display: none; }
+  .hero-side { display: none; }
+  .game-rail { padding: 8px 6px; }
+  .game-tile { width: 42px; height: 42px; }
+  .hall-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  .game-rail { display: none; }
+  .auth--cinematic { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 18px; }
+  .auth--cinematic .auth-visual { display: none; }
+  .auth--cinematic .auth-panel { padding: 18px 0; }
+  .hall-head, .toolbar, .hall-toolbar { flex-wrap: wrap; }
+}
+/* ============================ 设置抽屉节奏 ============================ */
+.drawer { background: #12161f; }
+.drawer-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e7ebf4;
+  font-size: 13px;
+}
+.drawer-section h3::before {
+  content: '';
+  width: 3px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffbf78, #ff7a1a);
+}
+.drawer-body { gap: 24px; }
+.drawer-section .path-box { border-color: rgba(255, 255, 255, 0.08); }
+
+/* ============================ 管理台表格 ============================ */
+.admin-card {
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.admin-card:hover { border-color: rgba(255, 168, 74, 0.2); background: rgba(255, 255, 255, 0.035); }
+.admin-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #181c27;
+  backdrop-filter: blur(8px);
+}
+.admin-table tbody tr { transition: background 0.14s ease; }
+.admin-table tbody tr:hover { background: rgba(255, 255, 255, 0.028); }
+.admin-table td { padding: 10px 12px; }
+
+@media (max-width: 700px) {
+  .drawer { width: 100%; max-width: 100%; }
+}
