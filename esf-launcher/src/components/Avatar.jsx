@@ -14,6 +14,7 @@ function hueOf(text) {
  * 背景色由用户名决定，所以不需要额外存颜色。
  */
 export default function Avatar({ user, size = 'md', className = '' }) {
+  const image = String(user?.avatarUrl || '').trim();
   const label = String(user?.avatar || '').trim() || initials(user?.gameName || user?.username);
   const hue = hueOf(user?.username || user?.gameName);
   const style = {
@@ -22,11 +23,11 @@ export default function Avatar({ user, size = 'md', className = '' }) {
 
   return (
     <span
-      className={`avatar avatar--${size}${className ? ` ${className}` : ''}`}
+      className={`avatar avatar--${size}${image ? ' avatar--image' : ''}${className ? ` ${className}` : ''}`}
       style={style}
       title={user?.gameName || user?.username || ''}
     >
-      {label}
+      {image ? <img src={image} alt="" /> : label}
     </span>
   );
 }

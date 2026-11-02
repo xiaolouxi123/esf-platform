@@ -120,6 +120,41 @@ async function main() {
       "UPDATE servers SET mode = '新手' WHERE server_key = 'fcx-1v1-2' AND mode = '混战'"
     );
 
+    // 头衔与自定义头像
+    await ensureColumn(conn, env.db.name, 'users', 'avatar_url', 'MEDIUMTEXT NULL');
+    await ensureColumn(conn, env.db.name, 'users', 'title_id', 'INT NULL AFTER role');
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS titles (
+         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+         name VARCHAR(24) NOT NULL UNIQUE,
+         color CHAR(7) NOT NULL DEFAULT '#94A0B8',
+         sort_rank INT NOT NULL DEFAULT 0,
+         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    );
+    const seedTitles = [
+      ['所有者', '#FF8A1F', 100, 'owner'],
+      ['管理员', '#FF5F6D', 80, 'admin'],
+      ['运营', '#3FD0FF', 60, 'ops'],
+      ['作者', '#A78BFA', 40, 'creator'],
+      ['玩家', '#94A0B8', 10, 'user'],
+    ];
+    for (const [name, color, rank] of seedTitles) {
+      await conn.query('INSERT IGNORE INTO titles (name, color, sort_rank) VALUES (?, ?, ?)', [
+        name,
+        color,
+        rank,
+      ]);
+    }
+    for (const [name, , , role] of seedTitles) {
+      await conn.query(
+        `UPDATE users u JOIN titles t ON t.name = ?
+            SET u.title_id = t.id
+          WHERE u.role = ? AND u.title_id IS NULL`,
+        [name, role]
+      );
+    }
+
     // 3. 应用账号
     await createAccount(conn, env.db.user, env.db.allowedHost, env.db.password);
     await conn.query(`GRANT ALL PRIVILEGES ON \`${env.db.name}\`.* TO ?@?`, [

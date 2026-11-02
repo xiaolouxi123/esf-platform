@@ -33,6 +33,8 @@ function publicUser(row) {
     username: row.username,
     gameName: row.game_name,
     avatar: row.avatar || '',
+    avatarUrl: row.avatar_url || '',
+    titleId: row.title_id ? Number(row.title_id) : null,
     role: row.role,
   };
 }
@@ -70,9 +72,10 @@ router.post('/register', registerLimiter, async (req, res, next) => {
       [body.username, hash, body.gameName || body.username]
     );
 
-    const user = await one('SELECT id, username, game_name, role FROM users WHERE id = ? LIMIT 1', [
-      result.insertId,
-    ]);
+    const user = await one(
+      'SELECT id, username, game_name, avatar, avatar_url, title_id, role FROM users WHERE id = ? LIMIT 1',
+      [result.insertId]
+    );
 
     res.status(201).json({ ok: true, data: { user: publicUser(user) } });
   } catch (err) {

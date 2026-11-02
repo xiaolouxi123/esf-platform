@@ -9,7 +9,15 @@ const state = process.env.MOCK_STATE || 'dashboard';
 const role = process.env.MOCK_ROLE || 'owner';
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const user = { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', role };
+const user = { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', avatarUrl: '', titleId: 1, role };
+
+const titles = [
+  { id: 1, name: '所有者', color: '#FF8A1F', rank: 100, memberCount: 1 },
+  { id: 2, name: '管理员', color: '#FF5F6D', rank: 80, memberCount: 1 },
+  { id: 3, name: '运营', color: '#3FD0FF', rank: 60, memberCount: 1 },
+  { id: 4, name: '作者', color: '#A78BFA', rank: 40, memberCount: 1 },
+  { id: 5, name: '玩家', color: '#94A0B8', rank: 10, memberCount: 1 },
+];
 const customServers = [{ name: '朋友的服', address: '1.2.3.4:27016', addedAt: new Date().toISOString() }];
 
 const settings = {
@@ -128,6 +136,7 @@ const api = {
           username: 'demo',
           gameName: '测试玩家',
           avatar: '🐉',
+          titleId: 1,
           role,
           state: 'lobby',
         },
@@ -136,6 +145,7 @@ const api = {
           username: 'yun',
           gameName: 'yun',
           avatar: '🥋',
+          titleId: 2,
           role: 'admin',
           state: 'ingame',
           serverKey: 'fcx-1v1-1',
@@ -146,6 +156,14 @@ const api = {
     }),
   },
 
+  titles: {
+    list: async () => ({ titles }),
+    create: async () => ({ title: titles[0] }),
+    update: async () => ({ title: titles[0] }),
+    remove: async () => ({ deleted: true }),
+    assign: async () => ({ ok: true }),
+  },
+
   chat: {
     list: async () => ({
       messages: [
@@ -153,19 +171,19 @@ const api = {
           id: 1,
           body: '新版本的大厅频道上线了，进来试试',
           createdAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
-          user: { id: 6, username: 'yun', gameName: 'yun', avatar: '🥋', role: 'admin' },
+          user: { id: 6, username: 'yun', gameName: 'yun', avatar: '🥋', titleId: 2, role: 'admin' },
         },
         {
           id: 2,
           body: '单挑房有人吗？',
           createdAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-          user: { id: 9, username: 'krillin', gameName: '克林', avatar: '', role: 'user' },
+          user: { id: 9, username: 'krillin', gameName: '克林', avatar: '', titleId: 5, role: 'user' },
         },
         {
           id: 3,
           body: '我在 ape_foreshadow，直接进来',
           createdAt: new Date(Date.now() - 60 * 1000).toISOString(),
-          user: { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', role },
+          user: { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', titleId: 1, role },
         },
       ],
     }),
@@ -174,7 +192,7 @@ const api = {
         id: 99,
         body,
         createdAt: new Date().toISOString(),
-        user: { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', role },
+        user: { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', titleId: 1, role },
       },
     }),
   },
@@ -323,6 +341,7 @@ const api = {
           username: 'demo',
           gameName: '测试玩家',
           avatar: '🐉',
+          titleId: 1,
           role,
           status: 'active',
           sessions: 4,

@@ -9,6 +9,35 @@ import { isStaff } from '../lib/format';
  */
 const AVATAR_CHOICES = ['🐉', '🔥', '⚡', '🛡️', '🐒', '🥋', '💫', '👑'];
 
+function fileToAvatar(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !String(file.type).startsWith('image/')) {
+      reject(new Error('请选择图片文件'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('读取图片失败'));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error('图片无法识别'));
+      image.onload = () => {
+        const size = 160;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.max(size / image.width, size / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        ctx.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+        resolve(canvas.toDataURL('image/webp', 0.86));
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function SettingsDrawer({
   settings,
   appInfo,
@@ -19,14 +48,31 @@ export default function SettingsDrawer({
   onPickGameDir,
   onLogout,
   onAvatarChange,
+  onAvatarData,
   toast,
 }) {
   const [draft, setDraft] = useState(settings || {});
   const [busy, setBusy] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [autoStatus, setAutoStatus] = useState(null);
   const [checking, setChecking] = useState(false);
   const staff = isStaff(user?.role);
+
+  const uploadAvatar = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const dataUrl = await fileToAvatar(file);
+      await onAvatarData?.(dataUrl);
+    } catch (err) {
+      toast?.(err.message, 'error');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   useEffect(() => {
     let unsubscribe = null;
@@ -161,6 +207,24 @@ export default function SettingsDrawer({
                 首字
               </button>
             </div>
+
+            <div className="avatar-upload-row">
+              <label className={`btn btn-ghost btn-sm${uploadingAvatar ? ' is-busy' : ''}`}>
+                {uploadingAvatar ? <span className="spinner" /> : <Icon name="spark" size={14} />}
+                {uploadingAvatar ? '处理中…' : '上传自定义头像'}
+                <input type="file" accept="image/*" hidden onChange={uploadAvatar} />
+              </label>
+              {user?.avatarUrl ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => onAvatarData?.('')}
+                >
+                  恢复文字头像
+                </button>
+              ) : null}
+            </div>
+            <p className="drawer-hint">支持 jpg / png / webp，自动裁成方形，建议用清晰的头像图。</p>
 
             <div className="drawer-actions">
               <button type="button" className="btn btn-ghost btn-block" onClick={onLogout}>

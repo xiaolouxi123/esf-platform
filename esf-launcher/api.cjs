@@ -235,6 +235,21 @@ const chatSend = (settings, token, body) =>
 const updateProfile = (settings, token, patch) =>
   request(settings, { method: 'PATCH', path: '/api/me', token, body: patch });
 
+const titles = (settings, token) => request(settings, { path: '/api/titles', token });
+const createTitle = (settings, token, body) =>
+  request(settings, { method: 'POST', path: '/api/titles', token, body });
+const updateTitle = (settings, token, id, body) =>
+  request(settings, { method: 'PATCH', path: `/api/titles/${id}`, token, body });
+const removeTitle = (settings, token, id) =>
+  request(settings, { method: 'DELETE', path: `/api/titles/${id}`, token });
+const assignTitle = (settings, token, userId, titleId) =>
+  request(settings, {
+    method: 'PATCH',
+    path: '/api/assign-title',
+    token,
+    body: { userId, titleId },
+  });
+
 module.exports = {
   ApiError,
   normalizeBase,
@@ -268,4 +283,9 @@ module.exports = {
   chatList,
   chatSend,
   updateProfile,
+  titles,
+  createTitle,
+  updateTitle,
+  removeTitle,
+  assignTitle,
 };

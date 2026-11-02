@@ -23,7 +23,18 @@ import {
 const FAV_SERVERS = 'esf:favServers';
 const FAV_MAPS = 'esf:favMaps';
 
-export default function Lobby({ user, settings, appInfo, backend, notice, toast, onSettingsChanged, onLogout, onAvatarChange }) {
+export default function Lobby({
+  user,
+  settings,
+  appInfo,
+  backend,
+  notice,
+  toast,
+  onSettingsChanged,
+  onLogout,
+  onAvatarChange,
+  onAvatarData,
+}) {
   const [page, setPage] = useState('lobby');
   const [maps, setMaps] = useState([]);
   const [mapKeyword, setMapKeyword] = useState('');
@@ -31,6 +42,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   const [selectedMap, setSelectedMap] = useState('');
   const [mapOpen, setMapOpen] = useState(false);
   const [servers, setServers] = useState([]);
+  const [titles, setTitles] = useState([]);
   const [serversLoading, setServersLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [localBusy, setLocalBusy] = useState(false);
@@ -80,6 +92,28 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
     } catch {
       setStats(null);
     }
+  }, []);
+
+  const loadTitles = useCallback(async () => {
+    try {
+      const data = await window.electronAPI.titles.list();
+      setTitles(Array.isArray(data?.titles) ? data.titles : []);
+    } catch {
+      setTitles([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    window.electronAPI.titles
+      .list()
+      .then((data) => {
+        if (alive) setTitles(Array.isArray(data?.titles) ? data.titles : []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -582,6 +616,8 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
               appInfo={appInfo}
               backend={backend}
               toast={toast}
+              titles={titles}
+              onTitlesChanged={loadTitles}
               onOpenSettings={openSettings}
               onLogout={onLogout}
             />
@@ -941,9 +977,10 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
               settings={settings}
               serversCount={servers.length}
               updateInfo={updateInfo}
+              titles={titles}
             />
 
-            <ChatPanel user={user} toast={toast} />
+            <ChatPanel user={user} toast={toast} titles={titles} />
           </aside>
         )}
       </div>
@@ -994,6 +1031,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
           onLogout={onLogout}
           toast={toast}
           onAvatarChange={onAvatarChange}
+          onAvatarData={onAvatarData}
         />
       )}
     </div>

@@ -33,13 +33,15 @@ function publicMessage(row) {
       username: row.username,
       gameName: row.game_name,
       avatar: row.avatar || '',
+      avatarUrl: row.avatar_url || '',
+      titleId: row.title_id ? Number(row.title_id) : null,
       role: row.role,
     },
   };
 }
 
 const BASE_SELECT = `SELECT c.id, c.body, c.created_at, c.user_id,
-                            u.username, u.game_name, u.avatar, u.role
+                            u.username, u.game_name, u.avatar, u.avatar_url, u.title_id, u.role
                        FROM chat_messages c
                        JOIN users u ON u.id = c.user_id`;
 

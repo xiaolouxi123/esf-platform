@@ -7,7 +7,7 @@ const { z } = require('zod');
 const env = require('../env');
 const { q, one } = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { unauthorized } = require('../lib/errors');
+const { unauthorized, badRequest } = require('../lib/errors');
 
 const router = express.Router();
 
@@ -20,6 +20,8 @@ router.get('/me', requireAuth, (req, res) => {
         username: req.user.username,
         gameName: req.user.game_name,
         avatar: req.user.avatar || '',
+    avatarUrl: req.user.avatar_url || '',
+    titleId: req.user.title_id ? Number(req.user.title_id) : null,
         role: req.user.role,
       },
     },
@@ -55,6 +57,7 @@ const patchSchema = z
   .object({
     gameName: z.string().trim().min(1).max(16).optional(),
     avatar: z.string().trim().max(8).optional(),
+    avatarData: z.string().max(400000).optional(),
     oldPassword: z.string().min(1).max(72).optional(),
     newPassword: z.string().min(8).max(72).optional(),
   })
@@ -74,7 +77,20 @@ router.patch('/me', requireAuth, async (req, res, next) => {
     if (body.avatar !== undefined) {
       // 头像允许是 emoji 或留空（留空则用昵称首字）
       const avatar = body.avatar.replace(/[\r\n\t]/g, '').slice(0, 8);
-      await q('UPDATE users SET avatar = ? WHERE id = ?', [avatar, req.user.id]);
+      await q('UPDATE users SET avatar = ?, avatar_url = NULL WHERE id = ?', [avatar, req.user.id]);
+    }
+
+    if (body.avatarData !== undefined) {
+      const data = String(body.avatarData || '').trim();
+      if (data && !/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(data)) {
+        throw badRequest('头像必须是 png / jpg / webp / gif 图片');
+      }
+      if (data.length > 300000) throw badRequest('头像图片太大，请换一张小一点的');
+      await q('UPDATE users SET avatar_url = ?, avatar = ? WHERE id = ?', [
+        data || null,
+        data ? '' : req.user.avatar || '',
+        req.user.id,
+      ]);
     }
 
     if (body.newPassword) {

@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
 import Avatar from './Avatar';
+import { roleLabel } from '../lib/format';
+
+const ROLE_RANK = { owner: 4, admin: 3, ops: 2, creator: 1, user: 0 };
+const ROLE_COLOR = {
+  owner: '#FF8A1F',
+  admin: '#FF5F6D',
+  ops: '#3FD0FF',
+  creator: '#A78BFA',
+  user: '#94A0B8',
+};
 
 /**
  * 在线玩家 + 龙珠雷达。
@@ -8,11 +18,47 @@ import Avatar from './Avatar';
  * （API / 数据库 / 游戏目录 / 模组 / 房间列表 / 在线状态 / 版本）。
  * 点雷达展开节点明细，异常节点会变成琥珀色。
  */
-export default function PresencePanel({ user, backend, hasGameDir, settings, serversCount, updateInfo }) {
+export default function PresencePanel({
+  user,
+  backend,
+  hasGameDir,
+  settings,
+  serversCount,
+  updateInfo,
+  titles = [],
+}) {
   const [online, setOnline] = useState([]);
   const [loading, setLoading] = useState(true);
   const [presenceFailures, setPresenceFailures] = useState(0);
   const [showNodes, setShowNodes] = useState(false);
+
+  const titleById = new Map(titles.map((item) => [Number(item.id), item]));
+  const metaOf = (member) => {
+    const title = titleById.get(Number(member.titleId));
+    if (title) {
+      return { label: title.name, color: title.color, rank: Number(title.rank) };
+    }
+    return {
+      label: roleLabel(member.role),
+      color: ROLE_COLOR[member.role] || ROLE_COLOR.user,
+      rank: (ROLE_RANK[member.role] ?? 0) * 10,
+    };
+  };
+  const members = [...online].sort((a, b) => {
+    const diff = metaOf(b).rank - metaOf(a).rank;
+    if (diff !== 0) return diff;
+    return String(a.gameName || '').localeCompare(String(b.gameName || ''));
+  });
+  const groups = [];
+  for (const member of members) {
+    const meta = metaOf(member);
+    const last = groups[groups.length - 1];
+    if (last && last.label === meta.label) {
+      last.members.push(member);
+    } else {
+      groups.push({ label: meta.label, color: meta.color, members: [member] });
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -119,21 +165,30 @@ export default function PresencePanel({ user, backend, hasGameDir, settings, ser
         {online.length === 0 ? (
           <p className="admin-muted">{loading ? '加载中…' : '暂时没人在线'}</p>
         ) : (
-          online.map((item) => (
-            <div key={item.id} className={`presence-row${item.id === user?.id ? ' is-self' : ''}`}>
-              <Avatar user={item} size="sm" />
-              <div className="presence-meta">
-                <b>
-                  {item.gameName}
-                  {item.id === user?.id ? ' · 我' : ''}
-                </b>
-                <small>
-                  {item.state === 'ingame'
-                    ? `游戏中 · ${item.serverMap || item.serverName || '服务器'}`
-                    : '在大厅'}
-                </small>
+          groups.map((group) => (
+            <div className="presence-group" key={group.label}>
+              <div className="presence-group-head">
+                <span className="presence-group-dot" style={{ background: group.color }} />
+                <span style={{ color: group.color }}>{group.label}</span>
+                <em>{group.members.length}</em>
               </div>
-              <span className={`presence-dot${item.state === 'ingame' ? ' is-ingame' : ''}`} />
+              {group.members.map((item) => (
+                <div key={item.id} className={`presence-row${item.id === user?.id ? ' is-self' : ''}`}>
+                  <Avatar user={item} size="sm" />
+                  <div className="presence-meta">
+                    <b style={{ color: metaOf(item).color }}>
+                      {item.gameName}
+                      {item.id === user?.id ? ' · 我' : ''}
+                    </b>
+                    <small>
+                      {item.state === 'ingame'
+                        ? `游戏中 · ${item.serverMap || item.serverName || '服务器'}`
+                        : '在大厅'}
+                    </small>
+                  </div>
+                  <span className={`presence-dot${item.state === 'ingame' ? ' is-ingame' : ''}`} />
+                </div>
+              ))}
             </div>
           ))
         )}

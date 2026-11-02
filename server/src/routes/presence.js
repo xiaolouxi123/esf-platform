@@ -40,7 +40,7 @@ router.post('/presence', requireAuth, async (req, res, next) => {
 router.get('/presence', requireAuth, async (req, res, next) => {
   try {
     const rows = await q(
-      `SELECT u.id, u.username, u.game_name, u.avatar, u.role,
+      `SELECT u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.title_id, u.role,
               p.state, p.server_key, p.updated_at,
               s.name AS server_name, st.map AS server_map
          FROM presence p
@@ -62,6 +62,8 @@ router.get('/presence', requireAuth, async (req, res, next) => {
           username: row.username,
           gameName: row.game_name,
           avatar: row.avatar || '',
+          avatarUrl: row.avatar_url || '',
+          titleId: row.title_id ? Number(row.title_id) : null,
           role: row.role,
           state: row.state,
           serverKey: row.server_key || null,

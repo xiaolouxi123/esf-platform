@@ -47,11 +47,22 @@ function actionTone(action) {
  * 管理台：概览 + 玩家权限 + 资源审核 + 审计日志 + 开发者工具。
  * 运营能进；改角色/审计/开发者工具只给管理员；转让所有权只给所有者。
  */
-export default function AdminPanel({ user, settings, appInfo, backend, toast, onOpenSettings, onLogout }) {
+export default function AdminPanel({
+  user,
+  settings,
+  appInfo,
+  backend,
+  toast,
+  titles = [],
+  onTitlesChanged,
+  onOpenSettings,
+  onLogout,
+}) {
   const staff = isStaff(user?.role);
   const canAssign = isAdminRole(user?.role);
   const canSeeAudit = isAdminRole(user?.role);
   const owner = isOwner(user?.role);
+  const titleById = new Map(titles.map((item) => [Number(item.id), item]));
 
   const [overview, setOverview] = useState(null);
   const [users, setUsers] = useState([]);
@@ -69,6 +80,8 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
   const [platform, setPlatform] = useState(null);
   const [platformForm, setPlatformForm] = useState({ notice: '', maintenance: false, maintenanceText: '' });
   const [platformSaving, setPlatformSaving] = useState(false);
+  const [titleForm, setTitleForm] = useState({ name: '', color: '#FF8A1F', rank: 0 });
+  const [titleBusy, setTitleBusy] = useState(false);
 
   const [transferId, setTransferId] = useState('');
   const [transferring, setTransferring] = useState(false);
@@ -161,6 +174,70 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
 
   const changeRole = (target, role) =>
     act(target.id, () => window.electronAPI.admin.updateUser(target.id, { role }), `已把 ${target.gameName} 设为${roleLabel(role)}`);
+
+  const assignTitle = (target, value) =>
+    act(
+      target.id,
+      async () => {
+        const titleId = value ? Number(value) : null;
+        await window.electronAPI.titles.assign(target.id, titleId);
+        await onTitlesChanged?.();
+      },
+      value ? `已给 ${target.gameName} 授予头衔` : `已取消 ${target.gameName} 的头衔`
+    );
+
+  const createTitle = async (event) => {
+    event.preventDefault();
+    const name = titleForm.name.trim();
+    if (!name) {
+      toast('先填头衔名', 'error');
+      return;
+    }
+    setTitleBusy(true);
+    try {
+      await window.electronAPI.titles.create({
+        name,
+        color: titleForm.color,
+        rank: Number(titleForm.rank) || 0,
+      });
+      setTitleForm({ name: '', color: '#FF8A1F', rank: 0 });
+      await onTitlesChanged?.();
+      toast(`头衔「${name}」已创建`, 'ok');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setTitleBusy(false);
+    }
+  };
+
+  const changeTitleRank = async (title, rank) => {
+    const next = Number(rank);
+    if (!Number.isFinite(next) || next === Number(title.rank)) return;
+    try {
+      await window.electronAPI.titles.update({
+        id: title.id,
+        name: title.name,
+        color: title.color,
+        rank: next,
+      });
+      await onTitlesChanged?.();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+
+  const removeTitle = async (title) => {
+    setTitleBusy(true);
+    try {
+      await window.electronAPI.titles.remove(title.id);
+      await onTitlesChanged?.();
+      toast(`头衔「${title.name}」已删除`, 'ok');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setTitleBusy(false);
+    }
+  };
 
   const toggleBan = (target) => {
     const next = target.status === 'active' ? 'banned' : 'active';
@@ -336,6 +413,7 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
               <tr>
                 <th>玩家</th>
                 <th>角色</th>
+                <th>头衔</th>
                 <th>状态</th>
                 <th>场次 / 时长</th>
                 <th>最近登录</th>
@@ -345,7 +423,7 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="admin-empty">
+                  <td colSpan={7} className="admin-empty">
                     {loading ? '加载中…' : '没有匹配的账号'}
                   </td>
                 </tr>
@@ -382,6 +460,34 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
                           </select>
                         ) : (
                           <span className={`role-badge role-${row.role}`}>{roleLabel(row.role)}</span>
+                        )}
+                      </td>
+                      <td>
+                        {staff && !isTargetOwner && !self ? (
+                          <select
+                            value={row.titleId || ''}
+                            disabled={busyId === row.id}
+                            onChange={(event) => assignTitle(row, event.target.value)}
+                          >
+                            <option value="">无头衔</option>
+                            {titles.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : row.titleId && titleById.get(Number(row.titleId)) ? (
+                          <span
+                            className="chat-title"
+                            style={{
+                              color: titleById.get(Number(row.titleId)).color,
+                              borderColor: `${titleById.get(Number(row.titleId)).color}55`,
+                            }}
+                          >
+                            {titleById.get(Number(row.titleId)).name}
+                          </span>
+                        ) : (
+                          <span className="admin-muted">无</span>
                         )}
                       </td>
                       <td>
@@ -427,6 +533,81 @@ export default function AdminPanel({ user, settings, appInfo, backend, toast, on
               )}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <div className="admin-section-head">
+          <h3>
+            <Icon name="star" size={15} /> 频道头衔
+            <span className="pill">{titles.length}</span>
+          </h3>
+          <span className="admin-muted">admin 以上可创建 / 排序，ops 以上可在玩家表授予</span>
+        </div>
+
+        <div className="title-manager">
+          <div className="title-list">
+            {titles.length === 0 ? (
+              <span className="admin-muted">还没有头衔，先在下面创建一个</span>
+            ) : (
+              titles.map((item) => (
+                <div className="title-item" key={item.id}>
+                  <span className="title-dot" style={{ background: item.color }} />
+                  <b style={{ color: item.color }}>{item.name}</b>
+                  {canAssign ? (
+                    <input
+                      key={`${item.id}-${item.rank}`}
+                      type="number"
+                      className="title-rank"
+                      defaultValue={item.rank}
+                      title="排序权重，越大越靠前；改完点空白处生效"
+                      onBlur={(event) => changeTitleRank(item, event.target.value)}
+                    />
+                  ) : (
+                    <em>{item.rank}</em>
+                  )}
+                  {canAssign && (
+                    <button
+                      type="button"
+                      className="title-remove"
+                      disabled={titleBusy}
+                      title="删除头衔"
+                      onClick={() => removeTitle(item)}
+                    >
+                      <Icon name="close" size={11} />
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {canAssign && (
+            <form className="title-form" onSubmit={createTitle}>
+              <input
+                type="text"
+                value={titleForm.name}
+                maxLength={16}
+                placeholder="新头衔名，例如 超级赛亚人"
+                onChange={(event) => setTitleForm((prev) => ({ ...prev, name: event.target.value }))}
+              />
+              <input
+                type="color"
+                value={titleForm.color}
+                title="头衔颜色"
+                onChange={(event) => setTitleForm((prev) => ({ ...prev, color: event.target.value }))}
+              />
+              <input
+                type="number"
+                value={titleForm.rank}
+                title="排序权重"
+                onChange={(event) => setTitleForm((prev) => ({ ...prev, rank: event.target.value }))}
+              />
+              <button type="submit" className="btn btn-primary btn-sm" disabled={titleBusy}>
+                添加头衔
+              </button>
+            </form>
+          )}
         </div>
       </section>
 

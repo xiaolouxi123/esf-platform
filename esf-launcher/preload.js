@@ -48,6 +48,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     send: (body) => call('chat:send', { body }),
   },
 
+  titles: {
+    list: () => call('titles:list'),
+    create: (payload) => call('titles:create', payload),
+    update: (payload) => call('titles:update', payload),
+    remove: (id) => call('titles:remove', { id }),
+    assign: (userId, titleId) => call('titles:assign', { userId, titleId }),
+  },
+
   update: {
     check: () => call('update:check'),
     autoCheck: () => call('update:auto-check'),

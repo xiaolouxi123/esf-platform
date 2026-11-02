@@ -448,6 +448,24 @@ handle('presence:ping', async () => {
 
 handle('presence:list', async () => apiCall(api.presenceList, getSettings(), requireToken()));
 
+handle('titles:list', async () => apiCall(api.titles, getSettings(), requireToken()));
+
+handle('titles:create', async (payload = {}) =>
+  apiCall(api.createTitle, getSettings(), requireToken(), payload)
+);
+
+handle('titles:update', async ({ id, ...payload } = {}) =>
+  apiCall(api.updateTitle, getSettings(), requireToken(), id, payload)
+);
+
+handle('titles:remove', async ({ id } = {}) =>
+  apiCall(api.removeTitle, getSettings(), requireToken(), id)
+);
+
+handle('titles:assign', async ({ userId, titleId } = {}) =>
+  apiCall(api.assignTitle, getSettings(), requireToken(), userId, titleId)
+);
+
 handle('chat:list', async ({ after } = {}) =>
   apiCall(api.chatList, getSettings(), requireToken(), after || 0)
 );

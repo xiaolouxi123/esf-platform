@@ -137,6 +137,16 @@ export default function App() {
     }
   };
 
+  const handleAvatarData = async (avatarData) => {
+    try {
+      const result = await window.electronAPI.auth.updateProfile({ avatarData });
+      setUser(result.user);
+      showToast(avatarData ? '自定义头像已更新' : '头像已恢复为文字', 'ok');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   if (booting) return <Splash message={bootMessage} />;
 
   return (
@@ -152,6 +162,7 @@ export default function App() {
           onSettingsChanged={handleSettingsChanged}
           onLogout={handleLogout}
           onAvatarChange={handleAvatarChange}
+          onAvatarData={handleAvatarData}
         />
       ) : (
         <div className="auth-shell">

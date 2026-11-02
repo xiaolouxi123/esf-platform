@@ -7,13 +7,15 @@ import { formatRelative } from '../lib/format';
  * 大厅频道：轻量公共聊天，6 秒增量轮询。
  * 失败时显示错误并保留已有消息；窗口重新聚焦会立即补拉。
  */
-export default function ChatPanel({ user, toast }) {
+export default function ChatPanel({ user, toast, titles = [] }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const lastIdRef = useRef(0);
   const listRef = useRef(null);
+  const titleById = new Map(titles.map((item) => [Number(item.id), item]));
+  const titleOf = (member) => titleById.get(Number(member?.titleId));
 
   const merge = useCallback((incoming) => {
     if (!incoming || incoming.length === 0) return;
@@ -103,7 +105,18 @@ export default function ChatPanel({ user, toast }) {
               <Avatar user={message.user} size="xs" />
               <div className="chat-body">
                 <div className="chat-meta">
-                  <b>{message.user.gameName}</b>
+                  <b style={{ color: titleOf(message.user)?.color }}>{message.user.gameName}</b>
+                  {titleOf(message.user) && (
+                    <span
+                      className="chat-title"
+                      style={{
+                        color: titleOf(message.user).color,
+                        borderColor: `${titleOf(message.user).color}55`,
+                      }}
+                    >
+                      {titleOf(message.user).name}
+                    </span>
+                  )}
                   <span>{formatRelative(message.createdAt)}</span>
                 </div>
                 <p>{message.body}</p>
