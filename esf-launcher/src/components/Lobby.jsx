@@ -553,15 +553,30 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
 
               {autoUpdate &&
                 ['checking', 'available', 'downloading'].includes(autoUpdate.status) && (
-                  <div className="update-strip">
+                  <div className="update-strip update-strip--progress">
                     <Icon name="refresh" size={15} />
-                    <span>
-                      {autoUpdate.status === 'checking' && '正在检查更新…'}
-                      {autoUpdate.status === 'available' &&
-                        `发现 v${autoUpdate.version}，正在后台下载…`}
-                      {autoUpdate.status === 'downloading' &&
-                        `正在下载新版本 ${autoUpdate.percent || 0}%`}
-                    </span>
+                    <div className="update-progress-body">
+                      <div className="update-progress-text">
+                        <span>
+                          {autoUpdate.status === 'checking' && '正在检查更新…'}
+                          {autoUpdate.status === 'available' &&
+                            `发现 v${autoUpdate.version}，准备下载…`}
+                          {autoUpdate.status === 'downloading' &&
+                            `正在下载 v${autoUpdate.version} · ${autoUpdate.percent || 0}%`}
+                        </span>
+                        {autoUpdate.status === 'downloading' && autoUpdate.total > 0 && (
+                          <span className="update-progress-size">
+                            {(autoUpdate.transferred / 1048576).toFixed(1)} /{' '}
+                            {(autoUpdate.total / 1048576).toFixed(1)} MB
+                          </span>
+                        )}
+                      </div>
+                      {autoUpdate.status === 'downloading' && (
+                        <div className="update-bar">
+                          <i style={{ width: `${Math.min(100, autoUpdate.percent || 0)}%` }} />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 

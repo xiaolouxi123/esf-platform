@@ -3882,3 +3882,10 @@ select:focus {
   color: var(--dim);
 }
 .chat-error { color: #ff9aa3; }
+
+.update-strip--progress { align-items: center; }
+.update-progress-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.update-progress-text { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; }
+.update-progress-size { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.update-bar { height: 4px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; }
+.update-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s ease; }

@@ -63,8 +63,12 @@ public plugin_init() {
 }
 
 public plugin_cfg() {
-    // 预热连接。注意：首次 map 加载时 amxx.cfg 可能还没执行完，
-    // 所以这里失败不算数，真正校验时会再试一次（见 ensureDatabase）。
+    // amxx.cfg 可能在本回调之后才执行完，直接连库会误报“未配置”。
+    // 延迟 5 秒再预热，此时 cvars 一定已经加载。
+    set_task(5.0, "taskWarmDatabase");
+}
+
+public taskWarmDatabase() {
     ensureDatabase();
 }
 
