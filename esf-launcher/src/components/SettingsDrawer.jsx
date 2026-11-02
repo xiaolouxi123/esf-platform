@@ -106,54 +106,26 @@ export default function SettingsDrawer({
 
           <section className="drawer-section">
             <h3>平台连接</h3>
-            <p className="drawer-hint">
-              {staff ? '后端地址。队友换机器时改这里指向同一台服务器。' : '平台服务状态。地址由管理员维护。'}
-            </p>
+            <p className="drawer-hint">后端地址由平台统一维护，玩家不需要填写。</p>
+
+            <div className="path-box">
+              <span className="path-label">API</span>
+              <code>{draft.apiBaseUrl || '未设置'}</code>
+            </div>
 
             {staff && (
-              <>
-                <label className="field">
-                  <span className="field-label">API 地址</span>
-                  <div className="field-input">
-                    <Icon name="wifi" size={16} />
-                    <input
-                      type="text"
-                      value={draft.apiBaseUrl || ''}
-                      placeholder="http://127.0.0.1:3000"
-                      onChange={update('apiBaseUrl')}
-                    />
-                  </div>
-                </label>
-
-                <label className="field">
-                  <span className="field-label">本地开图用的服务器标识</span>
-                  <div className="field-input">
-                    <Icon name="server" size={16} />
-                    <input
-                      type="text"
-                      value={draft.localServerKey || ''}
-                      placeholder="fcx-1v1-1"
-                      onChange={update('localServerKey')}
-                    />
-                  </div>
-                </label>
-
-                <label className="field">
-                  <span className="field-label">自动更新源</span>
-                  <div className="field-input">
-                    <Icon name="refresh" size={16} />
-                    <input
-                      type="text"
-                      value={draft.updateFeedUrl || ''}
-                      placeholder="https://你的域名/esf/updates/"
-                      onChange={update('updateFeedUrl')}
-                    />
-                  </div>
-                  <span className="field-hint">
-                    留空则用后端下发的 UPDATE_FEED_URL；目录里放 latest.yml 与安装包
-                  </span>
-                </label>
-              </>
+              <label className="field">
+                <span className="field-label">本地开图用的服务器标识</span>
+                <div className="field-input">
+                  <Icon name="server" size={16} />
+                  <input
+                    type="text"
+                    value={draft.localServerKey || ''}
+                    placeholder="fcx-1v1-1"
+                    onChange={update('localServerKey')}
+                  />
+                </div>
+              </label>
             )}
 
             <p className="inline-status">

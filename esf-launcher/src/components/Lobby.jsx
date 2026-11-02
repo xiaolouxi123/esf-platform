@@ -10,6 +10,7 @@ import PresencePanel from './PresencePanel';
 import ChatPanel from './ChatPanel';
 import ServerRoomList from './ServerRoomList';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
+import dragonBall from '../assets/dragon-ball.webp';
 import {
   formatDuration,
   formatRelative,
@@ -28,6 +29,7 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   const [mapKeyword, setMapKeyword] = useState('');
   const [mapCategory, setMapCategory] = useState('all');
   const [selectedMap, setSelectedMap] = useState('');
+  const [mapOpen, setMapOpen] = useState(false);
   const [servers, setServers] = useState([]);
   const [serversLoading, setServersLoading] = useState(true);
   const [stats, setStats] = useState(null);
@@ -413,7 +415,57 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
       />
 
       <div className={`workspace${activePage !== 'lobby' ? ' workspace--wide' : ''}`}>
-        <aside className="sidebar">
+        <aside className="game-rail">
+          <button
+            type="button"
+            className="game-tile is-active"
+            onClick={() => setPage('lobby')}
+            title="ESF · 龙珠"
+          >
+            <img src={dragonBall} alt="ESF" />
+          </button>
+          <button
+            type="button"
+            className={`game-tile game-tile--tool${mapOpen ? ' is-active' : ''}`}
+            onClick={() => setMapOpen((value) => !value)}
+            title="地图库"
+          >
+            <Icon name="map" size={18} />
+            <small>地图</small>
+          </button>
+          <span className="game-rail-spacer" />
+          <button type="button" className="game-tile game-tile--tool" onClick={openSettings} title="设置">
+            <Icon name="settings" size={17} />
+          </button>
+          <button
+            type="button"
+            className="game-tile game-tile--tool game-tile--danger"
+            onClick={onLogout}
+            title="退出登录"
+          >
+            <Icon name="logout" size={17} />
+          </button>
+        </aside>
+
+        {mapOpen && (
+          <button
+            type="button"
+            className="map-drawer-backdrop"
+            aria-label="关闭地图库"
+            onClick={() => setMapOpen(false)}
+          />
+        )}
+
+        <aside className={`sidebar map-drawer${mapOpen ? ' is-open' : ''}`}>
+          <button
+            type="button"
+            className="map-drawer-close"
+            aria-label="关闭地图库"
+            onClick={() => setMapOpen(false)}
+          >
+            <Icon name="close" size={14} />
+          </button>
+
           <div className="side-head">
             <h2>地图库</h2>
             <span className="pill">{maps.length}</span>
@@ -457,10 +509,18 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
                   <div
                     key={item.code}
                     className={`map-row map-row--${item.tone}${selectedMap === item.code ? ' is-active' : ''}`}
-                    onClick={() => setSelectedMap(item.code)}
+                    onClick={() => {
+                      setSelectedMap(item.code);
+                      setMapOpen(false);
+                    }}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(event) => event.key === 'Enter' && setSelectedMap(item.code)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        setSelectedMap(item.code);
+                        setMapOpen(false);
+                      }
+                    }}
                   >
                     <span className="map-icon">
                       <Icon name={item.icon} size={14} />
