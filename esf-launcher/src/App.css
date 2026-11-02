@@ -3838,3 +3838,46 @@ select:focus {
   border-color: rgba(61, 220, 151, 0.35);
   background: rgba(61, 220, 151, 0.08);
 }
+/* ============================ 登录页服务器设置 ============================ */
+.auth-server {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.auth-server-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.auth-server-box {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-server-box input {
+  flex: 1;
+  min-width: 200px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  font-size: 11.5px;
+  outline: none;
+}
+
+.auth-server-box input:focus {
+  border-color: rgba(255, 138, 31, 0.45);
+}
+
+.auth-server-msg {
+  width: 100%;
+  font-size: 10.5px;
+  color: var(--dim);
+}

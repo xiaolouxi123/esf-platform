@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import Icon from './Icon';
+import ServerSetting from './ServerSetting';
 
-export default function LoginPage({ onLogin, onGoRegister, backend, notice }) {
+export default function LoginPage({ onLogin, onGoRegister, backend, notice, onServerChange }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -125,6 +126,8 @@ export default function LoginPage({ onLogin, onGoRegister, backend, notice }) {
               立即注册
             </button>
           </p>
+
+          <ServerSetting onChanged={onServerChange} />
 
           <footer className="auth-foot">
             <span className={`dot dot--${backend?.ok ? 'on' : 'off'}`} />

@@ -1,0 +1,33 @@
+﻿ESF 平台 · 公网隧道（临时方案）
+================================
+
+用途
+----
+你的云服务器账号不在你手上，无法在安全组放行 3000。
+这个工具用 Cloudflare 免费“快速隧道”，让服务器主动连出去，
+得到一个公网 https 地址，不需要改安全组。
+
+使用
+----
+1. 把这两个文件复制到服务器（例如 C:\Users\Administrator\Desktop\esf-tunnel）：
+     启动公网隧道.bat
+     start-tunnel.ps1
+2. 右键 启动公网隧道.bat → 以管理员身份运行
+3. 等 5~15 秒，窗口会打印：
+     https://xxxx-xxxx.trycloudflare.com
+4. 这个地址就是平台地址：
+     健康检查 https://xxxx.trycloudflare.com/api/health
+   在启动器登录页 → 服务器设置 → 填这个地址
+5. 窗口不能关；关掉隧道就断开，地址也会变
+
+限制
+----
+- 快速隧道地址每次重启都变，只适合临时联调
+- 免费隧道带宽有限，下载安装包会慢；别用它做更新源
+- 长期使用还是让云服务器主人放行 TCP 3000，或把后端放到你自己的服务器
+
+如果下载 cloudflared 失败
+------------------------
+手动下载后用 U 盘/远程桌面复制到 C:\esf\cloudflared.exe：
+https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
+然后重新运行 bat。
