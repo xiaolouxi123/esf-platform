@@ -158,7 +158,6 @@ export default function App() {
           <TitleBar minimal />
           {authPage === 'login' ? (
             <LoginPage
-          onServerChange={checkBackend}
               onLogin={handleLogin}
               onGoRegister={() => setAuthPage('register')}
               backend={backend}
@@ -166,7 +165,6 @@ export default function App() {
             />
           ) : (
             <RegisterPage
-          onServerChange={checkBackend}
               onRegister={handleRegister}
               onGoLogin={() => setAuthPage('login')}
               inviteRequired={inviteRequired}

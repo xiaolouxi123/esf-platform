@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import Icon from './Icon';
-import ServerSetting from './ServerSetting';
+import loginBg from '../assets/login-bg.jpg';
+import dragonBall from '../assets/dragon-ball.webp';
 
-export default function LoginPage({ onLogin, onGoRegister, backend, notice, onServerChange }) {
+export default function LoginPage({ onLogin, onGoRegister, backend, notice }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,35 +32,56 @@ export default function LoginPage({ onLogin, onGoRegister, backend, notice, onSe
   };
 
   return (
-    <div className="auth">
+    <div className="auth auth--cinematic">
+      <div className="auth-bg" style={{ backgroundImage: `url(${loginBg})` }} aria-hidden="true" />
+      <div className="auth-veil" aria-hidden="true" />
+
       <div className="auth-visual">
         <div className="auth-visual-inner">
-          <span className="eyebrow">
-            <Icon name="spark" size={14} /> DRAGON BALL · ESF
+          <span className="eyebrow auth-eyebrow">
+            <span className="eyebrow-line" />
+            DRAGON BALL · ESF
           </span>
           <h1>
             把对局
             <br />
-            变成一段旅程
+            变成一段<em>旅程</em>
           </h1>
-          <p>账号、服务器、连服凭证全部打通。从平台启动，游戏里自动认领身份。</p>
+          <p>
+            账号、服务器、连服凭证全部打通。
+            <br />
+            从平台启动，游戏里自动认领身份。
+          </p>
 
           <ul className="auth-points">
             <li>
-              <Icon name="shield" size={15} /> 一次性连服凭证，进服自动校验
+              <Icon name="shield" size={15} />
+              <span>一次性连服凭证，进服自动校验</span>
             </li>
             <li>
-              <Icon name="signal" size={15} /> 实时服务器状态与延迟
+              <Icon name="signal" size={15} />
+              <span>实时服务器状态与延迟</span>
             </li>
             <li>
-              <Icon name="clock" size={15} /> 在线时长与对局记录
+              <Icon name="clock" size={15} />
+              <span>在线时长与对局记录</span>
             </li>
           </ul>
+
+          <div className="auth-caption">
+            <span>POWERED BY ESF PLATFORM</span>
+            <span className="auth-caption-dot" />
+            <span>v{backend?.version || '0.0.0'}</span>
+          </div>
         </div>
       </div>
 
       <div className="auth-panel">
-        <form className="auth-card" onSubmit={submit}>
+        <form className="auth-card auth-card--cinematic" onSubmit={submit}>
+          <div className="auth-emblem">
+            <img src={dragonBall} alt="" />
+          </div>
+
           <header className="auth-card-head">
             <h2>登录平台</h2>
             <p>使用你的 ESF 账号进入大厅</p>
@@ -127,11 +149,11 @@ export default function LoginPage({ onLogin, onGoRegister, backend, notice, onSe
             </button>
           </p>
 
-          <ServerSetting onChanged={onServerChange} />
-
           <footer className="auth-foot">
             <span className={`dot dot--${backend?.ok ? 'on' : 'off'}`} />
-            {backend?.ok ? `平台服务在线 · v${backend.version || '0.0.0'}` : backend?.message || '平台服务未连接'}
+            {backend?.ok
+              ? `平台服务在线 · v${backend.version || '0.0.0'}`
+              : backend?.message || '平台服务未连接'}
           </footer>
         </form>
       </div>

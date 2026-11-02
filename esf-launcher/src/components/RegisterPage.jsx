@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import Icon from './Icon';
-import ServerSetting from './ServerSetting';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
 
-export default function RegisterPage({ onRegister, onGoLogin, inviteRequired, onServerChange }) {
+export default function RegisterPage({ onRegister, onGoLogin, inviteRequired }) {
   const [form, setForm] = useState({
     username: '',
     gameName: '',
@@ -162,8 +161,6 @@ export default function RegisterPage({ onRegister, onGoLogin, inviteRequired, on
             {busy ? <span className="spinner" /> : <Icon name="plus" size={15} />}
             {busy ? '创建中…' : '创建账号'}
           </button>
-
-          <ServerSetting onChanged={onServerChange} />
 
           <p className="auth-switch">
             已经有账号了？

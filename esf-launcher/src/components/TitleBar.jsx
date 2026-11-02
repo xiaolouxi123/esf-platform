@@ -1,6 +1,7 @@
 import Icon from './Icon';
 import Avatar from './Avatar';
 import { isStaff, roleLabel } from '../lib/format';
+import dragonBall from '../assets/dragon-ball.webp';
 
 /**
  * 自定义标题栏。
@@ -36,7 +37,7 @@ export default function TitleBar({
     <header className={`titlebar${minimal ? ' titlebar--minimal' : ''}`}>
       <div className="brand">
         <span className="brand-mark">
-          <Icon name="shield" size={18} />
+          <img src={dragonBall} alt="" />
         </span>
         <span className="brand-text">
           <b>ESF PLATFORM</b>

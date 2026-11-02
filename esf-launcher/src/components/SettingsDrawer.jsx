@@ -248,6 +248,21 @@ export default function SettingsDrawer({
                     return;
                   }
 
+                  if (auto?.status === 'current') {
+                    toast('已经是最新版本', 'ok');
+                    return;
+                  }
+
+                  if (auto?.status === 'checking' || auto?.status === 'available') {
+                    toast('已开始检查更新，下载进度会显示在下方', 'ok');
+                    return;
+                  }
+
+                  if (auto?.status === 'downloaded') {
+                    toast(`v${auto.version || ''} 已下载，点按钮重启安装`, 'ok');
+                    return;
+                  }
+
                   if (auto?.status === 'error') {
                     toast(auto.message || '检查更新失败', 'error');
                   }
