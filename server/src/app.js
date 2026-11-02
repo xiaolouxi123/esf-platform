@@ -29,6 +29,18 @@ app.use('/api', require('./routes/admin'));
 app.use('/api', require('./routes/presence'));
 app.use('/api', require('./routes/chat'));
 
+// 启动器自动更新源：把 latest.yml / 安装包 / blockmap 放进 UPDATE_DIR
+app.use(
+  '/updates',
+  express.static(env.updateDir, {
+    fallthrough: true,
+    maxAge: '1h',
+    setHeaders(res) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    },
+  })
+);
+
 app.use(notFoundHandler);
 app.use(errorHandler);
 

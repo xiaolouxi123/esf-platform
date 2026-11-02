@@ -47,6 +47,9 @@ const env = {
   uploadDir: str(process.env.UPLOAD_DIR, path.join(__dirname, '..', 'uploads')),
   uploadMaxBytes: num(process.env.UPLOAD_MAX_MB, 64) * 1024 * 1024,
 
+  // 启动器更新源目录（放 latest.yml 与安装包，通过 /updates 静态提供）
+  updateDir: str(process.env.UPDATE_DIR, path.join(__dirname, '..', 'updates')),
+
   db: {
     host: str(process.env.DB_HOST, '127.0.0.1'),
     port: num(process.env.DB_PORT, 3306),
