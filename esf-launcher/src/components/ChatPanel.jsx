@@ -7,7 +7,7 @@ import { formatRelative } from '../lib/format';
  * 大厅频道：轻量公共聊天，6 秒增量轮询。
  * 失败时显示错误并保留已有消息；窗口重新聚焦会立即补拉。
  */
-export default function ChatPanel({ user, toast, titles = [] }) {
+export default function ChatPanel({ user, toast, titles = [], showIntro = false }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -92,6 +92,19 @@ export default function ChatPanel({ user, toast, titles = [] }) {
       </div>
 
       <div className="chat-list" ref={listRef}>
+        {showIntro && (
+          <div className="channel-welcome">
+            <div className="channel-welcome-title">
+              <span>#</span> 大厅频道
+            </div>
+            <p>全服玩家实时聊天。组队、约战、反馈问题都可以在这里发，进服遇到问题优先带截图。</p>
+            <div className="channel-rules">
+              <span>保持友好</span>
+              <span>禁止广告</span>
+              <span>组队可发 IP</span>
+            </div>
+          </div>
+        )}
         {messages.length === 0 ? (
           <p className={`admin-muted${error ? ' chat-error' : ''}`}>
             {error ? `频道连接失败：${error}（自动重试中）` : '还没有消息，打个招呼吧'}

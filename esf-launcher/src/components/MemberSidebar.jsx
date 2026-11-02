@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import { roleLabel } from '../lib/format';
@@ -13,9 +14,69 @@ const ROLE_COLOR = {
 };
 
 /** Discord 式右侧成员名单：所有账号 + 头衔分组 + 权限等级 + 在线状态 */
-export default function MemberSidebar({ user, titles = [], stats, staff, onOpenSettings, onOpenAdmin }) {
+export default function MemberSidebar({
+  user,
+  titles = [],
+  stats,
+  staff,
+  toast,
+  onTitlesChanged,
+  onOpenSettings,
+  onOpenAdmin,
+}) {
   const [members, setMembers] = useState([]);
   const [keyword, setKeyword] = useState('');
+  const [menu, setMenu] = useState(null);
+
+  const reloadMembers = async () => {
+    try {
+      const data = await window.electronAPI.members.list();
+      setMembers(Array.isArray(data?.members) ? data.members : []);
+    } catch {
+      /* 保留上一份 */
+    }
+  };
+
+  const canManageRoles = user?.role === 'admin' || user?.role === 'owner';
+
+  const openMenu = (event, member) => {
+    if (!staff || member.id === user?.id || member.role === 'owner') return;
+    event.preventDefault();
+    setMenu({
+      member,
+      x: Math.min(event.clientX, window.innerWidth - 244),
+      y: Math.min(event.clientY, window.innerHeight - 440),
+    });
+  };
+
+  const closeMenu = () => setMenu(null);
+
+  const assignTitle = async (titleId) => {
+    const member = menu?.member;
+    closeMenu();
+    if (!member) return;
+    try {
+      await window.electronAPI.titles.assign(member.id, titleId);
+      await onTitlesChanged?.();
+      await reloadMembers();
+      toast?.('头衔已更新', 'ok');
+    } catch (err) {
+      toast?.(err.message, 'error');
+    }
+  };
+
+  const changeRole = async (role) => {
+    const member = menu?.member;
+    closeMenu();
+    if (!member) return;
+    try {
+      await window.electronAPI.admin.updateUser(member.id, { role });
+      await reloadMembers();
+      toast?.(`已把 ${member.gameName} 设为${roleLabel(role)}`, 'ok');
+    } catch (err) {
+      toast?.(err.message, 'error');
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -109,6 +170,7 @@ export default function MemberSidebar({ user, titles = [], stats, staff, onOpenS
           <Icon name="chevronRight" size={12} />
         </button>
       ) : null}
+      {staff ? <p className="member-hint">右键成员可改头衔 / 权限等级</p> : null}
 
       <div className="member-search">
         <Icon name="search" size={14} />
@@ -136,7 +198,9 @@ export default function MemberSidebar({ user, titles = [], stats, staff, onOpenS
               {group.members.map((member) => (
                 <div
                   key={member.id}
+                  data-member-id={member.id}
                   className={`member-row${member.id === user?.id ? ' is-self' : ''}${member.online ? '' : ' is-offline'}`}
+                  onContextMenu={(event) => openMenu(event, member)}
                 >
                   <Avatar user={member} size="xs" />
                   <span className="member-row-meta">
@@ -162,6 +226,71 @@ export default function MemberSidebar({ user, titles = [], stats, staff, onOpenS
           ))
         )}
       </div>
+
+      {menu &&
+        createPortal(
+          <>
+            <button
+              type="button"
+              className="member-menu-backdrop"
+              aria-label="关闭成员菜单"
+              onClick={closeMenu}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                closeMenu();
+              }}
+            />
+            <div
+              className="member-menu"
+              style={{ left: menu.x, top: menu.y }}
+              onContextMenu={(event) => event.preventDefault()}
+            >
+              <div className="member-menu-head">
+                <b>{menu.member.gameName}</b>
+                <small>@{menu.member.username}</small>
+              </div>
+
+              <div className="member-menu-label">授予头衔</div>
+              <button
+                type="button"
+                className={`member-menu-item${!menu.member.titleId ? ' is-current' : ''}`}
+                onClick={() => assignTitle(null)}
+              >
+                无头衔
+              </button>
+              {titles.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`member-menu-item${Number(menu.member.titleId) === Number(item.id) ? ' is-current' : ''}`}
+                  style={{ color: item.color }}
+                  onClick={() => assignTitle(item.id)}
+                >
+                  <span className="member-menu-dot" style={{ background: item.color }} />
+                  {item.name}
+                  <em>{item.rank}</em>
+                </button>
+              ))}
+
+              {canManageRoles && (
+                <>
+                  <div className="member-menu-label">权限等级</div>
+                  {['user', 'creator', 'ops', 'admin'].map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      className={`member-menu-item${menu.member.role === role ? ' is-current' : ''}`}
+                      onClick={() => changeRole(role)}
+                    >
+                      {roleLabel(role)}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+          </>,
+          document.body
+        )}
     </aside>
   );
 }

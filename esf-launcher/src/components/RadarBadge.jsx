@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * 左侧栏的迷你龙珠雷达。
@@ -64,31 +65,33 @@ export default function RadarBadge({ backend, hasGameDir, settings, serversCount
         <small>{okCount}/7</small>
       </button>
 
-      {open && (
-        <>
-          <button
-            type="button"
-            className="radar-backdrop"
-            aria-label="关闭龙珠雷达"
-            onClick={() => setOpen(false)}
-          />
-          <div className="radar-popover">
-            <header>
-              <b>龙珠雷达</b>
-              <span className={okCount === 7 ? 'is-ok' : 'is-warn'}>{okCount}/7 正常</span>
-            </header>
-            <ul>
-              {nodes.map((node) => (
-                <li key={node.key}>
-                  <span className={`radar-dot${node.ok ? ' is-ok' : ' is-off'}`} />
-                  {node.label}
-                  <em>{node.ok ? '正常' : '异常'}</em>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </>
-      )}
+      {open &&
+        createPortal(
+          <>
+            <button
+              type="button"
+              className="radar-backdrop"
+              aria-label="关闭龙珠雷达"
+              onClick={() => setOpen(false)}
+            />
+            <div className="radar-popover">
+              <header>
+                <b>龙珠雷达</b>
+                <span className={okCount === 7 ? 'is-ok' : 'is-warn'}>{okCount}/7 正常</span>
+              </header>
+              <ul>
+                {nodes.map((node) => (
+                  <li key={node.key}>
+                    <span className={`radar-dot${node.ok ? ' is-ok' : ' is-off'}`} />
+                    {node.label}
+                    <em>{node.ok ? '正常' : '异常'}</em>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>,
+          document.body
+        )}
     </div>
   );
 }

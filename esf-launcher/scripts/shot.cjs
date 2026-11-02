@@ -19,6 +19,7 @@ function argOf(name, fallback) {
 
 const state = argOf('state', 'dashboard');
 const clickSelector = argOf('click', '');
+const contextSelector = argOf('contextmenu', '');
 const role = argOf('role', 'owner');
 const scrollPx = Number(argOf('scroll', 0));
 const width = Number(argOf('width', 1320));
@@ -78,6 +79,26 @@ app.whenReady().then(async () => {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
     await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+
+  if (contextSelector) {
+    const fired = await win.webContents.executeJavaScript(`
+      (() => {
+        let el = null;
+        try { el = document.querySelector(${JSON.stringify(contextSelector)}); } catch (err) { return 'bad-selector'; }
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        el.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2,
+        }));
+        return true;
+      })()
+    `);
+    console.log('contextmenu', contextSelector, 'matched =', fired);
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   if (scrollPx > 0) {

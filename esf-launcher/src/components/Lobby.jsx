@@ -510,15 +510,16 @@ export default function Lobby({
           <button
             type="button"
             className={`game-tile game-tile--tool${activePage === 'channel' ? ' is-active' : ''}`}
-            onClick={() => setPage('channel')}
-            title="频道"
+            onClick={() => setPage(activePage === 'channel' ? 'lobby' : 'channel')}
+            title={activePage === 'channel' ? '返回大厅' : '频道'}
           >
             <Icon name="bell" size={18} />
-            <small>频道</small>
+            <small>{activePage === 'channel' ? '返回' : '频道'}</small>
             {chatUnread > 0 && (
               <span className="game-badge">{chatUnread > 99 ? '99+' : chatUnread}</span>
             )}
           </button>
+          <span className="game-rail-spacer" />
           <RadarBadge
             backend={backend}
             hasGameDir={hasGameDir}
@@ -526,7 +527,6 @@ export default function Lobby({
             serversCount={servers.length}
             updateInfo={updateInfo}
           />
-          <span className="game-rail-spacer" />
           <button type="button" className="game-tile game-tile--tool" onClick={openSettings} title="设置">
             <Icon name="settings" size={17} />
           </button>
@@ -656,7 +656,17 @@ export default function Lobby({
         <main className="center">
           {activePage === 'channel' ? (
             <div className="channel-page">
-              <ChatPanel user={user} toast={toast} titles={titles} />
+              <div className="channel-page-bar">
+                <button type="button" className="channel-back" onClick={() => setPage('lobby')}>
+                  ← 返回大厅
+                </button>
+                <div className="channel-title">
+                  <b># 大厅频道</b>
+                  <small>全服玩家实时聊天 · 组队、约战、反馈都在这里</small>
+                </div>
+                <span className="channel-online">全服公开</span>
+              </div>
+              <ChatPanel user={user} toast={toast} titles={titles} showIntro />
             </div>
           ) : activePage === 'servers' ? (
             <ServerHall
@@ -968,6 +978,8 @@ export default function Lobby({
               titles={titles}
               stats={stats}
               staff={staff}
+              toast={toast}
+              onTitlesChanged={loadTitles}
               onOpenSettings={openSettings}
               onOpenAdmin={() => setPage('admin')}
             />
