@@ -126,17 +126,19 @@ export default function MemberSidebar({
     };
 
     load();
-    const timer = setInterval(load, 20000);
+    const timer = setInterval(load, 10000);
     const refresh = () => {
       if (document.visibilityState === 'visible') load();
     };
     window.addEventListener('focus', refresh);
+    window.addEventListener('esf:presence', load);
     document.addEventListener('visibilitychange', refresh);
 
     return () => {
       alive = false;
       clearInterval(timer);
       window.removeEventListener('focus', refresh);
+      window.removeEventListener('esf:presence', load);
       document.removeEventListener('visibilitychange', refresh);
     };
   }, []);

@@ -260,12 +260,18 @@ export default function Lobby({
   }, []);
   // 在线心跳：进入大厅立刻报一次，之后每 20 秒一次（主进程判断游戏是否在跑）
   useEffect(() => {
-    const ping = () => {
-      window.electronAPI.presence.ping().catch(() => {});
+    const ping = async () => {
+      try {
+        await window.electronAPI.presence.ping();
+        window.dispatchEvent(new Event('esf:presence'));
+      } catch {
+        /* 心跳失败下一轮再试 */
+      }
     };
 
     ping();
-    const timer = setInterval(ping, 20000);
+    const boot = setTimeout(ping, 500);
+    const timer = setInterval(ping, 12000);
 
     const refresh = () => {
       if (document.visibilityState === 'visible') ping();
@@ -274,6 +280,7 @@ export default function Lobby({
     document.addEventListener('visibilitychange', refresh);
 
     return () => {
+      clearTimeout(boot);
       clearInterval(timer);
       window.removeEventListener('focus', refresh);
       document.removeEventListener('visibilitychange', refresh);
@@ -313,6 +320,7 @@ export default function Lobby({
   }, []);
 
   const onlineServers = useMemo(() => servers.filter((server) => server.online), [servers]);
+  const offlineServers = useMemo(() => servers.filter((server) => !server.online), [servers]);
   const bestPing = useMemo(() => {
     const values = onlineServers.map((server) => server.ping).filter((value) => value > 0);
     return values.length ? Math.min(...values) : null;
@@ -524,7 +532,7 @@ export default function Lobby({
             backend={backend}
             hasGameDir={hasGameDir}
             settings={settings}
-            serversCount={servers.length}
+            serversOnline={onlineServers.length}
             updateInfo={updateInfo}
           />
           <button type="button" className="game-tile game-tile--tool" onClick={openSettings} title="设置">
@@ -829,6 +837,24 @@ export default function Lobby({
               </section>
 
               <section className="section">
+                {offlineServers.length > 0 && (
+                  <div className="server-alert">
+                    <Icon name="alert" size={15} />
+                    <span>
+                      {offlineServers.length} 个服务器当前离线：
+                      {offlineServers.map((server) => server.name).join('、')}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => refreshServers()}
+                      disabled={serversLoading}
+                    >
+                      重新检测
+                    </button>
+                  </div>
+                )}
+
                 <div className="section-head">
                   <h2>
                     在线房间 <span className="pill">{onlineServers.length}</span>

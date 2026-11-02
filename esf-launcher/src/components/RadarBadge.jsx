@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
  * 左侧栏的迷你龙珠雷达。
  * 7 个点对应平台服务状态，点一下弹出明细。
  */
-export default function RadarBadge({ backend, hasGameDir, settings, serversCount, updateInfo }) {
+export default function RadarBadge({ backend, hasGameDir, settings, serversOnline, updateInfo }) {
   const [presenceOk, setPresenceOk] = useState(true);
   const [open, setOpen] = useState(false);
 
@@ -32,7 +32,7 @@ export default function RadarBadge({ backend, hasGameDir, settings, serversCount
     { key: 'db', label: '数据库', ok: backend?.db === 'up' },
     { key: 'dir', label: '游戏目录', ok: Boolean(hasGameDir) },
     { key: 'mod', label: '游戏模组', ok: Boolean(settings?.esfModDir) },
-    { key: 'servers', label: '房间列表', ok: serversCount > 0 },
+    { key: 'servers', label: '服务器在线', ok: serversOnline > 0 },
     { key: 'presence', label: '在线状态', ok: presenceOk },
     { key: 'update', label: '版本更新', ok: !updateInfo?.hasUpdate },
   ];
