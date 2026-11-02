@@ -203,13 +203,13 @@ if ($rootPass -eq '') { $rootPass = Random-Hex 16 }
 # root 目前是否还是空密码？（自建新实例会是空）
 $emptyRootOk = $false
 if (Test-Path $mysqlClient) {
-  & $mysqlClient -h127.0.0.1 -P $DbPort -uroot -e "SELECT 1;" 2>$null | Out-Null
+  & $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root -e "SELECT 1;" 2>$null | Out-Null
   if ($LASTEXITCODE -eq 0) { $emptyRootOk = $true }
 }
 
 if ($emptyRootOk) {
   Write-Host '为 MySQL root 设置随机密码…'
-  & $mysqlClient -h127.0.0.1 -P $DbPort -uroot -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPass'; FLUSH PRIVILEGES;"
+  & $mysqlClient --host=127.0.0.1 --port=$DbPort --user=root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$rootPass'; FLUSH PRIVILEGES;"
   if ($LASTEXITCODE -ne 0) { Write-Host 'root 密码设置失败，请手动处理。' -ForegroundColor Yellow }
 } elseif (-not $existingEnv) {
   throw "检测到已存在 MySQL，但 root 不是空密码。请手动创建 $envFile 并填写 DB_ROOT_PASSWORD 后重跑。"
