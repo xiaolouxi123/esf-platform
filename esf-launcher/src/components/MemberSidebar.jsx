@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
-import { roleLabel } from '../lib/format';
+import { roleLabel, formatDuration, formatRelative } from '../lib/format';
 
 const ROLE_RANK = { owner: 4, admin: 3, ops: 2, creator: 1, user: 0 };
 const ROLE_COLOR = {
@@ -27,6 +27,8 @@ export default function MemberSidebar({
   const [members, setMembers] = useState([]);
   const [keyword, setKeyword] = useState('');
   const [menu, setMenu] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [zoom, setZoom] = useState(false);
 
   const reloadMembers = async () => {
     try {
@@ -78,6 +80,17 @@ export default function MemberSidebar({
       toast?.(`已把 ${member.gameName} 设为${roleLabel(role)}`, 'ok');
     } catch (err) {
       toast?.(err.message, 'error');
+    }
+  };
+
+  const openProfile = async (member) => {
+    setZoom(false);
+    setProfile({ ...member });
+    try {
+      const data = await window.electronAPI.members.detail(member.id);
+      if (data?.member) setProfile(data.member);
+    } catch {
+      /* 详情失败就用列表里的基础资料 */
     }
   };
 
@@ -143,6 +156,7 @@ export default function MemberSidebar({
 
   const onlineCount = members.filter((member) => member.online).length;
   const selfTitle = titleById.get(Number(user?.titleId));
+  const profileMeta = profile ? metaOf(profile) : null;
 
   return (
     <aside className="member-sidebar card">
@@ -204,6 +218,7 @@ export default function MemberSidebar({
                   data-member-id={member.id}
                   className={`member-row${member.id === user?.id ? ' is-self' : ''}${member.online ? '' : ' is-offline'}`}
                   onContextMenu={(event) => openMenu(event, member)}
+                  onClick={() => openProfile(member)}
                 >
                   <Avatar user={member} size="xs" />
                   <span className="member-row-meta">
@@ -229,6 +244,112 @@ export default function MemberSidebar({
           ))
         )}
       </div>
+
+      {profile &&
+        createPortal(
+          <div
+            className="member-profile-backdrop"
+            onClick={() => {
+              setProfile(null);
+              setZoom(false);
+            }}
+          >
+            <div className="member-profile" onClick={(event) => event.stopPropagation()}>
+              <button
+                type="button"
+                className="member-profile-close"
+                aria-label="关闭成员详情"
+                onClick={() => {
+                  setProfile(null);
+                  setZoom(false);
+                }}
+              >
+                <Icon name="close" size={14} />
+              </button>
+
+              <div className="member-profile-top">
+                <button
+                  type="button"
+                  className="member-profile-avatar"
+                  title={profile.avatarUrl ? '查看大头像' : undefined}
+                  onClick={() => profile.avatarUrl && setZoom(true)}
+                >
+                  <Avatar user={profile} size="lg" />
+                </button>
+                <div className="member-profile-identity">
+                  <h3 style={{ color: profileMeta?.color }}>{profile.gameName}</h3>
+                  <p>@{profile.username}</p>
+                  <div className="member-profile-badges">
+                    <span style={{ color: profileMeta?.color }}>{profileMeta?.label}</span>
+                    <span className="member-level">{roleLabel(profile.role)}</span>
+                    <span className={`member-profile-state${profile.online ? ' is-online' : ''}`}>
+                      {profile.online ? (profile.state === 'ingame' ? '游戏中' : '在线') : '离线'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="member-profile-stats">
+                <div>
+                  <b>{profile.sessions ?? '—'}</b>
+                  <span>进场次数</span>
+                </div>
+                <div>
+                  <b>{profile.totalSeconds != null ? formatDuration(profile.totalSeconds) : '—'}</b>
+                  <span>累计时长</span>
+                </div>
+                <div>
+                  <b>{profile.online ? '在线' : '离线'}</b>
+                  <span>当前状态</span>
+                </div>
+              </div>
+
+              <dl className="member-profile-info">
+                <div>
+                  <dt>最近登录</dt>
+                  <dd>{profile.lastLoginAt ? formatRelative(profile.lastLoginAt) : '—'}</dd>
+                </div>
+                <div>
+                  <dt>加入时间</dt>
+                  <dd>
+                    {profile.createdAt
+                      ? new Date(profile.createdAt).toLocaleDateString('zh-CN')
+                      : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>所在位置</dt>
+                  <dd>
+                    {profile.online
+                      ? profile.state === 'ingame'
+                        ? profile.serverMap || profile.serverName || '游戏中'
+                        : '大厅'
+                      : '离线'}
+                  </dd>
+                </div>
+              </dl>
+
+              {profile.avatarUrl ? (
+                <p className="member-profile-hint">点击头像查看大图</p>
+              ) : (
+                <p className="member-profile-hint">该玩家还没有上传自定义头像</p>
+              )}
+            </div>
+
+            {zoom && profile.avatarUrl && (
+              <div
+                className="avatar-lightbox"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setZoom(false);
+                }}
+              >
+                <img src={profile.avatarUrl} alt={`${profile.gameName} 头像`} />
+              </div>
+            )}
+          </div>,
+          document.body
+        )}
 
       {menu &&
         createPortal(

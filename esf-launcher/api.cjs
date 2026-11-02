@@ -227,6 +227,8 @@ const pingPresence = (settings, token, payload) =>
 const presenceList = (settings, token) => request(settings, { path: '/api/presence', token });
 
 const membersList = (settings, token) => request(settings, { path: '/api/members', token });
+const memberDetail = (settings, token, id) =>
+  request(settings, { path: `/api/members/${encodeURIComponent(id)}`, token });
 
 const chatList = (settings, token, after) =>
   request(settings, { path: `/api/chat${queryString({ after })}`, token });
@@ -283,6 +285,7 @@ module.exports = {
   pingPresence,
   presenceList,
   membersList,
+  memberDetail,
   chatList,
   chatSend,
   updateProfile,

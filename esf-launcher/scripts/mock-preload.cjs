@@ -173,9 +173,28 @@ const api = {
         { id: 10, username: 'goku', gameName: '悟空', avatar: '🐒', titleId: 4, role: 'creator', online: false, state: 'offline' },
       ],
     }),
+    detail: async (id) => {
+      const list = [
+        { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', titleId: 1, role: 'owner', online: true, state: 'lobby' },
+        { id: 6, username: 'yun', gameName: 'yun', avatar: '🥋', titleId: 2, role: 'admin', online: true, state: 'ingame', serverName: '[ESF-FCX]单挑房[1]', serverMap: 'ape_foreshadow' },
+        { id: 9, username: 'krillin', gameName: '克林', avatar: '', titleId: 5, role: 'user', online: false, state: 'offline' },
+        { id: 10, username: 'goku', gameName: '悟空', avatar: '🐒', titleId: 4, role: 'creator', online: false, state: 'offline' },
+      ];
+      const member = list.find((item) => Number(item.id) === Number(id)) || list[0];
+      return {
+        member: {
+          ...member,
+          sessions: 12,
+          totalSeconds: 19800,
+          createdAt: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
+          lastLoginAt: new Date(Date.now() - 3600 * 1000).toISOString(),
+        },
+      };
+    },
   },
 
-  chat: {    list: async () => ({
+  chat: {
+    list: async () => ({
       messages: [
         {
           id: 1,

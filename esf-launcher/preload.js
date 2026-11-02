@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   members: {
     list: () => call('members:list'),
+    detail: (id) => call('members:detail', { id }),
   },
 
   chat: {

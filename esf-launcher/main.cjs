@@ -450,6 +450,10 @@ handle('presence:list', async () => apiCall(api.presenceList, getSettings(), req
 
 handle('members:list', async () => apiCall(api.membersList, getSettings(), requireToken()));
 
+handle('members:detail', async ({ id } = {}) =>
+  apiCall(api.memberDetail, getSettings(), requireToken(), id)
+);
+
 handle('titles:list', async () => apiCall(api.titles, getSettings(), requireToken()));
 
 handle('titles:create', async (payload = {}) =>

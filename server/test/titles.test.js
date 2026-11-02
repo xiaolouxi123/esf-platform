@@ -144,6 +144,16 @@ test('成员名册包含离线成员和权限等级', async () => {
   assert.equal(typeof target.online, 'boolean');
 });
 
+test('成员详情包含战绩与权限', async () => {
+  const res = await api('GET', `/api/members/${ids.user}`, { token: tokens.user });
+  assert.equal(res.status, 200);
+  const member = res.body.data.member;
+  assert.equal(member.username, names.user);
+  assert.equal(member.role, 'user');
+  assert.equal(typeof member.sessions, 'number');
+  assert.equal(typeof member.totalSeconds, 'number');
+});
+
 test('管理员删除头衔，成员自动清空', async () => {
   const removed = await api('DELETE', `/api/titles/${titleId}`, { token: tokens.owner });
   assert.equal(removed.status, 200);
