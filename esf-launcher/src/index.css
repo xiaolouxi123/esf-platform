@@ -1,14 +1,14 @@
 :root {
-  --bg-0: #06070b;
-  --bg-1: #0b0d14;
-  --panel: rgba(17, 19, 27, 0.78);
-  --panel-solid: #12141c;
-  --line: rgba(255, 255, 255, 0.07);
+  --bg-0: #080b12;
+  --bg-1: #10141e;
+  --panel: rgba(28, 33, 46, 0.88);
+  --panel-solid: #1a1f2c;
+  --line: rgba(255, 255, 255, 0.11);
   --line-strong: rgba(255, 255, 255, 0.14);
 
-  --text: #e9ebf3;
-  --muted: #8d93a8;
-  --dim: #5d6377;
+  --text: #eef1f7;
+  --muted: #a4adc2;
+  --dim: #7a8399;
 
   --accent: #ff8a1f;
   --accent-2: #ff5d1f;

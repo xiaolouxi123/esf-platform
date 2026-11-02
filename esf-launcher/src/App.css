@@ -4232,3 +4232,60 @@ select:focus {
   .game-tile { width: 44px; height: 44px; }
   .game-tile img { width: 30px; height: 30px; }
 }
+/* ============================ 可读性微调（KK 风格） ============================ */
+.app-shell::after {
+  filter: blur(9px) brightness(0.5) saturate(0.98);
+}
+.app-shell::before {
+  background:
+    radial-gradient(760px 460px at 12% -8%, rgba(255, 138, 31, 0.13), transparent 62%),
+    radial-gradient(680px 440px at 92% 108%, rgba(63, 208, 255, 0.08), transparent 60%),
+    linear-gradient(180deg, rgba(6, 8, 13, 0.58), rgba(6, 8, 13, 0.84));
+}
+
+.map-drawer {
+  background: rgba(17, 21, 31, 0.97);
+  border-right: 1px solid var(--line);
+}
+.map-drawer .side-head { padding-right: 26px; }
+.map-drawer .side-head h2 { font-size: 15px; letter-spacing: 0.02em; }
+.map-drawer-close {
+  top: 9px;
+  right: 9px;
+  width: 24px;
+  height: 24px;
+}
+.map-drawer .side-manage { color: var(--muted); }
+.map-drawer .map-text small { font-size: 10px; color: var(--dim); }
+
+/* 全局字重/字距收敛，减少“花”的感觉 */
+.titlebar .nav-item { letter-spacing: 0.01em; }
+.section-head h2, .drawer-section h3 { letter-spacing: 0.01em; }
+.eyebrow { letter-spacing: 0.2em; }
+/* 再提亮一档：面板/底图分离更清楚 */
+.app-shell::after { filter: blur(8px) brightness(0.62) saturate(1.02); }
+.app-shell::before {
+  background:
+    radial-gradient(760px 460px at 12% -8%, rgba(255, 138, 31, 0.12), transparent 62%),
+    radial-gradient(680px 440px at 92% 108%, rgba(63, 208, 255, 0.07), transparent 60%),
+    linear-gradient(180deg, rgba(6, 8, 13, 0.45), rgba(6, 8, 13, 0.72));
+}
+.map-drawer { background: rgba(22, 27, 39, 0.97); }
+/* ============================ 服务器大厅数据条 ============================ */
+.hall-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.hall-stat {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.025);
+}
+.hall-stat span { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.hall-stat b { font-size: 22px; letter-spacing: -0.02em; }
+.hall-stat em { font-style: normal; font-size: 12px; color: var(--dim); margin-left: 2px; }
+@media (max-width: 1100px) {
+  .hall-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

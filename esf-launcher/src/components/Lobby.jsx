@@ -469,9 +469,6 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
           <div className="side-head">
             <h2>地图库</h2>
             <span className="pill">{maps.length}</span>
-            <button type="button" className="link side-manage" onClick={openSettings}>
-              管理 <Icon name="chevronRight" size={12} />
-            </button>
           </div>
 
           <div className="search">
@@ -500,7 +497,11 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
           <div className="map-scroll">
             {visibleMaps.length === 0 ? (
               <p className="side-empty">
-                {maps.length === 0 ? '还没有地图，先设置游戏目录' : '没有匹配的地图'}
+                {maps.length === 0
+                  ? '还没有地图，先设置游戏目录'
+                  : mapCategory === 'favorites' && favMaps.size === 0
+                    ? '还没有收藏地图，点地图右侧的星标收藏'
+                    : '没有匹配的地图'}
               </p>
             ) : (
               visibleMaps.map((item) => {

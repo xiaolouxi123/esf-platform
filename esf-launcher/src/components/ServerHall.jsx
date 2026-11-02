@@ -183,6 +183,12 @@ export default function ServerHall({
     { key: 'fav', label: '收藏' },
   ];
 
+  const onlineList = servers.filter((server) => server.online);
+  const onlinePlayers = onlineList.reduce((sum, server) => sum + (Number(server.players) || 0), 0);
+  const avgPing = onlineList.length
+    ? Math.round(onlineList.reduce((sum, server) => sum + (Number(server.ping) || 0), 0) / onlineList.length)
+    : 0;
+
   return (
     <div className="hall">
       <header className="hall-head">
@@ -199,6 +205,28 @@ export default function ServerHall({
           {loading ? '刷新中…' : '刷新列表'}
         </button>
       </header>
+
+      <div className="hall-stats">
+        <div className="hall-stat">
+          <span>在线服务器</span>
+          <b>
+            {onlineList.length}
+            <em>/{servers.length}</em>
+          </b>
+        </div>
+        <div className="hall-stat">
+          <span>在线玩家</span>
+          <b>{onlinePlayers}</b>
+        </div>
+        <div className="hall-stat">
+          <span>平均延迟</span>
+          <b>{avgPing > 0 ? `${avgPing}ms` : '—'}</b>
+        </div>
+        <div className="hall-stat">
+          <span>我的服务器</span>
+          <b>{customServers.length}</b>
+        </div>
+      </div>
 
       <LookupBar onJoin={onJoin} busyKey={busyKey} />
 
