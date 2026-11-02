@@ -25,7 +25,7 @@ $SetupDir  = 'C:\esf-setup'
 $ApiPort   = 3000
 $DbPort    = 3307
 $LatestVer = '0.2.1'
-$ServerIp  = '114.132.84.150'
+$ServerIp  = '119.91.99.176'
 # =================================================
 
 $NodeUrl  = 'https://npmmirror.com/mirrors/node/v18.20.8/node-v18.20.8-x64.msi'
