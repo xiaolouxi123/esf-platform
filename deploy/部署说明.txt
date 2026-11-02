@@ -15,7 +15,7 @@
    - 下载并安装 Node.js 18
    - 下载并安装 MySQL 8.0（端口 3307，仅本机）
    - 部署后端、建库建表
-   - 注册 Windows 服务 ESFAPI
+   - 注册开机任务 ESFAPI（Windows 计划任务，不依赖第三方工具）
    - 防火墙放行 3000
    首次下载约 250MB，视网速 5~20 分钟
 5. 看到 “后端已在本机健康运行” 即成功
@@ -33,8 +33,9 @@
 
 出问题看哪里
 ------------
-  服务状态： services.msc → ESFAPI / ESFMySQL
-  后端日志： C:\esf\logs\api.err.log
+  计划任务： taskschd.msc → ESFAPI
+  MySQL 服务： services.msc → ESFMySQL
+  后端日志： C:\esf\logs\api.err.log / api.out.log
   更新目录： C:\esf\updates
   凭据文件： C:\esf\CREDENTIALS.txt（保存后删除）
 

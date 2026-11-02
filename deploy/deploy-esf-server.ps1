@@ -30,7 +30,6 @@ $ServerIp  = '114.132.84.150'
 
 $NodeUrl  = 'https://npmmirror.com/mirrors/node/v18.20.8/node-v18.20.8-x64.msi'
 $MysqlUrl = 'https://mirrors.163.com/mysql/Downloads/MySQL-8.0/mysql-8.0.28-winx64.zip'
-$NssmUrl  = 'https://nssm.cc/release/nssm-2.24.zip'
 
 function Step($msg) {
   Write-Host ''
@@ -333,39 +332,29 @@ try {
 
 Remove-Item $rootCnf -Force -ErrorAction SilentlyContinue
 
-# ---------- 6. 服务 ----------
-Step '6/7 注册 Windows 服务 ESFAPI'
-$nssm = Join-Path $Root 'nssm.exe'
-if (-not (Test-Path $nssm)) {
-  $nssmZip = Join-Path $SetupDir 'nssm-2.24.zip'
-  Download $NssmUrl $nssmZip
-  $nssmTmp = Join-Path $Root 'nssm-tmp'
-  if (Test-Path $nssmTmp) { Remove-Item $nssmTmp -Recurse -Force }
-  Expand-Archive -Path $nssmZip -DestinationPath $nssmTmp -Force
-  $nssmSrc = Get-ChildItem $nssmTmp -Recurse -Filter 'nssm.exe' |
-    Where-Object { $_.FullName -match 'win64' } | Select-Object -First 1
-  if (-not $nssmSrc) { $nssmSrc = Get-ChildItem $nssmTmp -Recurse -Filter 'nssm.exe' | Select-Object -First 1 }
-  Copy-Item $nssmSrc.FullName $nssm -Force
-  Remove-Item $nssmTmp -Recurse -Force
-}
+# ---------- 6. 开机自启（计划任务，不依赖 nssm） ----------
+Step '6/7 注册开机任务 ESFAPI'
+# 清掉可能残留的旧服务 / 旧任务
+cmd /c "sc stop ESFAPI >nul 2>&1"
+cmd /c "sc delete ESFAPI >nul 2>&1"
+cmd /c "schtasks /Delete /TN ESFAPI /F >nul 2>&1"
 
-cmd /c "`"$nssm`" stop ESFAPI >nul 2>&1"
-cmd /c "`"$nssm`" remove ESFAPI confirm >nul 2>&1"
-Start-Sleep -Seconds 1
+$runCmd = Join-Path $Root 'run-api.cmd'
+@"
+@echo off
+cd /d "$serverDir"
+:loop
+"$nodeExe" src\server.js >> "$Root\logs\api.out.log" 2>> "$Root\logs\api.err.log"
+timeout /t 5 /nobreak >nul
+goto loop
+"@ | Set-Content -Path $runCmd -Encoding ASCII
 
-& $nssm install ESFAPI $nodeExe 'src\server.js'
-& $nssm set ESFAPI AppDirectory $serverDir
-& $nssm set ESFAPI AppStdout (Join-Path $Root 'logs\api.out.log')
-& $nssm set ESFAPI AppStderr (Join-Path $Root 'logs\api.err.log')
-& $nssm set ESFAPI AppRotateFiles 1
-& $nssm set ESFAPI AppRotateBytes 10485760
-& $nssm set ESFAPI Start SERVICE_AUTO_START
-& $nssm set ESFAPI AppRestartDelay 5000
-Start-Service ESFAPI
-Start-Sleep -Seconds 2
-if ((Get-Service ESFAPI).Status -ne 'Running') { throw 'ESFAPI 服务没有启动，请看 C:\esf\logs\api.err.log' }
-Write-Host '服务已启动'
+& schtasks /Create /TN ESFAPI /TR "`"$runCmd`"" /SC ONSTART /RU SYSTEM /RL HIGHEST /F
+if ($LASTEXITCODE -ne 0) { throw '创建计划任务失败' }
 
+& schtasks /Run /TN ESFAPI
+Start-Sleep -Seconds 3
+Write-Host '计划任务 ESFAPI 已启动（开机自启）'
 # ---------- 7. 健康检查 ----------
 Step '7/7 健康检查与防火墙'
 $ruleName = 'ESF API 3000'
@@ -398,7 +387,7 @@ MySQL root: root / $rootPass
 AMXX账号 : 见 C:\esf\server\.env 的 AMXX_DB_PASSWORD
 后端目录 : C:\esf\server
 更新目录 : C:\esf\updates
-服务名   : ESFAPI
+计划任务 : ESFAPI
 日志     : C:\esf\logs
 "@ | Set-Content -Path $cred -Encoding UTF8
 Write-Host "凭证已写入 $cred" -ForegroundColor Yellow
