@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import Icon from './Icon';
+import loginBg from '../assets/login-bg.jpg';
+import dragonBall from '../assets/dragon-ball.webp';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
 
@@ -45,35 +47,56 @@ export default function RegisterPage({ onRegister, onGoLogin, inviteRequired }) 
   };
 
   return (
-    <div className="auth">
+    <div className="auth auth--cinematic">
+      <div className="auth-bg" style={{ backgroundImage: `url(${loginBg})` }} aria-hidden="true" />
+      <div className="auth-veil" aria-hidden="true" />
+
       <div className="auth-visual">
         <div className="auth-visual-inner">
-          <span className="eyebrow">
-            <Icon name="spark" size={14} /> JOIN THE PLATFORM
+          <span className="eyebrow auth-eyebrow">
+            <span className="eyebrow-line" />
+            JOIN THE PLATFORM
           </span>
           <h1>
             三十秒
             <br />
-            开一局
+            开<em>一局</em>
           </h1>
-          <p>注册后即可查看在线房间、一键连服，游戏内自动带上平台身份。</p>
+          <p>
+            注册后即可查看在线房间、一键连服，
+            <br />
+            游戏内自动带上平台身份。
+          </p>
 
           <ul className="auth-points">
             <li>
-              <Icon name="users" size={15} /> 昵称支持中文，游戏内显示
+              <Icon name="users" size={15} />
+              <span>昵称支持中文，游戏内显示</span>
             </li>
             <li>
-              <Icon name="shield" size={15} /> 密码 bcrypt 加密存储
+              <Icon name="shield" size={15} />
+              <span>密码 bcrypt 加密存储</span>
             </li>
             <li>
-              <Icon name="server" size={15} /> 房间列表实时刷新
+              <Icon name="server" size={15} />
+              <span>房间列表实时刷新</span>
             </li>
           </ul>
+
+          <div className="auth-caption">
+            <span>POWERED BY ESF PLATFORM</span>
+            <span className="auth-caption-dot" />
+            <span>DRAGON BALL · ONLINE</span>
+          </div>
         </div>
       </div>
 
       <div className="auth-panel">
-        <form className="auth-card" onSubmit={submit}>
+        <form className="auth-card auth-card--cinematic" onSubmit={submit}>
+          <div className="auth-emblem">
+            <img src={dragonBall} alt="" />
+          </div>
+
           <header className="auth-card-head">
             <h2>创建账号</h2>
             <p>账号用于登录，昵称用于游戏内显示</p>

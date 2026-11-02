@@ -294,11 +294,16 @@ export default function AssetLibrary({ toast, settings }) {
         <div className="asset-grid">
           {assets.map((asset) => (
             <article key={asset.id} className="asset-card">
-              {asset.coverUrl && (
-                <div className="asset-cover">
+              <div className="asset-cover">
+                {asset.coverUrl ? (
                   <img src={assetUrl(asset.coverUrl)} alt={`${asset.name} 封面`} loading="lazy" />
-                </div>
-              )}
+                ) : (
+                  <div className={`asset-cover-fallback asset-cover-fallback--${asset.kind}`}>
+                    <Icon name="spark" size={24} />
+                    <span>{KIND_LABEL[asset.kind] || asset.kind}</span>
+                  </div>
+                )}
+              </div>
 
               <header className="asset-card-head">
                 <span className={`tag tag--kind tag--${asset.kind}`}>{KIND_LABEL[asset.kind] || asset.kind}</span>
