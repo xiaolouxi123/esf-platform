@@ -19,7 +19,6 @@ export default function TitleBar({
 
   const navItems = [
     { key: 'lobby', label: '大厅', icon: 'home' },
-    { key: 'channel', label: '频道', icon: 'bell' },
     { key: 'servers', label: '服务器', icon: 'server' },
     { key: 'assets', label: '资源库', icon: 'spark' },
     ...(staff ? [{ key: 'admin', label: '管理台', icon: 'shield' }] : []),

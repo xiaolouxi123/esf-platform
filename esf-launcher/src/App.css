@@ -4816,3 +4816,94 @@ select:focus {
 
 .channel-page { height: 100%; min-height: 0; display: flex; }
 .channel-page .card--chat { flex: 1; min-height: 0; height: 100%; }
+/* ============================ 左侧频道未读 + 龙珠雷达 ============================ */
+.game-tile { position: relative; }
+.game-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ff4d5e;
+  color: #fff;
+  font-size: 9px;
+  line-height: 15px;
+  text-align: center;
+  box-shadow: 0 0 0 2px rgba(8, 11, 18, 0.9);
+}
+
+.radar-badge { position: relative; }
+.radar-svg { width: 26px; height: 26px; }
+.radar-ring { fill: none; stroke: rgba(255, 255, 255, 0.13); stroke-width: 1; }
+.radar-node.is-ok { fill: #3ddc97; }
+.radar-node.is-off { fill: #ff5f6d; }
+.radar-trigger small { color: var(--dim); }
+
+.radar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+.radar-popover {
+  position: fixed;
+  left: 82px;
+  bottom: 74px;
+  z-index: 80;
+  width: 214px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line-strong);
+  background: rgba(18, 22, 32, 0.98);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+.radar-popover header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.radar-popover header b { font-size: 12px; }
+.radar-popover header span { font-size: 10px; }
+.radar-popover header .is-ok { color: #3ddc97; }
+.radar-popover header .is-warn { color: #ffc861; }
+.radar-popover ul { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.radar-popover li { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+.radar-popover li em { margin-left: auto; font-style: normal; font-size: 9px; color: var(--dim); }
+.radar-dot { width: 6px; height: 6px; border-radius: 50%; background: #5b6274; }
+.radar-dot.is-ok { background: #3ddc97; }
+.radar-dot.is-off { background: #ff5f6d; }
+/* ============================ 首屏数字卡着色 ============================ */
+.hero-stat--map {
+  background: linear-gradient(160deg, rgba(255, 138, 31, 0.14), rgba(255, 138, 31, 0.03));
+  border-color: rgba(255, 160, 60, 0.2);
+}
+.hero-stat--map span { color: #ffc48c; }
+.hero-stat--rooms {
+  background: linear-gradient(160deg, rgba(63, 208, 255, 0.12), rgba(63, 208, 255, 0.02));
+  border-color: rgba(63, 208, 255, 0.18);
+}
+.hero-stat--rooms span { color: #9de8ff; }
+.hero-stat--rooms b {
+  background: linear-gradient(180deg, #ffffff 6%, #8fe6ff 96%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hero-stat--ping {
+  background: linear-gradient(160deg, rgba(255, 200, 97, 0.12), rgba(255, 200, 97, 0.02));
+  border-color: rgba(255, 200, 97, 0.18);
+}
+.hero-stat--ping span { color: #ffe0a3; }
+.hero-stat--ping b {
+  background: linear-gradient(180deg, #ffffff 6%, #ffd98a 96%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

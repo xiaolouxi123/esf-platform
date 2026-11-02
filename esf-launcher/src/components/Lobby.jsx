@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TitleBar from './TitleBar';
 import Icon from './Icon';
 import ServerHall from './ServerHall';
@@ -7,6 +7,7 @@ import AdminPanel from './AdminPanel';
 import AssetLibrary from './AssetLibrary';
 import MemberSidebar from './MemberSidebar';
 import ChatPanel from './ChatPanel';
+import RadarBadge from './RadarBadge';
 import ServerRoomList from './ServerRoomList';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import dragonBall from '../assets/dragon-ball.webp';
@@ -40,6 +41,8 @@ export default function Lobby({
   const [mapOpen, setMapOpen] = useState(false);
   const [servers, setServers] = useState([]);
   const [titles, setTitles] = useState([]);
+  const [chatUnread, setChatUnread] = useState(0);
+  const lastReadRef = useRef(Number(localStorage.getItem('esf:chat:lastRead') || 0));
   const [serversLoading, setServersLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [localBusy, setLocalBusy] = useState(false);
@@ -112,6 +115,46 @@ export default function Lobby({
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    let initialized = lastReadRef.current > 0;
+
+    const tick = async () => {
+      try {
+        const data = await window.electronAPI.chat.list(0);
+        if (!alive) return;
+        const messages = Array.isArray(data?.messages) ? data.messages : [];
+        const maxId = messages.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0);
+
+        if (!initialized) {
+          lastReadRef.current = maxId;
+          localStorage.setItem('esf:chat:lastRead', String(maxId));
+          initialized = true;
+          setChatUnread(0);
+          return;
+        }
+
+        if (activePage === 'channel') {
+          lastReadRef.current = Math.max(lastReadRef.current, maxId);
+          localStorage.setItem('esf:chat:lastRead', String(lastReadRef.current));
+          setChatUnread(0);
+          return;
+        }
+
+        setChatUnread(messages.filter((item) => Number(item.id) > lastReadRef.current).length);
+      } catch {
+        /* 未读统计失败不影响主流程 */
+      }
+    };
+
+    tick();
+    const timer = setInterval(tick, 10000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [activePage]);
 
   useEffect(() => {
     window.electronAPI.maps
@@ -464,6 +507,25 @@ export default function Lobby({
             <Icon name="map" size={18} />
             <small>地图</small>
           </button>
+          <button
+            type="button"
+            className={`game-tile game-tile--tool${activePage === 'channel' ? ' is-active' : ''}`}
+            onClick={() => setPage('channel')}
+            title="频道"
+          >
+            <Icon name="bell" size={18} />
+            <small>频道</small>
+            {chatUnread > 0 && (
+              <span className="game-badge">{chatUnread > 99 ? '99+' : chatUnread}</span>
+            )}
+          </button>
+          <RadarBadge
+            backend={backend}
+            hasGameDir={hasGameDir}
+            settings={settings}
+            serversCount={servers.length}
+            updateInfo={updateInfo}
+          />
           <span className="game-rail-spacer" />
           <button type="button" className="game-tile game-tile--tool" onClick={openSettings} title="设置">
             <Icon name="settings" size={17} />
@@ -735,15 +797,15 @@ export default function Lobby({
                 </div>
 
                 <div className="hero-side">
-                  <div className="hero-stat">
+                  <div className="hero-stat hero-stat--map">
                     <span>地图</span>
                     <b>{maps.length}</b>
                   </div>
-                  <div className="hero-stat">
+                  <div className="hero-stat hero-stat--rooms">
                     <span>在线房间</span>
                     <b>{onlineServers.length}</b>
                   </div>
-                  <div className="hero-stat">
+                  <div className="hero-stat hero-stat--ping">
                     <span>最低延迟</span>
                     <b>{bestPing === null ? '—' : `${bestPing}ms`}</b>
                   </div>
