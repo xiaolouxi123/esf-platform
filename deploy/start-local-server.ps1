@@ -1,4 +1,4 @@
-# ESF 本地测试服 · 一键启动
+﻿# ESF 本地测试服 · 一键启动
 # 作用：启动 MySQL(3307) + 后端(3000) + 公网 SSH 隧道，并打印公网地址
 # 用法：右键 启动本地测试服.bat → 以管理员身份运行
 
@@ -17,6 +17,11 @@ function Test-Tcp([string]$targetHost, [int]$port) {
     return $ok
   } catch { return $false }
 }
+
+# 挂机测试：禁止睡眠/休眠（屏幕可以关）
+powercfg /change standby-timeout-ac 0 | Out-Null
+powercfg /change hibernate-timeout-ac 0 | Out-Null
+powercfg /change disk-timeout-ac 0 | Out-Null
 
 Write-Host '===== 1/3 MySQL =====' -ForegroundColor Cyan
 if (-not (Test-Tcp '127.0.0.1' 3307)) {
