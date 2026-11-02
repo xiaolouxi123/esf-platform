@@ -4554,3 +4554,32 @@ select:focus {
     transition-duration: 0.001ms !important;
   }
 }
+/* ============================ 服务器模式分类 ============================ */
+.hall-modes { display: flex; flex-wrap: wrap; gap: 8px; }
+.hall-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+.hall-mode:hover { color: var(--text); border-color: var(--line-strong); }
+.hall-mode em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--dim);
+}
+.hall-mode.is-active {
+  color: #1d1004;
+  font-weight: 600;
+  border-color: transparent;
+  background: linear-gradient(135deg, #ffd18f, #ff9a33);
+  box-shadow: 0 8px 20px rgba(255, 120, 20, 0.18);
+}
+.hall-mode.is-active em { color: rgba(29, 16, 4, 0.6); }

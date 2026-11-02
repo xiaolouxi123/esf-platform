@@ -58,7 +58,7 @@ function line(label, value) {
 
   const servers = await call('GET', '/api/servers', { token });
   for (const s of servers.body.data.servers) {
-    line('服务器', `${s.serverKey} ${s.name} ${s.ip}:${s.port} online=${s.online} ${s.players}/${s.maxPlayers}`);
+    line('服务器', `${s.serverKey} [${s.mode || '混战'}] ${s.name} ${s.ip}:${s.port} online=${s.online} ${s.players}/${s.maxPlayers}`);
   }
 
   const target = servers.body.data.servers.find((s) => s.online) || servers.body.data.servers[0];

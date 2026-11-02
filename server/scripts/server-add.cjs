@@ -45,7 +45,7 @@ function parseArgs(argv) {
 
   if (!args.key) {
     console.error(
-      '用法: npm run server:add -- --key <key> --name <名称> --ip <IP> --port <端口> [--sort 10]\n' +
+      '用法: npm run server:add -- --key <key> --name <名称> --ip <IP> --port <端口> [--mode 单挑] [--sort 10]\n' +
         '       npm run server:add -- --key <key> --disable'
     );
     process.exit(1);
@@ -71,24 +71,26 @@ function parseArgs(argv) {
 
     const port = Number(args.port);
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('--port 不合法');
+    const mode = String(args.mode || '混战').trim() || '混战';
 
     await q(
-      `INSERT INTO servers (server_key, name, ip, port, enabled, sort)
-       VALUES (?, ?, ?, ?, 1, ?)
+      `INSERT INTO servers (server_key, name, ip, port, mode, enabled, sort)
+       VALUES (?, ?, ?, ?, ?, 1, ?)
        ON DUPLICATE KEY UPDATE
          name = VALUES(name), ip = VALUES(ip), port = VALUES(port),
-         enabled = 1, sort = VALUES(sort)`,
-      [args.key, args.name, args.ip, port, Number(args.sort) || 0]
+         mode = VALUES(mode), enabled = 1, sort = VALUES(sort)`,
+      [args.key, args.name, args.ip, port, mode, Number(args.sort) || 0]
     );
 
     const row = await one('SELECT id FROM servers WHERE server_key = ? LIMIT 1', [args.key]);
     await auditCli('server.add', row && row.id, {
       serverKey: args.key,
       name: args.name,
+      mode,
       address: `${args.ip}:${port}`,
     });
 
-    console.log(`[server] 已登记 ${args.key} → ${args.ip}:${port}（${args.name}）`);
+    console.log(`[server] 已登记 ${args.key} → ${args.ip}:${port}（${args.name} · ${mode}）`);
     console.log('[server] 后台 15 秒内会自动查询一次状态，启动器刷新列表即可看到');
   } catch (err) {
     console.error('[server] 失败:', err.message);

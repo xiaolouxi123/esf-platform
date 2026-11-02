@@ -105,6 +105,21 @@ async function main() {
       await ensureColumn(conn, env.db.name, 'assets', column, definition);
     }
 
+    // 服务器模式（用于大厅分类）
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'servers',
+      'mode',
+      "VARCHAR(24) NOT NULL DEFAULT '混战' AFTER port"
+    );
+    await conn.query(
+      "UPDATE servers SET mode = '单挑' WHERE server_key = 'fcx-1v1-1' AND mode = '混战'"
+    );
+    await conn.query(
+      "UPDATE servers SET mode = '新手' WHERE server_key = 'fcx-1v1-2' AND mode = '混战'"
+    );
+
     // 3. 应用账号
     await createAccount(conn, env.db.user, env.db.allowedHost, env.db.password);
     await conn.query(`GRANT ALL PRIVILEGES ON \`${env.db.name}\`.* TO ?@?`, [

@@ -20,7 +20,7 @@ function withTimeout(promise, ms) {
 router.get('/servers', requireAuth, async (req, res, next) => {
   try {
     const rows = await q(
-      `SELECT s.server_key, s.name AS display_name, s.ip, s.port,
+      `SELECT s.server_key, s.name AS display_name, s.mode, s.ip, s.port,
               COALESCE(st.online, 0)      AS online,
               COALESCE(st.players, 0)     AS players,
               COALESCE(st.max_players, 0) AS max_players,
@@ -37,6 +37,7 @@ router.get('/servers', requireAuth, async (req, res, next) => {
     const servers = rows.map((row) => ({
       serverKey: row.server_key,
       name: row.live_name || row.display_name,
+      mode: row.mode || '混战',
       ip: row.ip,
       port: Number(row.port),
       online: Boolean(Number(row.online)),

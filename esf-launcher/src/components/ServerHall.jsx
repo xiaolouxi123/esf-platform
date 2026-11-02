@@ -119,6 +119,7 @@ export default function ServerHall({
 }) {
   const [keyword, setKeyword] = useState('');
   const [filter, setFilter] = useState('all');
+  const [mode, setMode] = useState('all');
   const [customServers, setCustomServers] = useState([]);
   const [customOpen, setCustomOpen] = useState(false);
   const [customForm, setCustomForm] = useState({ name: '', address: '' });
@@ -172,6 +173,7 @@ export default function ServerHall({
   const visible = servers.filter((server) => {
     if (filter === 'online' && !server.online) return false;
     if (filter === 'fav' && !favorites.has(server.serverKey)) return false;
+    if (mode !== 'all' && (server.mode || '混战') !== mode) return false;
 
     const text = `${server.name} ${server.map || ''} ${server.ip}`.toLowerCase();
     return text.includes(keyword.trim().toLowerCase());
@@ -188,6 +190,24 @@ export default function ServerHall({
   const avgPing = onlineList.length
     ? Math.round(onlineList.reduce((sum, server) => sum + (Number(server.ping) || 0), 0) / onlineList.length)
     : 0;
+
+  const MODE_ORDER = ['单挑', '新手', '混战', '组队', '生存', '剧情', '其他'];
+  const modeCounts = new Map();
+  for (const server of servers) {
+    const key = server.mode || '混战';
+    modeCounts.set(key, (modeCounts.get(key) || 0) + 1);
+  }
+  const modeOptions = [
+    { key: 'all', label: '全部模式', count: servers.length },
+    ...MODE_ORDER.filter((key) => modeCounts.has(key)).map((key) => ({
+      key,
+      label: key,
+      count: modeCounts.get(key),
+    })),
+    ...[...modeCounts.keys()]
+      .filter((key) => !MODE_ORDER.includes(key))
+      .map((key) => ({ key, label: key, count: modeCounts.get(key) })),
+  ];
 
   return (
     <div className="hall">
@@ -226,6 +246,20 @@ export default function ServerHall({
           <span>我的服务器</span>
           <b>{customServers.length}</b>
         </div>
+      </div>
+
+      <div className="hall-modes">
+        {modeOptions.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            className={`hall-mode${mode === item.key ? ' is-active' : ''}`}
+            onClick={() => setMode(item.key)}
+          >
+            {item.label}
+            <em>{item.count}</em>
+          </button>
+        ))}
       </div>
 
       <LookupBar onJoin={onJoin} busyKey={busyKey} />

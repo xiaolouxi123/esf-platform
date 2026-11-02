@@ -37,6 +37,7 @@ const maps = [
 const servers = [
   {
     serverKey: 'fcx-1v1-1',
+    mode: '单挑',
     name: '[ESF-FCX]单挑房[1]',
     ip: '114.132.84.150',
     port: 27016,
@@ -48,7 +49,8 @@ const servers = [
   },
   {
     serverKey: 'fcx-1v1-2',
-    name: '[ESF-FCX]单挑房[2]',
+    mode: '新手',
+    name: '[ESF-FCX]新手房',
     ip: '114.132.84.151',
     port: 27017,
     online: true,
@@ -59,6 +61,7 @@ const servers = [
   },
   {
     serverKey: 'fcx-team',
+    mode: '组队',
     name: '[ESF-FCX]组队服',
     ip: '114.132.84.152',
     port: 27018,
