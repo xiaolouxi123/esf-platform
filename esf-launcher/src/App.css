@@ -4371,3 +4371,57 @@ select:focus {
   background: linear-gradient(135deg, #ffcf93, #ff9c33);
   border-color: transparent;
 }
+/* ============================ 降低橙色按钮重复度 ============================ */
+.room-row .btn-primary {
+  color: #ffc995;
+  background: rgba(255, 140, 30, 0.12);
+  border: 1px solid rgba(255, 168, 74, 0.26);
+  box-shadow: none;
+}
+.room-row .btn-primary:hover:not(:disabled) {
+  color: #1c0f03;
+  background: linear-gradient(135deg, #ffd18f, #ff8a1f);
+  border-color: transparent;
+  box-shadow: 0 8px 20px rgba(255, 110, 20, 0.24);
+}
+.room-row .btn-primary::after { display: none; }
+
+.asset-install {
+  color: #ffc995;
+  background: rgba(255, 140, 30, 0.1);
+  border-color: rgba(255, 168, 74, 0.22);
+}
+.asset-install:hover:not(:disabled) {
+  color: #1c0f03;
+  background: linear-gradient(135deg, #ffd18f, #ff8a1f);
+  border-color: transparent;
+}
+
+/* ============================ 卡片与滚动条统一 ============================ */
+.asset-card,
+.admin-card,
+.custom-servers,
+.hall .room-table {
+  border-radius: 14px;
+}
+.asset-card {
+  border-color: rgba(255, 255, 255, 0.085);
+  transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+.asset-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 168, 74, 0.26);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.24); background-clip: content-box; }
+
+::selection { background: rgba(255, 140, 30, 0.32); color: #fff; }

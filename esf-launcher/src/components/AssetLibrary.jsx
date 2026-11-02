@@ -326,7 +326,7 @@ export default function AssetLibrary({ toast, settings }) {
               <div className="asset-actions">
                 <button
                   type="button"
-                  className="btn btn-primary btn-sm btn-block"
+                  className="btn btn-ghost btn-sm btn-block asset-install"
                   disabled={installingId === asset.id || !settings?.esfModDir}
                   onClick={() => install(asset)}
                 >
