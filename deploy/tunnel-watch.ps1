@@ -4,7 +4,8 @@ $Root = 'C:\Users\Administrator\Desktop\esf-launcher'
 $Run = Join-Path $Root '.run'
 $Log = Join-Path $Run 'tunnel-watch.log'
 $UrlFile = Join-Path $Run 'public-url.txt'
-$DesktopFile = "$env:USERPROFILE\Desktop\ESF-服务器地址.txt"`n$ServerUrlFile = Join-Path $Root 'server\updates\public-url.txt'
+$DesktopFile = "$env:USERPROFILE\Desktop\ESF-服务器地址.txt"
+$ServerUrlFile = Join-Path $Root 'server\updates\public-url.txt'
 New-Item -ItemType Directory -Force -Path $Run | Out-Null
 
 function Write-Log($msg) {
@@ -22,7 +23,8 @@ function Test-Public($url) {
 
 function Get-TunnelUrl {
   $text = (Get-Content (Join-Path $Run 'ssh-tunnel.out.log') -Raw -ErrorAction SilentlyContinue) +
-          "`n" + (Get-Content (Join-Path $Run 'ssh-tunnel.err.log') -Raw -ErrorAction SilentlyContinue)
+          "
+" + (Get-Content (Join-Path $Run 'ssh-tunnel.err.log') -Raw -ErrorAction SilentlyContinue)
   $text = $text -replace "`e\[[0-9;]*m", ''
   $m = [regex]::Match($text, 'https://[a-z0-9]+\.lhr\.life')
   if ($m.Success) { return $m.Value }
@@ -58,7 +60,9 @@ function Restart-Tunnel {
     $url = Get-TunnelUrl
     if ($url -and (Test-Public $url)) {
       $url | Set-Content $UrlFile -Encoding ASCII
-      $url | Set-Content $DesktopFile -Encoding UTF8`n      New-Item -ItemType Directory -Force -Path (Split-Path $ServerUrlFile) | Out-Null`n      $url | Set-Content $ServerUrlFile -Encoding ASCII
+      $url | Set-Content $DesktopFile -Encoding UTF8
+      New-Item -ItemType Directory -Force -Path (Split-Path $ServerUrlFile) | Out-Null
+      $url | Set-Content $ServerUrlFile -Encoding ASCII
       Write-Log "新地址: $url"
       return $url
     }

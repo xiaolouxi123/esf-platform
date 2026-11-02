@@ -268,6 +268,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       spellcheck: false,
+      backgroundThrottling: false,
       devTools: !app.isPackaged,
     },
   });

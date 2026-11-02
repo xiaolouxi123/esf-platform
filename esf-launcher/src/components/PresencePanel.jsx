@@ -11,7 +11,7 @@ import Avatar from './Avatar';
 export default function PresencePanel({ user, backend, hasGameDir, settings, serversCount, updateInfo }) {
   const [online, setOnline] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [presenceOk, setPresenceOk] = useState(false);
+  const [presenceFailures, setPresenceFailures] = useState(0);
   const [showNodes, setShowNodes] = useState(false);
 
   useEffect(() => {
@@ -22,10 +22,10 @@ export default function PresencePanel({ user, backend, hasGameDir, settings, ser
         const data = await window.electronAPI.presence.list();
         if (alive) {
           setOnline(data.online || []);
-          setPresenceOk(true);
+          setPresenceFailures(0);
         }
       } catch {
-        if (alive) setPresenceOk(false);
+        if (alive) setPresenceFailures((count) => count + 1);
       } finally {
         if (alive) setLoading(false);
       }
@@ -33,9 +33,18 @@ export default function PresencePanel({ user, backend, hasGameDir, settings, ser
 
     tick();
     const timer = setInterval(tick, 15000);
+
+    const refresh = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+
     return () => {
       alive = false;
       clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
     };
   }, []);
 
@@ -47,7 +56,7 @@ export default function PresencePanel({ user, backend, hasGameDir, settings, ser
     { key: 'dir', label: '游戏目录', state: hasGameDir ? 'ok' : 'off' },
     { key: 'mod', label: '游戏模组', state: settings?.esfModDir ? 'ok' : 'off' },
     { key: 'rooms', label: '房间列表', state: Number(serversCount) > 0 ? 'ok' : 'warn' },
-    { key: 'presence', label: '在线状态', state: presenceOk ? 'ok' : 'off' },
+    { key: 'presence', label: '在线状态', state: presenceFailures >= 3 ? 'off' : presenceFailures > 0 ? 'warn' : 'ok' },
     { key: 'version', label: '版本更新', state: updateInfo?.hasUpdate ? 'warn' : 'ok' },
   ];
 

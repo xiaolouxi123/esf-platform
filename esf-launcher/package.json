@@ -1,7 +1,7 @@
 {
   "name": "esf-launcher",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "ESF 平台启动器（龙珠 Online 私服大厅）",
   "author": "ESF Platform",
   "type": "module",

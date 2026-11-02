@@ -131,11 +131,16 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
   useEffect(() => {
     const timer = setInterval(() => refreshServers({ silent: true }), 15000);
     const onFocus = () => refreshServers({ silent: true });
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshServers({ silent: true });
+    };
 
     window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(timer);
       window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [refreshServers]);
 
@@ -185,7 +190,18 @@ export default function Lobby({ user, settings, appInfo, backend, notice, toast,
 
     ping();
     const timer = setInterval(ping, 20000);
-    return () => clearInterval(timer);
+
+    const refresh = () => {
+      if (document.visibilityState === 'visible') ping();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   }, []);
 
   // 员工才拉管理概览（玩家端不请求、也不显示）

@@ -4,13 +4,14 @@ import Icon from './Icon';
 import { formatRelative } from '../lib/format';
 
 /**
- * 大厅频道：轻量公共聊天。
- * 6 秒轮询增量消息（after=最后一条 id），不做 WebSocket —— 这个量级没必要。
+ * 大厅频道：轻量公共聊天，6 秒增量轮询。
+ * 失败时显示错误并保留已有消息；窗口重新聚焦会立即补拉。
  */
 export default function ChatPanel({ user, toast }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
   const lastIdRef = useRef(0);
   const listRef = useRef(null);
 
@@ -31,8 +32,9 @@ export default function ChatPanel({ user, toast }) {
       try {
         const data = await window.electronAPI.chat.list(after);
         merge(data.messages || []);
-      } catch {
-        /* 轮询失败静默重试 */
+        setError('');
+      } catch (err) {
+        setError(err.message || '频道暂时不可用');
       }
     },
     [merge]
@@ -41,9 +43,18 @@ export default function ChatPanel({ user, toast }) {
   useEffect(() => {
     const boot = setTimeout(() => load(0), 0);
     const timer = setInterval(() => load(lastIdRef.current), 6000);
+
+    const refresh = () => {
+      if (document.visibilityState === 'visible') load(lastIdRef.current);
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+
     return () => {
       clearTimeout(boot);
       clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
     };
   }, [load]);
 
@@ -61,6 +72,7 @@ export default function ChatPanel({ user, toast }) {
       const data = await window.electronAPI.chat.send(text);
       setDraft('');
       merge([data.message]);
+      setError('');
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -79,7 +91,9 @@ export default function ChatPanel({ user, toast }) {
 
       <div className="chat-list" ref={listRef}>
         {messages.length === 0 ? (
-          <p className="admin-muted">还没有消息，打个招呼吧</p>
+          <p className={`admin-muted${error ? ' chat-error' : ''}`}>
+            {error ? `频道连接失败：${error}（自动重试中）` : '还没有消息，打个招呼吧'}
+          </p>
         ) : (
           messages.map((message) => (
             <div

@@ -3881,3 +3881,4 @@ select:focus {
   font-size: 10.5px;
   color: var(--dim);
 }
+.chat-error { color: #ff9aa3; }
