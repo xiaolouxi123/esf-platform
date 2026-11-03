@@ -90,7 +90,7 @@ DbStatus:ensureDatabase() {
 
     if (host[0] == 0) {
         if (!g_warnedNoConfig) {
-            log_amx("[平台] platform_sql_host 未配置，身份校验不可用（在 amxx.cfg 里配置）");
+            log_amx("[Platform] platform_sql_host 未配置，身份校验不可用（在 amxx.cfg 里配置）");
             g_warnedNoConfig = true;
         }
         return DbNotConfigured;
@@ -99,21 +99,21 @@ DbStatus:ensureDatabase() {
     if (g_db == Empty_Handle) {
         g_db = SQL_MakeDbTuple(host, user, pass, db, 5);
         if (g_db == Empty_Handle) {
-            log_amx("[平台] SQL_MakeDbTuple 失败（参数不合法）");
+            log_amx("[Platform] SQL_MakeDbTuple 失败（参数不合法）");
             return DbUnavailable;
         }
     }
 
     new errcode = 0, error[128];
     if (!SQL_Connect(g_db, errcode, error, charsmax(error))) {
-        log_amx("[平台] 数据库连接失败 code=%d msg=%s", errcode, error);
+        log_amx("[Platform] 数据库连接失败 code=%d msg=%s", errcode, error);
         return DbUnavailable;
     }
 
     // 中文昵称必须 utf8mb4，否则读出来是乱码
     SQL_SetCharset(g_db, "utf8mb4");
     g_dbReady = true;
-    log_amx("[平台] 数据库已连接 (%s)", host);
+    log_amx("[Platform] 数据库已连接 (%s)", host);
     return DbReady;
 }
 
@@ -164,7 +164,7 @@ public taskVerify(taskid) {
             set_task(1.0, "taskVerify", TASK_VERIFY + id);
             return;
         }
-        log_amx("[平台] 拒绝 id=%d：平台未配置，不能放行", id);
+        log_amx("[Platform] 拒绝 id=%d：平台未配置，不能放行", id);
         rejectPlayer(id, "平台身份校验未配置，请联系管理员");
         return;
     }
@@ -177,7 +177,7 @@ public taskVerify(taskid) {
     get_pcvar_string(g_pcServerKey, serverKey, charsmax(serverKey));
     if (serverKey[0] == 0) {
         // 配了数据库却没配服务器标识，同样属于配置错误，不能放行
-        log_amx("[平台] 拒绝 id=%d：platform_server_key 未配置", id);
+        log_amx("[Platform] 拒绝 id=%d：platform_server_key 未配置", id);
         rejectPlayer(id, "平台配置不完整，请联系管理员");
         return;
     }
@@ -197,7 +197,7 @@ public taskVerify(taskid) {
     if (get_pcvar_num(g_pcDebug)) {
         new prefix[8];
         formatex(prefix, charsmax(prefix), "%.6s", token);
-        log_amx("[平台] 校验中 id=%d user=%s token=%s…", id, name, prefix);
+        log_amx("[Platform] 校验中 id=%d user=%s token=%s…", id, name, prefix);
     }
 
     new data[2];
@@ -210,7 +210,7 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
     new id = data[0];
 
     if (failstate != TQUERY_SUCCESS) {
-        log_amx("[平台] 查询失败 failstate=%d err=%s", failstate, error);
+        log_amx("[Platform] 查询失败 failstate=%d err=%s", failstate, error);
         handlePlatformDown(id, "平台数据库暂时不可用");
         return;
     }
@@ -254,7 +254,7 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
          VALUES (%d, '%s', %d, NOW())", userId, serverKey, tokenId);
     SQL_ThreadQuery(g_db, "OnAuxQuery", session);
 
-    log_amx("[平台] 验证通过 id=%d user=%s role=%s", id, name, role);
+    log_amx("[Platform] 验证通过 id=%d user=%s role=%s", id, name, role);
 
     set_hudmessage(0, 255, 128, -1.0, 0.35, 0, 0.0, 5.0, 0.1, 0.2, -1);
     show_hudmessage(id, "平台验证成功^n欢迎你，%s", name);
@@ -263,7 +263,7 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
 
 public OnAuxQuery(failstate, Handle:query, error[], errnum, data[], dataSize) {
     if (failstate != TQUERY_SUCCESS) {
-        log_amx("[平台] 附加写入失败 failstate=%d err=%s", failstate, error);
+        log_amx("[Platform] 附加写入失败 failstate=%d err=%s", failstate, error);
     }
 }
 
@@ -309,7 +309,7 @@ bool:isValidToken(const token[]) {
 rejectPlayer(id, const reason[]) {
     new name[32];
     get_user_name(id, name, charsmax(name));
-    log_amx("[平台] 拒绝 id=%d name=%s reason=%s", id, name, reason);
+    log_amx("[Platform] 拒绝 id=%d name=%s", id, name);
 
     client_print(id, print_chat, "[平台] %s", reason);
 
@@ -322,15 +322,16 @@ rejectPlayer(id, const reason[]) {
 public taskKick(taskid) {
     new id = taskid - TASK_KICK;
     if (is_user_connected(id)) {
-        log_amx("[平台] 执行踢出 id=%d", id);
+        log_amx("[Platform] 执行踢出 id=%d", id);
         server_cmd("kick #%d", get_user_userid(id));
     }
 }
 
 handlePlatformDown(id, const reason[]) {
+    #pragma unused reason
     if (get_pcvar_num(g_pcFailOpen)) {
         g_authed[id] = true;
-        log_amx("[平台] 容灾放行 id=%d 原因=%s", id, reason);
+        log_amx("[Platform] 容灾放行 id=%d", id);
         client_print(id, print_chat, "[平台] 验证服务暂时不可用，本次已按容灾策略放行");
     } else {
         rejectPlayer(id, "平台验证服务不可用，请稍后再试");

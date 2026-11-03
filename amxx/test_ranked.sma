@@ -410,12 +410,13 @@ bool:checkRankedFinish() {
 
     if (aliveA > 0 && aliveB > 0) return false;
 
-    new winner = (aliveA > 0) ? 'a' : 'b';
+    new winner[2];
+    formatex(winner, charsmax(winner), "%s", (aliveA > 0) ? "a" : "b");
     new query[128];
     formatex(query, charsmax(query), "CALL settle_ranked_match(%d, '%s')", g_rankedMatchId, winner);
     SQL_ThreadQuery(g_rankedTuple, "OnRankedSettled", query);
-    log_amx("[排位] 比赛 %d 结算：%s 队获胜", g_rankedMatchId, winner == 'a' ? "A" : "B");
-    client_print(0, print_chat, "[排位] 比赛结束，%s 队获胜，正在回写平台战绩", winner == 'a' ? "A" : "B");
+    log_amx("[Ranked] match %d settled, winner=%s", g_rankedMatchId, winner);
+    client_print(0, print_chat, "[Ranked] match finished, winner=%s, saving platform stats...", winner);
 
     g_rankedSettled = true;
     g_rankedMatchId = 0;
@@ -1463,6 +1464,12 @@ public PlayerPreThink(id)
         return FMRES_HANDLED;
     }
 
+    if(checkTeamWinner())
+    {
+        resetAll();
+        return FMRES_HANDLED;
+    }
+
     //检测已经分出胜负情况
     if(g_SpawnCount <=1 && g_iBattle == true)
     {
@@ -1839,10 +1846,35 @@ stock SetclientPL(id,powerLevel)
     set_pdata_int( id, 461,  powerLevel, 5 );
 }
 
+/** 2v2 无平台身份时的兜底胜负：一方全灭即结束 */
+bool:checkTeamWinner()
+{
+    if(g_autoTeamSize != 2 || !g_iBattle) return false;
+
+    new goodAlive = 0, evilAlive = 0;
+    for(new i = 1; i <= get_maxplayers(); i++)
+    {
+        if(!is_user_connected(i) || g_iWarrior[i]) continue;
+        new team = Get_Team(i);
+        if(team == 1) goodAlive++;
+        else if(team == 2) evilAlive++;
+    }
+
+    if(goodAlive > 0 && evilAlive > 0) return false;
+    if(goodAlive == 0 && evilAlive == 0) return false;
+
+    new winnerName[8];
+    copy(winnerName, charsmax(winnerName), (goodAlive > 0) ? "Good" : "Evil");
+    new msg[64];
+    formatex(msg, charsmax(msg), "[ 2v2 结束 ] 获胜方: %s", winnerName);
+    MessageCenter(0, {0,255,0}, msg, 8.0);
+    client_print(0, print_chat, "[ 2v2 ] 比赛结束，%s 队获胜", winnerName);
+    return true;
+}
+
 stock checkWinner()
 {
-    new playerCount = 0;
-    new iWinner = 0 ;
+    new playerCount = 0;    new iWinner = 0 ;
     new i = 1;
 
 
@@ -2114,6 +2146,7 @@ resetAll()
     g_rankedSeenA=0;
     g_rankedSeenB=0;
     g_rankedSettled=false;
+    for(new i = 1; i <= get_maxplayers(); i++) g_rankedTeam[i]=0;
 
     g_iBattle     = false;
     g_BattleState = false;

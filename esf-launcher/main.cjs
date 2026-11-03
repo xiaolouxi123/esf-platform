@@ -167,34 +167,77 @@ function requireOwner() {
 }
 
 /** 游戏进程是否在跑（在线状态用它区分"大厅"和"游戏中"） */
-function isGameRunning() {
+/** 游戏进程名：默认 hl.exe，也兼容整合包改名的 exe */
+function gameProcessNames() {
+  const names = new Set(['hl.exe']);
   try {
-    const result = spawnSync('tasklist', ['/FI', 'IMAGENAME eq hl.exe', '/NH'], {
+    const exe = path.basename(getSettings().hlPath || '').toLowerCase();
+    if (exe) names.add(exe);
+  } catch {
+    /* settings 未初始化时只认 hl.exe */
+  }
+  return names;
+}
+
+function listGameProcesses() {
+  const names = gameProcessNames();
+  try {
+    const result = spawnSync('tasklist', ['/FO', 'CSV', '/NH'], {
       encoding: 'utf8',
       windowsHide: true,
       timeout: 5000,
     });
-    return /hl\.exe/i.test(result.stdout || '');
+    const processes = [];
+    for (const line of String(result.stdout || '').split(/\r?\n/)) {
+      const matched = /^"([^"]+)","(\d+)"/.exec(line.trim());
+      if (!matched) continue;
+      const image = matched[1].toLowerCase();
+      if (names.has(image)) processes.push({ image: matched[1], pid: Number(matched[2]) });
+    }
+    return processes;
   } catch {
-    return false;
+    return [];
   }
+}
+
+function isGameRunning() {
+  return listGameProcesses().length > 0;
 }
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** 关游戏/切服前先结束 hl.exe，否则新实例会被单实例互斥挡住 */
+/** 关游戏/切服前先结束 hl.exe（或整合包改名的客户端） */
 async function stopGameForSwitch() {
-  if (!isGameRunning()) return false;
-  try {
-    spawnSync('taskkill', ['/IM', 'hl.exe', '/F'], { windowsHide: true, timeout: 5000 });
-  } catch {
-    /* ignore */
+  const processes = listGameProcesses();
+  if (processes.length === 0) return false;
+
+  for (const process of processes) {
+    try {
+      spawnSync('taskkill', ['/PID', String(process.pid), '/F', '/T'], {
+        windowsHide: true,
+        timeout: 5000,
+      });
+    } catch {
+      /* 继续用下面的兜底 */
+    }
   }
-  for (let i = 0; i < 20; i++) {
+  for (const name of gameProcessNames()) {
+    try {
+      spawnSync('taskkill', ['/IM', name, '/F', '/T'], { windowsHide: true, timeout: 5000 });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  for (let i = 0; i < 25; i++) {
     await wait(200);
-    if (!isGameRunning()) break;
+    if (!isGameRunning()) return true;
   }
-  return true;
+
+  throw new api.ApiError(
+    '检测到游戏进程仍在运行，平台无法自动关闭。请手动退出游戏后再试。',
+    'GAME_STILL_RUNNING'
+  );
 }
 
 function showMainWindow() {

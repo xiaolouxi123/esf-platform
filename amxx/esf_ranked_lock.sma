@@ -64,26 +64,26 @@ bool:ensureDatabase() {
     get_pcvar_string(g_pcDb, db, charsmax(db));
 
     if (host[0] == 0) {
-        log_amx("[排位锁] ranked_sql_host 未配置");
+        log_amx("[ranked] ranked_sql_host 未配置");
         return false;
     }
 
     g_db = SQL_MakeDbTuple(host, user, pass, db, 5);
     if (g_db == Empty_Handle) {
-        log_amx("[排位锁] SQL_MakeDbTuple 失败");
+        log_amx("[ranked] SQL_MakeDbTuple 失败");
         return false;
     }
 
     new errcode = 0, error[128];
     if (!SQL_Connect(g_db, errcode, error, charsmax(error))) {
-        log_amx("[排位锁] 数据库连接失败 code=%d msg=%s", errcode, error);
+        log_amx("[ranked] 数据库连接失败 code=%d msg=%s", errcode, error);
         SQL_FreeHandle(g_db);
         g_db = Empty_Handle;
         return false;
     }
 
     SQL_SetCharset(g_db, "utf8mb4");
-    log_amx("[排位锁] 数据库已连接");
+    log_amx("[ranked] 数据库已连接");
     return true;
 }
 
@@ -109,14 +109,14 @@ public taskCheckPlayer(taskid) {
     new serverKey[34];
     get_pcvar_string(g_pcServerKey, serverKey, charsmax(serverKey));
     if (serverKey[0] == 0) {
-        log_amx("[排位锁] ranked_server_key 未配置，跳过");
+        log_amx("[ranked] ranked_server_key 未配置，跳过");
         return;
     }
     sanitizeKey(serverKey);
 
     if (!ensureDatabase()) {
         if (get_pcvar_num(g_pcFailOpen)) {
-            log_amx("[排位锁] 数据库不可用，按容灾放行 id=%d", id);
+            log_amx("[ranked] 数据库不可用，按容灾放行 id=%d", id);
         } else {
             rejectPlayer(id, "排位赛校验服务不可用，请稍后再试");
         }
@@ -146,9 +146,9 @@ public OnLockChecked(failstate, Handle:query, error[], errnum, data[], dataSize)
     new id = data[0];
 
     if (failstate != TQUERY_SUCCESS) {
-        log_amx("[排位锁] 查询失败 id=%d err=%s", id, error);
+        log_amx("[ranked] 查询失败 id=%d err=%s", id, error);
         if (get_pcvar_num(g_pcFailOpen)) {
-            log_amx("[排位锁] 查询失败，按容灾放行 id=%d", id);
+            log_amx("[ranked] 查询失败，按容灾放行 id=%d", id);
         } else {
             rejectPlayer(id, "排位赛校验服务异常，请稍后再试");
         }
@@ -170,7 +170,7 @@ rejectPlayer(id, const reason[]) {
     new name[32], ip[16];
     get_user_name(id, name, charsmax(name));
     get_user_ip(id, ip, charsmax(ip), 1);
-    log_amx("[排位锁] 拒绝 id=%d name=%s ip=%s reason=%s", id, name, ip, reason);
+    log_amx("[ranked] rejected id=%d name=%s ip=%s", id, name, ip);
     client_print(id, print_chat, "[排位赛] %s", reason);
 
     // 本地 listen server 的房主无法被 kick，避免刷错误日志
