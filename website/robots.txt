@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://esfchina.com/sitemap.xml
+Sitemap: https://esfcn.cn/sitemap.xml

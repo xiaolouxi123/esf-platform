@@ -3,7 +3,7 @@
 ## 目标域名
 
 ```text
-https://esfchina.com/
+https://esfcn.cn/
 ```
 
 当前 DNS 尚未解析，先使用：
