@@ -13,13 +13,6 @@ app.disable('x-powered-by');
 app.set('trust proxy', 'loopback');
 app.use(express.json({ limit: '32kb' }));
 
-app.get('/', (req, res) => {
-  res.json({
-    ok: true,
-    data: { name: 'ESF 平台后端', version: env.version, docs: '/api/health' },
-  });
-});
-
 app.use('/api', require('./routes/health'));
 app.use('/api', require('./routes/config'));
 app.use('/api/auth', require('./routes/auth'));
@@ -114,6 +107,18 @@ app.use(
     maxAge: '1h',
     setHeaders(res) {
       res.setHeader('Access-Control-Allow-Origin', '*');
+    },
+  })
+);
+
+// 官网（与 API / updates 同源，避免额外域名和证书配置）
+const websiteDir = path.join(__dirname, '..', '..', 'website');
+app.use(
+  express.static(websiteDir, {
+    index: 'index.html',
+    maxAge: '10m',
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('index.html')) res.setHeader('Cache-Control', 'no-cache');
     },
   })
 );

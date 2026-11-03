@@ -99,3 +99,13 @@ GitHub 仓库根目录的文件列表显示的是每个文件**最后一次提�
 | `amxx/`（gitignore） | 含数据库密码的 AMXX 安装包，不进入公开仓库 |
 
 > `deploy/amxx` 被 `.gitignore` 排除；插件源码在 `amxx/`，安装包请私下分发。
+
+## `website`
+
+| 文件 | 说明 |
+|---|---|
+| `index.html` | 官网单页：产品介绍、功能、排位、下载、更新日志 |
+| `assets/icon.png` | 官网品牌图标 |
+| `assets/ranked.png` | 排位界面展示图 |
+| `assets/dashboard.png` | 大厅界面展示图 |
+| `README.md` | 域名 / HTTPS / 更新源接入说明 |
