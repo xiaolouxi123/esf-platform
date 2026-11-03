@@ -787,11 +787,57 @@ export default function Lobby({
                         </div>
                       )}
                     </div>
+                    {autoUpdate.status === 'downloading' && (
+                      <div className="update-actions">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-ghost"
+                          onClick={() => window.electronAPI.update.pause().catch(() => {})}
+                        >
+                          暂停
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-ghost"
+                          onClick={() => window.electronAPI.update.dismiss().catch(() => {})}
+                        >
+                          关闭
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
+              {autoUpdate?.status === 'paused' && (
+                <div className="update-strip update-strip--progress">
+                  <Icon name="pause" size={15} />
+                  <span>
+                    更新 <b>v{autoUpdate.version}</b> 已暂停
+                    {autoUpdate.transferred > 0 && autoUpdate.total > 0
+                      ? ` · ${(autoUpdate.transferred / 1048576).toFixed(1)} / ${(autoUpdate.total / 1048576).toFixed(1)} MB`
+                      : ''}
+                  </span>
+                  <div className="update-actions">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      onClick={() => window.electronAPI.update.resume().catch(() => {})}
+                    >
+                      继续更新
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => window.electronAPI.update.dismiss().catch(() => {})}
+                    >
+                      关闭
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {updateInfo?.hasUpdate &&
-                !['available', 'downloading', 'downloaded'].includes(autoUpdate?.status) && (
+                !['available', 'downloading', 'downloaded', 'paused', 'dismissed'].includes(autoUpdate?.status) && (
                 <div className="update-strip">
                   <Icon name="spark" size={15} />
                   <span>

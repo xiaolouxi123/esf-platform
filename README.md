@@ -98,6 +98,8 @@ amxxpc.exe ..\..\amxx\test_ranked.sma -i"include" -o"..\plugins\test_ranked.amxx
 
 ## 目录说明
 
+逐文件说明见 [FILES.md](FILES.md)。
+
 - `esf-launcher/src`：React 界面
 - `esf-launcher/main.cjs`：Electron 主进程 / 窗口 / 进程 / 更新
 - `esf-launcher/api.cjs`：后端 HTTP 客户端

@@ -5609,3 +5609,5 @@ select:focus {
 .room-seat-avatar { width: 20px; height: 20px; flex: 0 0 20px; overflow: hidden; border-radius: 50%; }
 .room-seat .room-seat-avatar { flex: 0 0 20px !important; width: 20px !important; }
 .room-seat-avatar .avatar { width: 20px; height: 20px; min-width: 20px; font-size: 10px; }
+.update-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.update-actions .btn { white-space: nowrap; }

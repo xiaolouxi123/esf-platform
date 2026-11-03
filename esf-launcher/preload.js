@@ -81,6 +81,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     check: () => call('update:check'),
     autoCheck: () => call('update:auto-check'),
     install: () => call('update:auto-install'),
+    pause: () => call('update:pause'),
+    resume: () => call('update:resume'),
+    dismiss: () => call('update:dismiss'),
     status: () => call('update:status'),
     onStatus: (callback) => {
       const handler = (_event, data) => callback(data);

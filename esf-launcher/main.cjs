@@ -8,6 +8,7 @@ const core = require('./launcher-core.cjs');
 const store = require('./store.cjs');
 const api = require('./api.cjs');
 const { autoUpdater } = require('electron-updater');
+const { CancellationToken } = require('builder-util-runtime');
 
 // ================= 全局状态 =================
 let mainWindow = null;
@@ -33,6 +34,8 @@ function maskToken(token) {
 
 // ================= 自动更新（electron-updater） =================
 let updateState = { status: 'idle' };
+let updateToken = null;
+let updateCancelled = false;
 
 function updateLog(...args) {
   try {
@@ -69,8 +72,33 @@ async function resolveFeedUrl() {
   }
 }
 
+function startUpdateDownload(version) {
+  if (updateToken) return;
+  updateCancelled = false;
+  updateToken = new CancellationToken();
+  sendUpdate({ status: 'downloading', version: version || updateState.version || '', percent: 0, transferred: 0, total: 0 });
+
+  autoUpdater
+    .downloadUpdate(updateToken)
+    .then(() => {
+      if (updateCancelled) {
+        sendUpdate({ status: 'paused', version: version || updateState.version || '' });
+      }
+    })
+    .catch((err) => {
+      if (updateCancelled) {
+        sendUpdate({ status: 'paused', version: version || updateState.version || '' });
+      } else {
+        sendUpdate({ status: 'error', message: err.message });
+      }
+    })
+    .finally(() => {
+      updateToken = null;
+    });
+}
+
 function setupAutoUpdater() {
-  autoUpdater.autoDownload = true;
+  autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.logger = {
     info: (...args) => updateLog('INFO', ...args),
@@ -80,9 +108,10 @@ function setupAutoUpdater() {
   };
 
   autoUpdater.on('checking-for-update', () => sendUpdate({ status: 'checking' }));
-  autoUpdater.on('update-available', (info) =>
-    sendUpdate({ status: 'available', version: info && info.version })
-  );
+  autoUpdater.on('update-available', (info) => {
+    sendUpdate({ status: 'available', version: info && info.version });
+    setTimeout(() => startUpdateDownload(info && info.version), 300);
+  });
   autoUpdater.on('update-not-available', (info) =>
     sendUpdate({ status: 'current', version: info && info.version })
   );
@@ -94,10 +123,17 @@ function setupAutoUpdater() {
       total: Number(progress.total) || 0,
     })
   );
-  autoUpdater.on('update-downloaded', (info) =>
-    sendUpdate({ status: 'downloaded', version: info && info.version })
-  );
-  autoUpdater.on('error', (err) => sendUpdate({ status: 'error', message: err.message }));
+  autoUpdater.on('update-downloaded', (info) => {
+    updateToken = null;
+    sendUpdate({ status: 'downloaded', version: info && info.version });
+  });
+  autoUpdater.on('error', (err) => {
+    if (updateCancelled) {
+      sendUpdate({ status: 'paused', message: '下载已暂停' });
+    } else {
+      sendUpdate({ status: 'error', message: err.message });
+    }
+  });
 }
 
 async function autoCheckOnce() {
@@ -674,6 +710,34 @@ handle('update:auto-check', async () => {
 handle('update:auto-install', async () => {
   if (updateState.status !== 'downloaded') throw new Error('还没有下载完成的更新');
   setTimeout(() => autoUpdater.quitAndInstall(), 300);
+  return true;
+});
+
+handle('update:pause', async () => {
+  if (updateToken) {
+    updateCancelled = true;
+    updateToken.cancel();
+    updateToken = null;
+  }
+  if (updateState.status === 'downloading' || updateState.status === 'available') {
+    sendUpdate({ status: 'paused' });
+  }
+  return updateState;
+});
+
+handle('update:resume', async () => {
+  if (updateToken) return updateState;
+  startUpdateDownload(updateState.version);
+  return updateState;
+});
+
+handle('update:dismiss', async () => {
+  if (updateToken) {
+    updateCancelled = true;
+    updateToken.cancel();
+    updateToken = null;
+  }
+  sendUpdate({ status: 'dismissed', percent: 0, transferred: 0, total: 0 });
   return true;
 });
 handle('shell:open-external', async ({ url } = {}) => {
