@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - 'v0.4.2-mirror'
+      - 'v[0-9]*.[0-9]*.[0-9]*'
 
 permissions:
   contents: write
@@ -23,6 +23,13 @@ jobs:
           cache: npm
           cache-dependency-path: esf-launcher/package-lock.json
 
+      - name: Set version from tag
+        working-directory: esf-launcher
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          npm version $version --no-git-tag-version
+
       - name: Install dependencies
         working-directory: esf-launcher
         run: npm ci
@@ -34,15 +41,12 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.4.2
-          name: ESF Platform 0.4.2
+          tag_name: ${{ github.ref_name }}
+          name: ESF Platform ${{ github.ref_name }}
           body: |
-            ESF China 龙珠社区一体化平台 0.4.2。
+            ESF China 龙珠社区一体化平台。
 
-            - 新龙珠图标
-            - 更新支持暂停 / 继续 / 关闭
-            - 修复本地混战 / 组队切换
-            - 官网：https://esfchina.com/
+            下载安装包，或用启动器自动更新。
           files: |
             esf-launcher/release/ESF-Platform-Setup-*.exe
             esf-launcher/release/*.blockmap

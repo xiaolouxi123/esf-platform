@@ -74,3 +74,7 @@
 2. 模型商店 / 赛事奖励
 3. 游戏内观战与自动比赛结果
 4. 更新源 CDN / HTTPS / 代码签名
+
+## 更新源
+
+- 启动器更新源已切到 GitHub Releases 的 latest/download/；- 即使自有 API 暂时不可用，也会回退到 GitHub；- 后端 /updates/latest.yml 保留为兼容入口。

@@ -60,15 +60,18 @@ function localFeedUrl() {
   return String(process.env.ESF_UPDATE_URL || getSettings().updateFeedUrl || '').trim();
 }
 
+// 官方更新源不依赖自有服务器；即使 API 暂时不可用也能从 GitHub 检查更新
+const DEFAULT_UPDATE_FEED = 'https://github.com/xiaolouxi123/esf-platform/releases/latest/download/';
+
 /** 本地没配就向后端要（服务器可以统一下发更新源） */
 async function resolveFeedUrl() {
   const local = localFeedUrl();
   if (local) return local;
   try {
     const config = await api.config(getSettings());
-    return String(config.updateFeedUrl || '').trim();
+    return String(config.updateFeedUrl || '').trim() || DEFAULT_UPDATE_FEED;
   } catch {
-    return '';
+    return DEFAULT_UPDATE_FEED;
   }
 }
 
