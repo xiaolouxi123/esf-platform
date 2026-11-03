@@ -17,7 +17,7 @@ const { notFound, badRequest } = require('../lib/errors');
 
 async function requireServer(serverKey) {
   const server = await one(
-    'SELECT id, server_key, name, ip, port, enabled FROM servers WHERE server_key = ? LIMIT 1',
+    'SELECT id, server_key, name, ip, port, enabled, mode FROM servers WHERE server_key = ? LIMIT 1',
     [serverKey]
   );
   if (!server) throw notFound('服务器不存在');
@@ -26,7 +26,14 @@ async function requireServer(serverKey) {
 }
 
 async function issueLaunchToken(userId, serverKey) {
-  await requireServer(serverKey);
+  const server = await requireServer(serverKey);
+
+  if (server.mode === '新手') {
+    const user = await one('SELECT combat_level FROM users WHERE id = ? LIMIT 1', [userId]);
+    if (Number(user?.combat_level || 0) > 0) {
+      throw badRequest('你已有格斗等级，不能进入新手房');
+    }
+  }
 
   const reusable = await one(
     `SELECT token, expires_at FROM launch_tokens

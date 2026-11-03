@@ -136,9 +136,23 @@ function stripStalePlatformInfo(modDir) {
 
 // ================= 启动参数 =================
 
-/** 启动本地地图：先 exec 应用 Token，再开图 */
-function buildLocalArgs(modName, map) {
-  return ['-game', modName, '+exec', CFG_NAME, '+map', map, '+maxplayers', '10'];
+/** 启动本地地图：先 exec 应用 Token，再开图；mode 控制组队/混战 */
+function buildLocalArgs(modName, map, mode = 'team') {
+  const teamplay = mode === 'deathmatch' ? '0' : '1';
+  return [
+    '-game',
+    modName,
+    '+exec',
+    CFG_NAME,
+    '+map',
+    map,
+    '+maxplayers',
+    '10',
+    '+sv_lan',
+    '1',
+    '+mp_teamplay',
+    teamplay,
+  ];
 }
 
 /** 一键连服：先 exec 应用 Token，再 connect，顺序不能反 */

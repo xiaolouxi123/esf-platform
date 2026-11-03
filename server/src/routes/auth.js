@@ -35,6 +35,7 @@ function publicUser(row) {
     avatar: row.avatar || '',
     avatarUrl: row.avatar_url || '',
     titleId: row.title_id ? Number(row.title_id) : null,
+    combatLevel: Number(row.combat_level || 0),
     role: row.role,
   };
 }
@@ -73,7 +74,7 @@ router.post('/register', registerLimiter, async (req, res, next) => {
     );
 
     const user = await one(
-      'SELECT id, username, game_name, avatar, avatar_url, title_id, role FROM users WHERE id = ? LIMIT 1',
+      'SELECT id, username, game_name, avatar, avatar_url, title_id, combat_level, role FROM users WHERE id = ? LIMIT 1',
       [result.insertId]
     );
 

@@ -57,6 +57,8 @@ export default function SettingsDrawer({
   const [updateInfo, setUpdateInfo] = useState(null);
   const [autoStatus, setAutoStatus] = useState(null);
   const [checking, setChecking] = useState(false);
+  const [plugin, setPlugin] = useState(null);
+  const [pluginBusy, setPluginBusy] = useState(false);
   const staff = isStaff(user?.role);
 
   const uploadAvatar = async (event) => {
@@ -86,6 +88,33 @@ export default function SettingsDrawer({
       if (unsubscribe) unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    window.electronAPI.plugins
+      .status()
+      .then((data) => {
+        if (alive) setPlugin(data);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [draft.esfModDir]);
+
+  const togglePlugin = async () => {
+    if (!plugin?.found) return;
+    setPluginBusy(true);
+    try {
+      const next = await window.electronAPI.plugins.setEnforce(!plugin.enforce);
+      setPlugin((prev) => ({ ...prev, enforce: next.enforce }));
+      toast?.(next.enforce ? '已开启平台身份校验' : '已关闭平台身份校验，未登录也能进本地服', 'ok');
+    } catch (err) {
+      toast?.(err.message, 'error');
+    } finally {
+      setPluginBusy(false);
+    }
+  };
 
   const update = (key) => (event) => setDraft((prev) => ({ ...prev, [key]: event.target.value }));
 
@@ -148,6 +177,45 @@ export default function SettingsDrawer({
             <button type="button" className="btn btn-ghost btn-block" onClick={pickDir} disabled={busy}>
               <Icon name="folder" size={15} /> 选择游戏目录
             </button>
+          </section>
+
+          <section className="drawer-section">
+            <h3>服务器插件</h3>
+            <p className="drawer-hint">
+              本地开图用的 AMXX 身份校验。关闭后，不登录平台也能直接进本地服务器。
+            </p>
+
+            {plugin?.found ? (
+              <>
+                <div className="plugin-row">
+                  <span>
+                    <b>平台身份校验</b>
+                    <small>{plugin.enforce ? '开启 · 必须有平台凭证' : '关闭 · 游客可直接进入'}</small>
+                  </span>
+                  <button
+                    type="button"
+                    className={`plugin-toggle${plugin.enforce ? ' is-on' : ''}`}
+                    onClick={togglePlugin}
+                    disabled={pluginBusy}
+                  >
+                    <i />
+                  </button>
+                </div>
+                <code className="plugin-path">{plugin.path}</code>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm btn-block"
+                  onClick={() => window.electronAPI.plugins.openDir().catch((err) => toast?.(err.message, 'error'))}
+                >
+                  <Icon name="folder" size={14} /> 打开插件目录
+                </button>
+              </>
+            ) : (
+              <p className="drawer-hint">当前模组里没有找到 addons/amxx/configs/amxx.cfg。</p>
+            )}
+            <p className="drawer-hint">
+              线上服务器需要在各自的 amxx.cfg 里设置 platform_enforce "0"，这里只改本地开图。
+            </p>
           </section>
 
           <section className="drawer-section">

@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 // 临时自测：直接加载 launcher-core.cjs（跑的就是线上代码，不是复制品）
 const fs = require('fs');
@@ -123,8 +123,12 @@ check('连服：+exec 在 +connect 之前，且 -game 用真实目录名', () =>
 check('本地开图参数', () => {
   assert.deepStrictEqual(
     core.buildLocalArgs('esf', 'esf_cell'),
-    ['-game', 'esf', '+exec', 'launcher.cfg', '+map', 'esf_cell', '+maxplayers', '10']
+    [
+      '-game', 'esf', '+exec', 'launcher.cfg', '+map', 'esf_cell',
+      '+maxplayers', '10', '+sv_lan', '1', '+mp_teamplay', '1',
+    ]
   );
+  assert.equal(core.buildLocalArgs('esf', 'esf_cell', 'deathmatch').at(-1), '0');
 });
 check('命令格式化会加引号', () => {
   assert.strictEqual(

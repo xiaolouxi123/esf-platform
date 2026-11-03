@@ -18,6 +18,7 @@ export default function MemberSidebar({
   user,
   titles = [],
   stats,
+  coins = 0,
   staff,
   toast,
   onTitlesChanged,
@@ -78,6 +79,19 @@ export default function MemberSidebar({
       await window.electronAPI.admin.updateUser(member.id, { role });
       await reloadMembers();
       toast?.(`已把 ${member.gameName} 设为${roleLabel(role)}`, 'ok');
+    } catch (err) {
+      toast?.(err.message, 'error');
+    }
+  };
+
+  const changeCombatLevel = async (level) => {
+    const member = menu?.member;
+    closeMenu();
+    if (!member) return;
+    try {
+      await window.electronAPI.members.setCombatLevel(member.id, level);
+      await reloadMembers();
+      toast?.(`已把 ${member.gameName} 的格斗等级设为 ${level === 0 ? '未定级' : `Lv.${level}`}`, 'ok');
     } catch (err) {
       toast?.(err.message, 'error');
     }
@@ -196,7 +210,7 @@ export default function MemberSidebar({
           <b>{user?.gameName || user?.username}</b>
           <small style={{ color: selfTitle?.color }}>
             {selfTitle ? selfTitle.name : roleLabel(user?.role)}
-            {stats ? ` · ${stats.sessions} 场` : ''}
+            {stats ? ` · ${stats.sessions} 场` : ''} · 金币 {coins}
           </small>
         </span>
         <Icon name="settings" size={14} />
@@ -208,7 +222,7 @@ export default function MemberSidebar({
           <Icon name="chevronRight" size={12} />
         </button>
       ) : null}
-      {staff ? <p className="member-hint">右键成员可改头衔 / 权限等级</p> : null}
+      {staff ? <p className="member-hint">右键成员可改头衔 / 格斗等级 / 权限</p> : null}
 
       <div className="member-search">
         <Icon name="search" size={14} />
@@ -249,6 +263,9 @@ export default function MemberSidebar({
                     </b>
                     <small>
                       <span className="member-level">{roleLabel(member.role)}</span>
+                      {Number(member.combatLevel) > 0 && (
+                        <span className="combat-level">Lv.{member.combatLevel}</span>
+                      )}
                       {member.online
                         ? member.state === 'ingame'
                           ? member.serverMap || member.serverName || '游戏中'
@@ -303,6 +320,9 @@ export default function MemberSidebar({
                   <div className="member-profile-badges">
                     <span style={{ color: profileMeta?.color }}>{profileMeta?.label}</span>
                     <span className="member-level">{roleLabel(profile.role)}</span>
+                    {Number(profile.combatLevel) > 0 && (
+                      <span className="combat-level">Lv.{profile.combatLevel}</span>
+                    )}
                     <span className={`member-profile-state${profile.online ? ' is-online' : ''}`}>
                       {profile.online ? (profile.state === 'ingame' ? '游戏中' : '在线') : '离线'}
                     </span>
@@ -337,6 +357,10 @@ export default function MemberSidebar({
                       ? new Date(profile.createdAt).toLocaleDateString('zh-CN')
                       : '—'}
                   </dd>
+                </div>
+                <div>
+                  <dt>格斗等级</dt>
+                  <dd>{Number(profile.combatLevel) > 0 ? `Lv.${profile.combatLevel}` : '未定级'}</dd>
                 </div>
                 <div>
                   <dt>所在位置</dt>
@@ -419,6 +443,17 @@ export default function MemberSidebar({
 
               {canManageRoles && !menu.isSelf && (
                 <>
+                  <div className="member-menu-label">格斗等级</div>
+                  {[0, 1, 2, 3, 4, 5].map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      className={`member-menu-item${Number(menu.member.combatLevel || 0) === level ? ' is-current' : ''}`}
+                      onClick={() => changeCombatLevel(level)}
+                    >
+                      {level === 0 ? '未定级' : `Lv.${level}`}
+                    </button>
+                  ))}
                   <div className="member-menu-label">权限等级</div>
                   {['user', 'creator', 'ops', 'admin'].map((role) => (
                     <button

@@ -17,7 +17,7 @@ router.get('/members', requireAuth, async (req, res, next) => {
   try {
     const rows = await q(
       `SELECT u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.title_id, u.role,
-              p.state, p.server_key, p.updated_at,
+              u.combat_level, p.state, p.server_key, p.updated_at,
               s.name AS server_name, st.map AS server_map
          FROM users u
          LEFT JOIN presence p
@@ -41,6 +41,7 @@ router.get('/members', requireAuth, async (req, res, next) => {
           avatar: row.avatar || '',
           avatarUrl: row.avatar_url || '',
           titleId: row.title_id ? Number(row.title_id) : null,
+          combatLevel: Number(row.combat_level || 0),
           role: row.role,
           online: Boolean(row.updated_at),
           state: row.updated_at ? row.state : 'offline',
@@ -51,6 +52,34 @@ router.get('/members', requireAuth, async (req, res, next) => {
         })),
       },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 管理员设置格斗等级：0=未定级，1-5=已定级 */
+router.patch('/members/:id/combat-level', requireAuth, async (req, res, next) => {
+  try {
+    if (!['admin', 'owner'].includes(req.user.role)) {
+      res.status(403).json({ ok: false, code: 'FORBIDDEN', message: '只有管理员可以设置格斗等级' });
+      return;
+    }
+    const id = Number(req.params.id);
+    const level = Number(req.body?.combatLevel);
+    if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(level) || level < 0 || level > 5) {
+      res.status(400).json({ ok: false, code: 'BAD_REQUEST', message: '格斗等级必须是 0-5' });
+      return;
+    }
+    const result = await q('UPDATE users SET combat_level = ? WHERE id = ? AND status = ?', [
+      level,
+      id,
+      'active',
+    ]);
+    if (result.affectedRows === 0) {
+      res.status(404).json({ ok: false, code: 'NOT_FOUND', message: '成员不存在' });
+      return;
+    }
+    res.json({ ok: true, data: { id, combatLevel: level } });
   } catch (err) {
     next(err);
   }
@@ -67,7 +96,7 @@ router.get('/members/:id', requireAuth, async (req, res, next) => {
 
     const rows = await q(
       `SELECT u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.title_id, u.role,
-              u.created_at, u.last_login_at,
+              u.combat_level, u.created_at, u.last_login_at,
               (SELECT COUNT(*) FROM play_sessions p WHERE p.user_id = u.id) AS sessions,
               (SELECT COALESCE(SUM(p.duration_sec), 0) FROM play_sessions p WHERE p.user_id = u.id) AS total_seconds,
               p.state, p.server_key, p.updated_at,
@@ -99,6 +128,7 @@ router.get('/members/:id', requireAuth, async (req, res, next) => {
           avatar: row.avatar || '',
           avatarUrl: row.avatar_url || '',
           titleId: row.title_id ? Number(row.title_id) : null,
+          combatLevel: Number(row.combat_level || 0),
           role: row.role,
           online: Boolean(row.updated_at),
           state: row.updated_at ? row.state : 'offline',

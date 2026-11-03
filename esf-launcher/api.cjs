@@ -229,6 +229,15 @@ const presenceList = (settings, token) => request(settings, { path: '/api/presen
 const membersList = (settings, token) => request(settings, { path: '/api/members', token });
 const memberDetail = (settings, token, id) =>
   request(settings, { path: `/api/members/${encodeURIComponent(id)}`, token });
+const setCombatLevel = (settings, token, id, combatLevel) =>
+  request(settings, {
+    method: 'PATCH',
+    path: `/api/members/${encodeURIComponent(id)}/combat-level`,
+    token,
+    body: { combatLevel },
+  });
+const economySummary = (settings, token) =>
+  request(settings, { path: '/api/economy/summary', token });
 
 const chatList = (settings, token, after) =>
   request(settings, { path: `/api/chat${queryString({ after })}`, token });
@@ -286,6 +295,8 @@ module.exports = {
   presenceList,
   membersList,
   memberDetail,
+  setCombatLevel,
+  economySummary,
   chatList,
   chatSend,
   updateProfile,

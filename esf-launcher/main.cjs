@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, Tray, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -11,6 +11,10 @@ const { autoUpdater } = require('electron-updater');
 
 // ================= 全局状态 =================
 let mainWindow = null;
+let tray = null;
+let gameWatcher = null;
+let hiddenForGame = false;
+let quitting = false;
 let settings = null;
 let session = null;
 // 最近一次连的是哪台服，用于在线状态里显示"在哪个服玩"
@@ -173,6 +177,91 @@ function isGameRunning() {
     return /hl\.exe/i.test(result.stdout || '');
   } catch {
     return false;
+  }
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** 关游戏/切服前先结束 hl.exe，否则新实例会被单实例互斥挡住 */
+async function stopGameForSwitch() {
+  if (!isGameRunning()) return false;
+  try {
+    spawnSync('taskkill', ['/IM', 'hl.exe', '/F'], { windowsHide: true, timeout: 5000 });
+  } catch {
+    /* ignore */
+  }
+  for (let i = 0; i < 20; i++) {
+    await wait(200);
+    if (!isGameRunning()) break;
+  }
+  return true;
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.setSkipTaskbar(false);
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  hiddenForGame = false;
+  tray?.setToolTip('ESF 平台');
+}
+
+function stopGameWatcher() {
+  if (gameWatcher) {
+    clearInterval(gameWatcher);
+    gameWatcher = null;
+  }
+}
+
+/** 游戏启动后收进托盘，等 hl.exe 退出再自动弹回来 */
+function hideToTrayForGame() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  hiddenForGame = true;
+  mainWindow.hide();
+  mainWindow.setSkipTaskbar(true);
+  tray?.setToolTip('ESF 平台 · 游戏运行中');
+
+  stopGameWatcher();
+  const startedAt = Date.now();
+  gameWatcher = setInterval(() => {
+    if (!hiddenForGame) {
+      stopGameWatcher();
+      return;
+    }
+    // 给 hl.exe 一点启动时间，避免刚拉起就误判为已退出
+    if (Date.now() - startedAt < 7000) return;
+    if (!isGameRunning()) {
+      stopGameWatcher();
+      showMainWindow();
+      log('🎮 游戏已退出，平台已恢复');
+    }
+  }, 2500);
+}
+
+function createTray() {
+  try {
+    const iconPath = path.join(__dirname, 'build', 'icon.ico');
+    if (!fs.existsSync(iconPath)) return;
+    tray = new Tray(nativeImage.createFromPath(iconPath));
+    tray.setToolTip('ESF 平台');
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: '显示平台', click: showMainWindow },
+        { type: 'separator' },
+        {
+          label: '退出',
+          click: () => {
+            quitting = true;
+            app.quit();
+          },
+        },
+      ])
+    );
+    tray.on('click', showMainWindow);
+    tray.on('double-click', showMainWindow);
+  } catch (err) {
+    log('⚠️ 托盘创建失败:', err.message);
   }
 }
 
@@ -454,6 +543,14 @@ handle('members:detail', async ({ id } = {}) =>
   apiCall(api.memberDetail, getSettings(), requireToken(), id)
 );
 
+handle('members:set-combat-level', async ({ id, combatLevel } = {}) =>
+  apiCall(api.setCombatLevel, getSettings(), requireToken(), id, combatLevel)
+);
+
+handle('economy:summary', async () =>
+  apiCall(api.economySummary, getSettings(), requireToken())
+);
+
 handle('titles:list', async () => apiCall(api.titles, getSettings(), requireToken()));
 
 handle('titles:create', async (payload = {}) =>
@@ -549,6 +646,7 @@ handle('launch:join', async ({ serverKey, ip, port }) => {
   requireToken();
   checkGameDir();
 
+  const switched = await stopGameForSwitch();
   const issued = await apiCall(api.launchToken, getSettings(), requireToken(), serverKey);
   const username = (current.user && (current.user.gameName || current.user.username)) || 'Player';
 
@@ -557,8 +655,9 @@ handle('launch:join', async ({ serverKey, ip, port }) => {
   const address = `${ip}:${port}`;
   lastServerKey = serverKey;
   await spawnGame(core.buildJoinArgs(modName(), address));
+  hideToTrayForGame();
   log(`🌐 正在连接 ${address}`);
-  return { address, maskedToken: maskToken(issued.token) };
+  return { address, maskedToken: maskToken(issued.token), switched };
 });
 
 // 未登记服务器：直接 connect，不带平台身份（AMXX 不会做身份校验）
@@ -571,25 +670,84 @@ handle('launch:join-custom', async ({ address } = {}) => {
   if (!matched) throw new Error('地址格式应为 IP:端口');
 
   const target = `${matched[1]}:${matched[2]}`;
+  const switched = await stopGameForSwitch();
   await spawnGame(['-game', modName(), '+connect', target]);
+  hideToTrayForGame();
   log(`🌐 自定义服务器直连 ${target}（不带平台身份）`);
-  return { address: target, platform: false };
+  return { address: target, platform: false, switched };
 });
-handle('launch:local', async ({ map }) => {
-  const current = getSession();
+handle('launch:local', async ({ map, mode }) => {  const current = getSession();
   requireToken();
   checkGameDir();
 
   const safeMap = core.sanitizeMapName(map);
   if (!safeMap) throw new Error('请先选择地图');
 
+  const switched = await stopGameForSwitch();
   const issued = await apiCall(api.launchToken, getSettings(), requireToken(), getSettings().localServerKey);
   const username = (current.user && (current.user.gameName || current.user.username)) || 'Player';
 
   prepareLaunch(issued.token, username);
   lastServerKey = getSettings().localServerKey;
-  await spawnGame(core.buildLocalArgs(modName(), safeMap));
-  return { map: safeMap, maskedToken: maskToken(issued.token) };
+  await spawnGame(core.buildLocalArgs(modName(), safeMap, mode));
+  hideToTrayForGame();
+  return { map: safeMap, mode: mode === 'deathmatch' ? 'deathmatch' : 'team', maskedToken: maskToken(issued.token), switched };
+});
+
+// 游客模式：不登录平台，直接拉起游戏主菜单（插件开放时可进服）
+handle('launch:guest', async () => {
+  checkGameDir();
+  const switched = await stopGameForSwitch();
+  await spawnGame(['-game', modName()]);
+  hideToTrayForGame();
+  return { guest: true, switched };
+});
+
+// ---- 本地 AMXX 插件 ----
+function findPluginConfig() {
+  const mod = getSettings().esfModDir;
+  if (!mod || !fs.existsSync(mod)) return '';
+  const candidates = [
+    path.join(mod, 'addons', 'amxx', 'configs', 'amxx.cfg'),
+    path.join(mod, 'amxx', 'configs', 'amxx.cfg'),
+  ];
+  return candidates.find((file) => fs.existsSync(file)) || '';
+}
+
+handle('plugins:status', async () => {
+  const cfg = findPluginConfig();
+  if (!cfg) return { found: false, path: '', enforce: true };
+  const text = fs.readFileSync(cfg, 'utf8');
+  const matched = /^\s*platform_enforce\s+"?(\d+)"?/im.exec(text);
+  return {
+    found: true,
+    path: cfg,
+    enforce: matched ? matched[1] === '1' : true,
+    dir: path.dirname(path.dirname(cfg)),
+  };
+});
+
+handle('plugins:set-enforce', async ({ enforce } = {}) => {
+  const cfg = findPluginConfig();
+  if (!cfg) throw new Error('没有找到本地 AMXX 配置（addons/amxx/configs/amxx.cfg）');
+  const value = enforce ? '1' : '0';
+  const text = fs.readFileSync(cfg, 'utf8');
+  const line = `platform_enforce "${value}"`;
+  const next = /^\s*platform_enforce\s+"?\d+"?\s*$/im.test(text)
+    ? text.replace(/^\s*platform_enforce\s+"?\d+"?\s*$/im, line)
+    : `${text.replace(/\s*$/, '')}\r\n${line}\r\n`;
+  fs.writeFileSync(cfg, next, 'utf8');
+  log(`🧩 本地插件平台校验已${enforce ? '开启' : '关闭'}`);
+  return { enforce: Boolean(enforce), path: cfg };
+});
+
+handle('plugins:open-dir', async () => {
+  const cfg = findPluginConfig();
+  if (!cfg) throw new Error('没有找到本地 AMXX 插件目录');
+  const dir = path.dirname(path.dirname(cfg));
+  const error = await shell.openPath(dir);
+  if (error) throw new Error(`打开目录失败：${error}`);
+  return { dir };
 });
 
 // ---- 打开目录（只允许这两个受控路径，不接受渲染层传任意路径）----
@@ -827,6 +985,7 @@ if (!gotLock) {
     log(`🧩 启动器 v${app.getVersion()} 就绪，API=${getSettings().apiBaseUrl}`);
     setupAutoUpdater();
     createWindow();
+    createTray();
 
     // 启动 8 秒后静默检查一次；没配更新源就跳过
     setTimeout(() => {
@@ -837,6 +996,15 @@ if (!gotLock) {
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
+  });
+
+  app.on('before-quit', () => {
+    quitting = true;
+    stopGameWatcher();
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
   });
 
   app.on('window-all-closed', () => {

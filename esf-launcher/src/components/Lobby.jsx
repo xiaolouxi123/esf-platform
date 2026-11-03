@@ -38,6 +38,8 @@ export default function Lobby({
   const [mapKeyword, setMapKeyword] = useState('');
   const [mapCategory, setMapCategory] = useState('all');
   const [selectedMap, setSelectedMap] = useState('');
+  const [localMode, setLocalMode] = useState('team');
+  const [coins, setCoins] = useState(Number(user?.coins || 0));
   const [mapOpen, setMapOpen] = useState(false);
   const [servers, setServers] = useState([]);
   const [titles, setTitles] = useState([]);
@@ -258,11 +260,25 @@ export default function Lobby({
       if (unsubscribe) unsubscribe();
     };
   }, []);
-  // 在线心跳：进入大厅立刻报一次，之后每 20 秒一次（主进程判断游戏是否在跑）
+  useEffect(() => {
+    let alive = true;
+    window.electronAPI.economy
+      .summary()
+      .then((data) => {
+        if (alive && data?.wallet) setCoins(Number(data.wallet.coins || 0));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // 在线心跳：进入大厅立刻报一次，之后每 12 秒一次（主进程判断游戏是否在跑）
   useEffect(() => {
     const ping = async () => {
       try {
-        await window.electronAPI.presence.ping();
+        const data = await window.electronAPI.presence.ping();
+        if (data?.wallet) setCoins(Number(data.wallet.coins || 0));
         window.dispatchEvent(new Event('esf:presence'));
       } catch {
         /* 心跳失败下一轮再试 */
@@ -393,8 +409,13 @@ export default function Lobby({
 
     setLocalBusy(true);
     try {
-      const result = await window.electronAPI.launch.local(selectedMap);
-      toast(`已启动本地游戏：${result.map}`, 'ok');
+      const result = await window.electronAPI.launch.local(selectedMap, localMode);
+      toast(
+        result.switched
+          ? `已重启游戏并切换到本地${result.mode === 'deathmatch' ? '混战' : '组队'}模式`
+          : `已启动本地游戏：${result.map} · ${result.mode === 'deathmatch' ? '混战' : '组队'}`,
+        'ok'
+      );
       window.electronAPI.presence.ping().catch(() => {});
       refreshStats();
     } catch (err) {
@@ -410,6 +431,10 @@ export default function Lobby({
       return;
     }
     if (!ensureGameDir()) return;
+    if (server.mode === '新手' && Number(user?.combatLevel || 0) > 0) {
+      toast('你已有格斗等级，不能进入新手房', 'error');
+      return;
+    }
 
     const key = server.custom ? server.address : server.serverKey;
     setJoinBusyKey(key);
@@ -423,9 +448,11 @@ export default function Lobby({
           });
 
       toast(
-        server.custom
-          ? `正在直连 ${result.address}（未登记，不带平台身份）`
-          : `正在连接 ${result.address}`,
+        result.switched
+          ? `已重启游戏并切换到 ${result.address}`
+          : server.custom
+            ? `正在直连 ${result.address}（未登记，不带平台身份）`
+            : `正在连接 ${result.address}`,
         'ok'
       );
       window.electronAPI.presence.ping().catch(() => {});
@@ -799,10 +826,27 @@ export default function Lobby({
                     <span className="tag">{selectedMeta.categoryLabel}</span>
                     <span className="tag tag--code">{selectedMap || '未选择'}</span>
                     <span className="tag">本地开图</span>
+                    <span className="tag">{localMode === 'deathmatch' ? '混战模式' : '组队模式'}</span>
                     <span className="tag">平台身份校验</span>
                   </div>
 
                   <div className="hero-actions">
+                    <div className="mode-switch" role="group" aria-label="本地游戏模式">
+                      <button
+                        type="button"
+                        className={localMode === 'team' ? 'is-active' : ''}
+                        onClick={() => setLocalMode('team')}
+                      >
+                        组队
+                      </button>
+                      <button
+                        type="button"
+                        className={localMode === 'deathmatch' ? 'is-active' : ''}
+                        onClick={() => setLocalMode('deathmatch')}
+                      >
+                        混战
+                      </button>
+                    </div>
                     <button type="button" className="btn btn-primary btn-lg" onClick={startLocal} disabled={localBusy}>
                       {localBusy ? <span className="spinner" /> : <Icon name="play" size={16} />}
                       {localBusy ? '启动中…' : '开始游戏'}
@@ -1003,6 +1047,7 @@ export default function Lobby({
               user={user}
               titles={titles}
               stats={stats}
+              coins={coins}
               staff={staff}
               toast={toast}
               onTitlesChanged={loadTitles}

@@ -23,6 +23,7 @@ let base;
 let ids = {};
 let tokens = {};
 let titleId;
+let noviceKey = `t_novice_${stamp}`;
 
 async function api(method, path, { token, body } = {}) {
   const headers = {};
@@ -53,6 +54,12 @@ before(async () => {
     ids[role] = result.insertId;
   }
 
+  await q(
+    `INSERT INTO servers (server_key, name, ip, port, enabled, mode)
+     VALUES (?, '测试新手房', '127.0.0.1', 27099, 1, '新手')`,
+    [noviceKey]
+  );
+
   server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -71,6 +78,7 @@ after(async () => {
     names.user,
   ]);
   if (titleId) await q('DELETE FROM titles WHERE id = ?', [titleId]);
+  await q('DELETE FROM servers WHERE server_key = ?', [noviceKey]);
   await close();
 });
 
@@ -152,6 +160,48 @@ test('成员详情包含战绩与权限', async () => {
   assert.equal(member.role, 'user');
   assert.equal(typeof member.sessions, 'number');
   assert.equal(typeof member.totalSeconds, 'number');
+});
+
+test('管理员设置格斗等级，新手房拒绝已定级玩家', async () => {
+  const before = await api('GET', `/api/members/${ids.user}`, { token: tokens.user });
+  assert.equal(before.body.data.member.combatLevel, 0);
+
+  const denied = await api('PATCH', `/api/members/${ids.user}/combat-level`, {
+    token: tokens.ops,
+    body: { combatLevel: 2 },
+  });
+  assert.equal(denied.status, 403);
+
+  const changed = await api('PATCH', `/api/members/${ids.user}/combat-level`, {
+    token: tokens.admin,
+    body: { combatLevel: 2 },
+  });
+  assert.equal(changed.status, 200);
+
+  const novice = await api('POST', '/api/launch-token', {
+    token: tokens.user,
+    body: { serverKey: noviceKey },
+  });
+  assert.equal(novice.status, 400);
+  assert.match(novice.body.message, /格斗等级/);
+});
+
+test('金币按在线/游戏时长结算', async () => {
+  await api('POST', '/api/presence', { token: tokens.user, body: { state: 'lobby' } });
+  await q('UPDATE wallets SET last_earned_at = (NOW() - INTERVAL 2 MINUTE) WHERE user_id = ?', [
+    ids.user,
+  ]);
+  const ping = await api('POST', '/api/presence', {
+    token: tokens.user,
+    body: { state: 'ingame' },
+  });
+  assert.equal(ping.status, 200);
+  assert.ok(ping.body.data.wallet.coins >= 4);
+
+  const summary = await api('GET', '/api/economy/summary', { token: tokens.user });
+  assert.equal(summary.status, 200);
+  assert.ok(summary.body.data.wallet.coins >= 4);
+  assert.ok(summary.body.data.transactions.length >= 1);
 });
 
 test('管理员删除头衔，成员自动清空', async () => {

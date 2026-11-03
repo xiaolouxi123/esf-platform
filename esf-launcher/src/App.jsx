@@ -105,6 +105,15 @@ export default function App() {
     await checkBackend();
   };
 
+  const handleGuest = async () => {
+    try {
+      const result = await window.electronAPI.launch.guest();
+      showToast(result.switched ? '已重启游戏，平台已收进托盘' : '已启动游戏，平台已收进托盘', 'ok');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   const handleRegister = async (payload) => {
     await window.electronAPI.auth.register(payload);
     setAuthPage('login');
@@ -171,6 +180,7 @@ export default function App() {
             <LoginPage
               onLogin={handleLogin}
               onGoRegister={() => setAuthPage('register')}
+              onGuest={handleGuest}
               backend={backend}
               notice={notice}
             />

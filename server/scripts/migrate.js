@@ -123,6 +123,36 @@ async function main() {
     // 头衔与自定义头像
     await ensureColumn(conn, env.db.name, 'users', 'avatar_url', 'MEDIUMTEXT NULL');
     await ensureColumn(conn, env.db.name, 'users', 'title_id', 'INT NULL AFTER role');
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'users',
+      'combat_level',
+      "TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '格斗等级，0=未定级' AFTER title_id"
+    );
+
+    // 金币钱包：在线/游戏时长按分钟结算
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS wallets (
+         user_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+         coins INT NOT NULL DEFAULT 0,
+         total_earned INT NOT NULL DEFAULT 0,
+         last_earned_at DATETIME NULL,
+         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+         CONSTRAINT fk_wallet_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    );
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS coin_transactions (
+         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+         user_id BIGINT UNSIGNED NOT NULL,
+         amount INT NOT NULL,
+         reason VARCHAR(32) NOT NULL,
+         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         INDEX idx_coin_user_time (user_id, created_at),
+         CONSTRAINT fk_coin_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    );
     await conn.query(
       `CREATE TABLE IF NOT EXISTS titles (
          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

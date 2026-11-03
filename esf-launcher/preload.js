@@ -46,6 +46,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   members: {
     list: () => call('members:list'),
     detail: (id) => call('members:detail', { id }),
+    setCombatLevel: (id, combatLevel) => call('members:set-combat-level', { id, combatLevel }),
+  },
+
+  economy: {
+    summary: () => call('economy:summary'),
   },
 
   chat: {
@@ -115,7 +120,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     token: (serverKey) => call('launch:token', { serverKey }),
     join: (payload) => call('launch:join', payload),
     joinCustom: (address) => call('launch:join-custom', { address }),
-    local: (map) => call('launch:local', { map }),
+    local: (map, mode) => call('launch:local', { map, mode }),
+    guest: () => call('launch:guest'),
+  },
+
+  plugins: {
+    status: () => call('plugins:status'),
+    setEnforce: (enforce) => call('plugins:set-enforce', { enforce }),
+    openDir: () => call('plugins:open-dir'),
   },
 
   shell: {

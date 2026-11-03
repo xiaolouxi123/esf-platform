@@ -5,6 +5,7 @@ const { z } = require('zod');
 
 const { q } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { awardPresenceCoins } = require('../services/economy');
 
 const router = express.Router();
 
@@ -30,7 +31,9 @@ router.post('/presence', requireAuth, async (req, res, next) => {
       [req.user.id, body.state, body.serverKey || null]
     );
 
-    res.json({ ok: true, data: { state: body.state, serverKey: body.serverKey || null } });
+    const wallet = await awardPresenceCoins(req.user.id, body.state);
+
+    res.json({ ok: true, data: { state: body.state, serverKey: body.serverKey || null, wallet } });
   } catch (err) {
     next(err);
   }
@@ -41,7 +44,7 @@ router.get('/presence', requireAuth, async (req, res, next) => {
   try {
     const rows = await q(
       `SELECT u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.title_id, u.role,
-              p.state, p.server_key, p.updated_at,
+              u.combat_level, p.state, p.server_key, p.updated_at,
               s.name AS server_name, st.map AS server_map
          FROM presence p
          JOIN users u ON u.id = p.user_id
@@ -64,6 +67,7 @@ router.get('/presence', requireAuth, async (req, res, next) => {
           avatar: row.avatar || '',
           avatarUrl: row.avatar_url || '',
           titleId: row.title_id ? Number(row.title_id) : null,
+          combatLevel: Number(row.combat_level || 0),
           role: row.role,
           state: row.state,
           serverKey: row.server_key || null,

@@ -52,6 +52,7 @@
       "store.cjs",
       "launcher-core.cjs",
       "dist/**/*",
+      "build/icon.ico",
       "package.json",
       "!scripts/**",
       "!tests/**",

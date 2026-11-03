@@ -5156,3 +5156,85 @@ select:focus {
 }
 .server-alert span { flex: 1; min-width: 0; }
 .server-alert .btn { color: #ffb3ba; border-color: rgba(255, 95, 109, 0.3); }
+/* ============================ 0.4 单机模式 / 格斗等级 / 插件开关 ============================ */
+.mode-switch {
+  display: inline-flex;
+  padding: 3px;
+  margin-right: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+}
+.mode-switch button {
+  padding: 7px 13px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dim);
+  font-size: 11px;
+  cursor: pointer;
+}
+.mode-switch button.is-active {
+  color: #fff;
+  background: linear-gradient(180deg, rgba(255, 138, 31, 0.32), rgba(255, 138, 31, 0.14));
+  box-shadow: 0 0 0 1px rgba(255, 160, 60, 0.28) inset;
+}
+
+.combat-level {
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 95, 109, 0.35);
+  color: #ff9aa2;
+  font-size: 8.5px;
+  line-height: 14px;
+  vertical-align: 1px;
+}
+
+.plugin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 11px;
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.plugin-row b { display: block; font-size: 11.5px; }
+.plugin-row small { display: block; margin-top: 2px; font-size: 9.5px; color: var(--dim); }
+.plugin-toggle {
+  position: relative;
+  width: 38px;
+  height: 21px;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+.plugin-toggle i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #7b8498;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+.plugin-toggle.is-on { background: rgba(61, 220, 151, 0.18); border-color: rgba(61, 220, 151, 0.4); }
+.plugin-toggle.is-on i { transform: translateX(17px); background: #3ddc97; }
+.plugin-path {
+  display: block;
+  overflow: hidden;
+  margin-bottom: 8px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--dim);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

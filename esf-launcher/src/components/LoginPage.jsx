@@ -3,7 +3,7 @@ import Icon from './Icon';
 import loginBg from '../assets/login-bg.jpg';
 import dragonBall from '../assets/dragon-ball.webp';
 
-export default function LoginPage({ onLogin, onGoRegister, backend, notice }) {
+export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, notice }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -140,6 +140,15 @@ export default function LoginPage({ onLogin, onGoRegister, backend, notice }) {
           <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
             {busy ? <span className="spinner" /> : <Icon name="play" size={15} />}
             {busy ? '登录中…' : '进入大厅'}
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-ghost btn-block"
+            onClick={onGuest}
+            disabled={busy}
+          >
+            <Icon name="play" size={15} /> 不登录，直接进游戏
           </button>
 
           <p className="auth-switch">

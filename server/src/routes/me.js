@@ -8,24 +8,32 @@ const env = require('../env');
 const { q, one } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { unauthorized, badRequest } = require('../lib/errors');
+const { getWallet } = require('../services/economy');
 
 const router = express.Router();
 
-router.get('/me', requireAuth, (req, res) => {
-  res.json({
-    ok: true,
-    data: {
-      user: {
-        id: Number(req.user.id),
-        username: req.user.username,
-        gameName: req.user.game_name,
-        avatar: req.user.avatar || '',
-    avatarUrl: req.user.avatar_url || '',
-    titleId: req.user.title_id ? Number(req.user.title_id) : null,
-        role: req.user.role,
+router.get('/me', requireAuth, async (req, res, next) => {
+  try {
+    const wallet = await getWallet(req.user.id);
+    res.json({
+      ok: true,
+      data: {
+        user: {
+          id: Number(req.user.id),
+          username: req.user.username,
+          gameName: req.user.game_name,
+          avatar: req.user.avatar || '',
+          avatarUrl: req.user.avatar_url || '',
+          titleId: req.user.title_id ? Number(req.user.title_id) : null,
+          combatLevel: Number(req.user.combat_level || 0),
+          role: req.user.role,
+          coins: wallet.coins,
+        },
       },
-    },
-  });
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // 个人战绩：大厅右侧面板用。数据来自 AMXX 写的 play_sessions

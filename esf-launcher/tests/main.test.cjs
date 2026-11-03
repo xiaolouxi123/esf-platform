@@ -406,7 +406,8 @@ function ipc(channel, payload) {
     assert.equal(local.ok, true, JSON.stringify(local));
     const last = spawned[spawned.length - 1];
     assert.deepEqual(last.args, [
-      '-game', 'esf', '+exec', 'launcher.cfg', '+map', 'esf_cell', '+maxplayers', '10',
+      '-game', 'esf', '+exec', 'launcher.cfg', '+map', 'esf_cell',
+      '+maxplayers', '10', '+sv_lan', '1', '+mp_teamplay', '1',
     ]);
   });
 

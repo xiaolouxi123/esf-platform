@@ -9,7 +9,7 @@ const state = process.env.MOCK_STATE || 'dashboard';
 const role = process.env.MOCK_ROLE || 'owner';
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const user = { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', avatarUrl: '', titleId: 1, role };
+const user = { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', avatarUrl: '', titleId: 1, role, combatLevel: 2, coins: 128 };
 
 const titles = [
   { id: 1, name: '所有者', color: '#FF8A1F', rank: 100, memberCount: 1 },
@@ -128,7 +128,7 @@ const api = {
   },
 
   presence: {
-    ping: async () => ({ state: 'lobby', serverKey: null }),
+    ping: async () => ({ state: 'lobby', serverKey: null, wallet: { coins: 128, totalEarned: 328 } }),
     list: async () => ({
       online: [
         {
@@ -167,18 +167,18 @@ const api = {
   members: {
     list: async () => ({
       members: [
-        { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', titleId: 1, role: 'owner', online: true, state: 'lobby' },
-        { id: 6, username: 'yun', gameName: 'yun', avatar: '🥋', titleId: 2, role: 'admin', online: true, state: 'ingame', serverName: '[ESF-FCX]单挑房[1]', serverMap: 'ape_foreshadow' },
-        { id: 9, username: 'krillin', gameName: '克林', avatar: '', titleId: 5, role: 'user', online: false, state: 'offline' },
-        { id: 10, username: 'goku', gameName: '悟空', avatar: '🐒', titleId: 4, role: 'creator', online: false, state: 'offline' },
+        { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', titleId: 1, role: 'owner', combatLevel: 2, online: true, state: 'lobby' },
+        { id: 6, username: 'yun', gameName: 'yun', avatar: '🥋', titleId: 2, role: 'admin', combatLevel: 4, online: true, state: 'ingame', serverName: '[ESF-FCX]单挑房[1]', serverMap: 'ape_foreshadow' },
+        { id: 9, username: 'krillin', gameName: '克林', avatar: '', titleId: 5, role: 'user', combatLevel: 0, online: false, state: 'offline' },
+        { id: 10, username: 'goku', gameName: '悟空', avatar: '🐒', titleId: 4, role: 'creator', combatLevel: 3, online: false, state: 'offline' },
       ],
     }),
     detail: async (id) => {
       const list = [
-        { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', titleId: 1, role: 'owner', online: true, state: 'lobby' },
-        { id: 6, username: 'yun', gameName: 'yun', avatar: '🥋', titleId: 2, role: 'admin', online: true, state: 'ingame', serverName: '[ESF-FCX]单挑房[1]', serverMap: 'ape_foreshadow' },
-        { id: 9, username: 'krillin', gameName: '克林', avatar: '', titleId: 5, role: 'user', online: false, state: 'offline' },
-        { id: 10, username: 'goku', gameName: '悟空', avatar: '🐒', titleId: 4, role: 'creator', online: false, state: 'offline' },
+        { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', titleId: 1, role: 'owner', combatLevel: 2, online: true, state: 'lobby' },
+        { id: 6, username: 'yun', gameName: 'yun', avatar: '🥋', titleId: 2, role: 'admin', combatLevel: 4, online: true, state: 'ingame', serverName: '[ESF-FCX]单挑房[1]', serverMap: 'ape_foreshadow' },
+        { id: 9, username: 'krillin', gameName: '克林', avatar: '', titleId: 5, role: 'user', combatLevel: 0, online: false, state: 'offline' },
+        { id: 10, username: 'goku', gameName: '悟空', avatar: '🐒', titleId: 4, role: 'creator', combatLevel: 3, online: false, state: 'offline' },
       ];
       const member = list.find((item) => Number(item.id) === Number(id)) || list[0];
       return {
@@ -191,6 +191,17 @@ const api = {
         },
       };
     },
+    setCombatLevel: async (id, combatLevel) => ({ id, combatLevel }),
+  },
+
+  economy: {
+    summary: async () => ({
+      wallet: { coins: 128, totalEarned: 328, lastEarnedAt: new Date().toISOString() },
+      transactions: [
+        { amount: 2, reason: 'game_time', createdAt: new Date(Date.now() - 120000).toISOString() },
+        { amount: 1, reason: 'online_time', createdAt: new Date(Date.now() - 360000).toISOString() },
+      ],
+    }),
   },
 
   chat: {
@@ -295,9 +306,20 @@ const api = {
   },
   launch: {
     token: async (serverKey) => ({ serverKey, expiresAt: null, maskedToken: 'a1b2c3…' }),
-    join: async ({ ip, port }) => ({ address: `${ip}:${port}`, maskedToken: 'a1b2c3…' }),
-    local: async (map) => ({ map, maskedToken: 'a1b2c3…' }),
-    joinCustom: async (address) => ({ address, platform: false }),
+    join: async ({ ip, port }) => ({ address: `${ip}:${port}`, maskedToken: 'a1b2c3…', switched: false }),
+    local: async (map, mode) => ({ map, mode, maskedToken: 'a1b2c3…', switched: false }),
+    joinCustom: async (address) => ({ address, platform: false, switched: false }),
+    guest: async () => ({ guest: true, switched: false }),
+  },
+  plugins: {
+    status: async () => ({
+      found: true,
+      path: 'G:\\FCX1\\FCX7.02融合版\\esf\\addons\\amxx\\configs\\amxx.cfg',
+      enforce: true,
+      dir: 'G:\\FCX1\\FCX7.02融合版\\esf\\addons\\amxx',
+    }),
+    setEnforce: async (enforce) => ({ enforce }),
+    openDir: async () => ({ dir: '' }),
   },
   assets: {
     list: async ({ kind } = {}) => ({
