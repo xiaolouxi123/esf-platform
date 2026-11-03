@@ -125,7 +125,7 @@ check('本地开图参数', () => {
     core.buildLocalArgs('esf', 'esf_cell'),
     [
       '-game', 'esf', '+exec', 'launcher.cfg', '+map', 'esf_cell',
-      '+maxplayers', '10', '+sv_lan', '1', '+mp_teamplay', '1',
+      '+maxplayers', '10', '+sv_lan', '1', '+mp_gamemode', '2',
     ]
   );
   assert.equal(core.buildLocalArgs('esf', 'esf_cell', 'deathmatch').at(-1), '0');

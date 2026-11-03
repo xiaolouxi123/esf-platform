@@ -136,9 +136,9 @@ function stripStalePlatformInfo(modDir) {
 
 // ================= 启动参数 =================
 
-/** 启动本地地图：先 exec 应用 Token，再开图；mode 控制组队/混战 */
+/** 启动本地地图：先 exec 应用 Token，再开图；mp_gamemode 2=组队，0=混战 */
 function buildLocalArgs(modName, map, mode = 'team') {
-  const teamplay = mode === 'deathmatch' ? '0' : '1';
+  const gameMode = mode === 'deathmatch' ? '0' : '2';
   return [
     '-game',
     modName,
@@ -150,8 +150,8 @@ function buildLocalArgs(modName, map, mode = 'team') {
     '10',
     '+sv_lan',
     '1',
-    '+mp_teamplay',
-    teamplay,
+    '+mp_gamemode',
+    gameMode,
   ];
 }
 
