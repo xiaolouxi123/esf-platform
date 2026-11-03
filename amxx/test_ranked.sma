@@ -148,6 +148,7 @@ new g_rankedTeam[33];
 new bool:g_rankedSettled = false;
 new g_pcRankedHost, g_pcRankedUser, g_pcRankedPass, g_pcRankedDb, g_pcRankedServerKey;
 new g_pcQuitEnable, g_pcQuitDelay;
+new g_pcPlatformLogin;
 
 // new OrpheuHook:HandleCmd_ArgsHook;
 
@@ -176,11 +177,21 @@ public client_putinserver(id)
     //忽略机器人
     if(Is_Bot(id)) return;
 
-    //检查名字注册状态
-    CheckPlayerRegistration(id)
+    // 平台模式下身份由 esf_platform_auth 负责，跳过旧的 amx 账号库
+    if(get_pcvar_num(g_pcPlatformLogin))
+    {
+        g_PlayerStats[id][PS_IS_REGISTERED] = true;
+        g_PlayerStats[id][PS_IS_LOGGED] = true;
+        remove_task(id+TASK_LoginCountDown);
+    }
+    else
+    {
+        //检查名字注册状态
+        CheckPlayerRegistration(id)
 
-    //检查并执行玩家登录函数
-    set_task(1.0,"_PlayerLoginCountDown",id+TASK_LoginCountDown,_,_,"b");
+        //检查并执行玩家登录函数
+        set_task(1.0,"_PlayerLoginCountDown",id+TASK_LoginCountDown,_,_,"b");
+    }
 
     // 2 秒后识别平台排位队伍
     set_task(2.0, "taskRankedIdentify", TASK_RANKED + id);
@@ -287,6 +298,13 @@ public SQL_Init()
 //_处理初始化函数
 public DelayedSQLInit()
 {
+    // 平台登录模式下不再连接旧的 amx 账号库，避免 ODBC/root 报错
+    if(get_pcvar_num(g_pcPlatformLogin))
+    {
+        log_amx("[Ranked] platform login mode, legacy account SQL disabled");
+        return;
+    }
+
     // 确保sql.cfg已加载
     new configsDir[64];
     get_configsdir(configsDir, charsmax(configsDir));
@@ -2340,6 +2358,7 @@ public plugin_init()
     g_pcRankedServerKey = register_cvar("ranked_server_key", "");
     g_pcQuitEnable      = register_cvar("battle_quit_enable", "1");
     g_pcQuitDelay       = register_cvar("battle_quit_delay", "5.0");
+    g_pcPlatformLogin   = register_cvar("battle_platform_login", "1");
     set_task(2.0, "RankedInit");
 
 //--------------------Menu----------------------

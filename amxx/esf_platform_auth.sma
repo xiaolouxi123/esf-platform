@@ -41,7 +41,7 @@ enum DbStatus {
 }
 
 new g_pcHost, g_pcUser, g_pcPass, g_pcDb;
-new g_pcServerKey, g_pcEnforce, g_pcFailOpen, g_pcDebug;
+new g_pcServerKey, g_pcEnforce, g_pcFailOpen, g_pcDebug, g_pcRequireName;
 
 new bool:g_authed[MAX_PLAYERS_ARRAY];
 new g_userId[MAX_PLAYERS_ARRAY];
@@ -60,6 +60,7 @@ public plugin_init() {
     g_pcEnforce   = register_cvar("platform_enforce", "1");           // 1=不通过就踢
     g_pcFailOpen  = register_cvar("platform_fail_open", "1");         // 1=数据库挂了放行，避免锁死服务器
     g_pcDebug     = register_cvar("platform_debug", "0");
+    g_pcRequireName = register_cvar("platform_require_name", "0");
 }
 
 public plugin_cfg() {
@@ -228,6 +229,16 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
     SQL_ReadResult(query, 2, name, charsmax(name));
     SQL_ReadResult(query, 3, role, charsmax(role));
 
+    // 可选：强制游戏昵称与平台 game_name 一致（默认关闭，避免彩色名字/改名误伤）
+    if (get_pcvar_num(g_pcRequireName)) {
+        new clientName[32];
+        get_user_name(id, clientName, charsmax(clientName));
+        if (!equal(clientName, name)) {
+            rejectPlayer(id, "游戏昵称必须与平台昵称一致，请改名后重新进入");
+            return;
+        }
+    }
+
     g_authed[id]    = true;
     g_userId[id]    = userId;
     g_tokenId[id]   = tokenId;
@@ -307,9 +318,10 @@ bool:isValidToken(const token[]) {
 }
 
 rejectPlayer(id, const reason[]) {
-    new name[32];
+    new name[32], serverKey[34];
     get_user_name(id, name, charsmax(name));
-    log_amx("[Platform] 拒绝 id=%d name=%s", id, name);
+    get_pcvar_string(g_pcServerKey, serverKey, charsmax(serverKey));
+    log_amx("[Platform] reject id=%d server=%s name=%s", id, serverKey, name);
 
     client_print(id, print_chat, "[平台] %s", reason);
 

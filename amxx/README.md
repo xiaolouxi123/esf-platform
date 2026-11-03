@@ -33,6 +33,7 @@ platform_sql_db "esf_platform"
 platform_server_key "fcx-1v1-1"
 platform_enforce "1"
 platform_fail_open "1"
+platform_require_name "0"
 
 // 排位锁服 / 比赛结果回写
 ranked_sql_host "127.0.0.1:3306"
@@ -42,6 +43,7 @@ ranked_sql_db "esf_platform"
 ranked_server_key "fcx-1v1-1"
 ranked_lock "1"
 ranked_fail_open "1"
+battle_platform_login "1"
 battle_quit_enable "1"
 battle_quit_delay "5.0"
 ```
