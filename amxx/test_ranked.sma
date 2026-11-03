@@ -95,6 +95,7 @@
 #define MAXDEATH    10
 #define TASK_SERVER 1032
 #define TASK_RANKED 4100
+#define TASK_QUIT   4300
 #define esf_get_advancedmelee(%1) get_pdata_int(%1, 298)
 
 enum _:PlayerStats {
@@ -146,6 +147,7 @@ new g_rankedSeenB = 0;
 new g_rankedTeam[33];
 new bool:g_rankedSettled = false;
 new g_pcRankedHost, g_pcRankedUser, g_pcRankedPass, g_pcRankedDb, g_pcRankedServerKey;
+new g_pcQuitEnable, g_pcQuitDelay;
 
 // new OrpheuHook:HandleCmd_ArgsHook;
 
@@ -2137,6 +2139,8 @@ resetAll()
 {
     if(BattleFlag==0)return;
 
+    new bool:wasBattle = g_iBattle;
+
     GoodIndex=0;
     EvilIndex=0;
     BattleFlag=0;
@@ -2159,6 +2163,21 @@ resetAll()
 
     client_print(0,print_chat,"比赛结束!");
 
+    // 比赛结束后可选自动退出游戏，客户端退出后平台托盘会自动恢复
+    if(wasBattle && get_pcvar_num(g_pcQuitEnable))
+    {
+        set_task(get_pcvar_float(g_pcQuitDelay), "taskQuitToPlatform", TASK_QUIT);
+    }
+}
+
+public taskQuitToPlatform()
+{
+    for(new i = 1; i <= get_maxplayers(); i++)
+    {
+        if(is_user_connected(i) && !Is_Bot(i))
+            client_cmd(i, "quit");
+    }
+    log_amx("[Ranked] quit game after match end");
 }
 
 autoPlayerStart()
@@ -2319,6 +2338,8 @@ public plugin_init()
     g_pcRankedPass      = register_cvar("ranked_sql_pass", "");
     g_pcRankedDb        = register_cvar("ranked_sql_db", "esf_platform");
     g_pcRankedServerKey = register_cvar("ranked_server_key", "");
+    g_pcQuitEnable      = register_cvar("battle_quit_enable", "1");
+    g_pcQuitDelay       = register_cvar("battle_quit_delay", "5.0");
     set_task(2.0, "RankedInit");
 
 //--------------------Menu----------------------

@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  launcher:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: esf-launcher
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: esf-launcher/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  server:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-test
+          MYSQL_DATABASE: esf_platform
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot-test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    defaults:
+      run:
+        working-directory: server
+    env:
+      NODE_ENV: test
+      JWT_SECRET: ci-only-jwt-secret-change-me-0123456789
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: esf_platform
+      DB_USER: esf_app
+      DB_PASSWORD: ci-app-password
+      DB_ROOT_USER: root
+      DB_ROOT_PASSWORD: root-test
+      DB_ALLOWED_HOST: 127.0.0.1
+      AMXX_DB_USER: esf_amxx
+      AMXX_DB_PASSWORD: ci-amxx-password
+      AMXX_ALLOWED_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm run migrate
+      - run: npm test
