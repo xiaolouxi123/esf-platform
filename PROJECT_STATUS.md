@@ -54,6 +54,11 @@
 | 代码签名 | 未配置证书 |
 | 0.2.6 差量更新 | blockmap 缺失，会回退完整包 |
 
+## 下载源
+
+- 安装包已切到 GitHub Releases：`https://github.com/xiaolouxi123/esf-platform/releases/download/v0.4.2/ESF-Platform-Setup-0.4.2.exe`r
+- 游戏服务器不再直接承担 128MB 下载流量
+
 ## 已知限制
 
 - 0.2.6 升级到 0.4.x 可能从 6MB 差量回退到 128MB 完整包，因为服务器没有 0.2.6 的 blockmap。

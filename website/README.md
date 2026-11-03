@@ -54,3 +54,11 @@ http://119.91.99.176:3000/
 - 安装包未签名，SmartScreen 会提示
 - 正式域名建议配置 HTTPS
 - 大流量下载建议把 `/updates` 放 CDN / 对象存储
+
+## 下载镜像
+
+官网下载按钮和 /api/config 的 downloadUrl 已切到 GitHub Releases：
+
+```text
+https://github.com/xiaolouxi123/esf-platform/releases/download/v0.4.2/ESF-Platform-Setup-0.4.2.exe
+```
