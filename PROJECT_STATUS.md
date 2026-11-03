@@ -10,7 +10,7 @@
 | 后端 | 0.4 结构，已部署线上 |
 | AMXX | 身份校验 / 排位锁服 / 2v2 自动检测 / 模式守卫 |
 | 仓库 | https://github.com/xiaolouxi123/esf-platform |
-| 官网 | http://119.91.99.176:3000/ |
+| 官网 | http://119.91.99.176:3000/ · 目标域名 https://esfchina.com/（DNS 待解析） |
 
 ## 已完成
 
