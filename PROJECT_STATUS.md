@@ -77,4 +77,6 @@
 
 ## 更新源
 
-- 启动器更新源已切到 GitHub Releases 的 latest/download/；- 即使自有 API 暂时不可用，也会回退到 GitHub；- 后端 /updates/latest.yml 保留为兼容入口。
+- 启动器更新源已切到 GitHub Releases 的 `latest/download/`
+- 即使自有 API 暂时不可用，也会回退到 GitHub
+- 后端 `/updates/latest.yml` 保留为兼容入口
