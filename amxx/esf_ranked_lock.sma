@@ -167,10 +167,17 @@ public OnLockChecked(failstate, Handle:query, error[], errnum, data[], dataSize)
 }
 
 rejectPlayer(id, const reason[]) {
-    new name[32];
+    new name[32], ip[16];
     get_user_name(id, name, charsmax(name));
-    log_amx("[排位锁] 拒绝 id=%d name=%s reason=%s", id, name, reason);
+    get_user_ip(id, ip, charsmax(ip), 1);
+    log_amx("[排位锁] 拒绝 id=%d name=%s ip=%s reason=%s", id, name, ip, reason);
     client_print(id, print_chat, "[排位赛] %s", reason);
+
+    // 本地 listen server 的房主无法被 kick，避免刷错误日志
+    if (equal(ip, "127.0.0.1") || equal(ip, "::1")) {
+        client_print(id, print_chat, "[排位赛] 本地房主无法被踢出，请从平台进入比赛");
+        return;
+    }
 
     set_task(1.0, "taskKick", TASK_KICK + id);
 }
