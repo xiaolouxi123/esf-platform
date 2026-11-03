@@ -94,6 +94,7 @@
 #define MAXPL       5000000
 #define MAXDEATH    10
 #define TASK_SERVER 1032
+#define TASK_RANKED 4100
 #define esf_get_advancedmelee(%1) get_pdata_int(%1, 298)
 
 enum _:PlayerStats {
@@ -136,6 +137,16 @@ new g_Votes[4],
 //数据库-正则表达式
 new Handle:g_sqlTuple;
 
+// 排位平台库（独立于登录库）
+new Handle:g_rankedTuple = Empty_Handle;
+new g_rankedMatchId = 0;
+new g_rankedKnown = 0;
+new g_rankedSeenA = 0;
+new g_rankedSeenB = 0;
+new g_rankedTeam[33];
+new bool:g_rankedSettled = false;
+new g_pcRankedHost, g_pcRankedUser, g_pcRankedPass, g_pcRankedDb, g_pcRankedServerKey;
+
 // new OrpheuHook:HandleCmd_ArgsHook;
 
 public plugin_precache()
@@ -152,6 +163,7 @@ public plugin_precache()
 public client_putinserver(id)
 {
     g_userCount[id]=0;
+    g_rankedTeam[id]=0;
 
     //清空菜单
     show_menu( id, 0, "^n", 1 );
@@ -167,6 +179,11 @@ public client_putinserver(id)
 
     //检查并执行玩家登录函数
     set_task(1.0,"_PlayerLoginCountDown",id+TASK_LoginCountDown,_,_,"b");
+
+    // 2 秒后识别平台排位队伍
+    set_task(2.0, "taskRankedIdentify", TASK_RANKED + id);
+    set_task(6.0, "taskRankedIdentify", TASK_RANKED + id);
+    set_task(12.0, "taskRankedIdentify", TASK_RANKED + id);
 }
 
 // 处理玩家修改名字函数
@@ -205,6 +222,8 @@ public client_disconnected(id)
     {
         g_iWarrior[id]=false;
     }
+
+    if(g_iBattle) checkRankedFinish();
 
     if(Is_Bot(id)) return;
 
@@ -280,6 +299,136 @@ public DelayedSQLInit()
 
     // 初始化数据库
     SQL_Init();
+}
+
+// ================= 排位平台库 =================
+public RankedInit() {
+    new host[64], user[32], pass[64], db[32];
+    get_pcvar_string(g_pcRankedHost, host, charsmax(host));
+    get_pcvar_string(g_pcRankedUser, user, charsmax(user));
+    get_pcvar_string(g_pcRankedPass, pass, charsmax(pass));
+    get_pcvar_string(g_pcRankedDb, db, charsmax(db));
+
+    if (host[0] == 0) {
+        log_amx("[排位] ranked_sql_host 未配置，胜负不会自动回写");
+        return;
+    }
+
+    g_rankedTuple = SQL_MakeDbTuple(host, user, pass, db, 5);
+    if (g_rankedTuple == Empty_Handle) {
+        log_amx("[排位] SQL_MakeDbTuple 失败");
+        return;
+    }
+
+    SQL_ThreadQuery(g_rankedTuple, "OnRankedPing", "SELECT 1");
+    log_amx("[排位] 平台库已初始化 (%s)", host);
+}
+
+public OnRankedPing(failstate, Handle:query, error[], errnum, data[], dataSize) {
+    if (failstate != TQUERY_SUCCESS) {
+        log_amx("[排位] 平台库连接失败: %s", error);
+    }
+    SQL_FreeHandle(query);
+}
+
+public taskRankedIdentify(taskid) {
+    new id = taskid - TASK_RANKED;
+    if (!is_user_connected(id) || g_rankedTuple == Empty_Handle) {
+        return;
+    }
+    if (g_rankedTeam[id] != 0) return;
+
+    new token[40];
+    get_user_info(id, "_platform_token", token, charsmax(token));
+    if (!isValidRankedToken(token)) return;
+
+    new serverKey[34];
+    get_pcvar_string(g_pcRankedServerKey, serverKey, charsmax(serverKey));
+    if (serverKey[0] == 0) return;
+
+    new query[640];
+    formatex(query, charsmax(query),
+        "SELECT m.id, p.team \
+           FROM launch_tokens t \
+           JOIN ranked_match_players p ON p.user_id = t.user_id \
+           JOIN ranked_matches m ON m.id = p.match_id \
+          WHERE t.token = '%s' AND t.server_key = '%s' \
+            AND m.server_key = '%s' AND m.status IN ('waiting','live') \
+          LIMIT 1",
+        token, serverKey, serverKey);
+
+    new data[1];
+    data[0] = id;
+    SQL_ThreadQuery(g_rankedTuple, "OnRankedIdentify", query, data, 1);
+}
+
+public OnRankedIdentify(failstate, Handle:query, error[], errnum, data[], dataSize) {
+    new id = data[0];
+    if (failstate != TQUERY_SUCCESS) {
+        log_amx("[排位] 身份查询失败 id=%d err=%s", id, error);
+        return;
+    }
+    if (SQL_NumResults(query) == 0) return;
+    if (g_rankedTeam[id] != 0) return;
+
+    new team[2];
+    SQL_ReadResult(query, 1, team, 1);
+    g_rankedMatchId = SQL_ReadResult(query, 0);
+    g_rankedTeam[id] = (team[0] == 'a') ? 1 : 2;
+    g_rankedKnown++;
+    if (g_rankedTeam[id] == 1) g_rankedSeenA++;
+    else g_rankedSeenB++;
+
+    client_print(id, print_chat, "[排位] 已识别为 %s 队，比赛结果将自动回写平台",
+        g_rankedTeam[id] == 1 ? "A" : "B");
+}
+
+bool:isValidRankedToken(const token[]) {
+    if (strlen(token) != 32) return false;
+    for (new i = 0; i < 32; i++) {
+        new c = token[i];
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+    }
+    return true;
+}
+
+/** 一方平台队员全部出局时，自动结算 */
+bool:checkRankedFinish() {
+    if (!g_iBattle || g_rankedMatchId == 0 || g_rankedSettled || g_rankedTuple == Empty_Handle) {
+        return false;
+    }
+
+    new need = (g_autoTeamSize > 0) ? g_autoTeamSize * 2 : 2;
+    if (g_rankedKnown < need || g_rankedSeenA == 0 || g_rankedSeenB == 0) return false;
+
+    new aliveA = 0, aliveB = 0;
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        if (!is_user_connected(i) || g_iWarrior[i]) continue;
+        if (g_rankedTeam[i] == 1) aliveA++;
+        else if (g_rankedTeam[i] == 2) aliveB++;
+    }
+
+    if (aliveA > 0 && aliveB > 0) return false;
+
+    new winner = (aliveA > 0) ? 'a' : 'b';
+    new query[128];
+    formatex(query, charsmax(query), "CALL settle_ranked_match(%d, '%s')", g_rankedMatchId, winner);
+    SQL_ThreadQuery(g_rankedTuple, "OnRankedSettled", query);
+    log_amx("[排位] 比赛 %d 结算：%s 队获胜", g_rankedMatchId, winner == 'a' ? "A" : "B");
+    client_print(0, print_chat, "[排位] 比赛结束，%s 队获胜，正在回写平台战绩", winner == 'a' ? "A" : "B");
+
+    g_rankedSettled = true;
+    g_rankedMatchId = 0;
+    return true;
+}
+
+public OnRankedSettled(failstate, Handle:query, error[], errnum, data[], dataSize) {
+    if (failstate != TQUERY_SUCCESS) {
+        log_amx("[排位] 结算写入失败: %s", error);
+    } else {
+        log_amx("[排位] 结算写入成功");
+    }
+    SQL_FreeHandle(query);
 }
 
 //检测玩家名字注册状态函数,添加sql查询语句
@@ -1174,6 +1323,14 @@ public hookJoint(id)
         return PLUGIN_HANDLED;
     }
 
+    // 2v2 开赛后禁止再加入队伍，保持 2v2 人数和结果判定稳定
+    if( g_iBattle==true && g_autoTeamSize==2 )
+    {
+        PlaySound(id,"battleplug/error.wav");
+        client_print(id,print_chat,"[ 排位 ] 2v2 比赛已经开始，不能再更换队伍.");
+        return PLUGIN_HANDLED;
+    }
+
     if( agi == 5  )
     {
         PlaySound(id,"battleplug/error.wav");
@@ -1298,6 +1455,13 @@ public PlayerPostThink(id)
 public PlayerPreThink(id)
 {
     if(g_BattleState == false ) return FMRES_IGNORED;
+
+    // 平台排位优先结算：一方队伍全部出局
+    if(checkRankedFinish())
+    {
+        resetAll();
+        return FMRES_HANDLED;
+    }
 
     //检测已经分出胜负情况
     if(g_SpawnCount <=1 && g_iBattle == true)
@@ -1896,6 +2060,13 @@ InitilizeBattleStart()
     client_print(0,print_chat,"[ 认输 ] 公屏敲出ez即可!"); 
 
     client_print(0,print_chat,"比赛正式开始!"); 
+
+    // 重新识别平台排位队伍（支持连续开下一场）
+    for(new i = 1; i <= get_maxplayers(); i++)
+    {
+        if(is_user_connected(i))
+            set_task(2.0, "taskRankedIdentify", TASK_RANKED + i);
+    }
 }
 
 Is_SameData(frags,deaths,name[])
@@ -1938,6 +2109,11 @@ resetAll()
     EvilIndex=0;
     BattleFlag=0;
     g_autoTeamSize=0;
+    g_rankedMatchId=0;
+    g_rankedKnown=0;
+    g_rankedSeenA=0;
+    g_rankedSeenB=0;
+    g_rankedSettled=false;
 
     g_iBattle     = false;
     g_BattleState = false;
@@ -1980,6 +2156,35 @@ autoPlayerStart()
 public showIconDisplay(id)
 {
     if(!g_iBattle || GoodIndex == 0 || EvilIndex == 0)return;
+
+    // 2v2 队伍 HUD：显示双方队伍名和总击杀
+    if(g_autoTeamSize == 2)
+    {
+        new goodNames[128], evilNames[128], gScore = 0, eScore = 0;
+        new name[32];
+        for(new i = 1; i <= get_maxplayers(); i++)
+        {
+            if(!is_user_connected(i) || g_iWarrior[i]) continue;
+            get_user_name(i, name, charsmax(name));
+            if(Get_Team(i) == 1)
+            {
+                gScore += get_user_frags(i);
+                if(goodNames[0] != 0) add(goodNames, charsmax(goodNames), " + ");
+                add(goodNames, charsmax(goodNames), name);
+            }
+            else if(Get_Team(i) == 2)
+            {
+                eScore += get_user_frags(i);
+                if(evilNames[0] != 0) add(evilNames, charsmax(evilNames), " + ");
+                add(evilNames, charsmax(evilNames), name);
+            }
+        }
+        new icon[512];
+        format(icon, charsmax(icon), "[ %s ]  %d  :  %d  [ %s ]", goodNames, gScore, eScore, evilNames);
+        set_hudmessage(133, 166, 255, 0.44, 0.0, 0, 0.0, 3.0, 1.0, 2.0, 121);
+        show_dhudmessage(0, icon);
+        return;
+    }
 
     new fGood[32],fEvil[32],icon[1024],Float:GFrags,Float:EFrags;
     new Gstr_frags[32],Estr_frags[32];
@@ -2075,6 +2280,13 @@ public plugin_init()
 
 //----------------Register_Cvar-----------------
     register_cvar("BattleLimt","10");
+
+    g_pcRankedHost      = register_cvar("ranked_sql_host", "");
+    g_pcRankedUser      = register_cvar("ranked_sql_user", "esf_amxx");
+    g_pcRankedPass      = register_cvar("ranked_sql_pass", "");
+    g_pcRankedDb        = register_cvar("ranked_sql_db", "esf_platform");
+    g_pcRankedServerKey = register_cvar("ranked_server_key", "");
+    set_task(2.0, "RankedInit");
 
 //--------------------Menu----------------------
     register_menucmd(register_menuid("杀我是猪"),1023,"CheckMenuCmd");
