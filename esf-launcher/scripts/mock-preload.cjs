@@ -227,7 +227,7 @@ const api = {
   ranked: {
     state: async () => {
       const players = [
-        { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', role: 'owner', team: 'a', slot: 1, ready: true, rating: 1180 },
+        { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', role: 'owner', team: 'a', slot: 1, ready: true, rating: 1380 },
         { id: 10, username: 'goku', gameName: '悟空', avatar: '🐒', role: 'creator', team: 'a', slot: 2, ready: false, rating: 1210 },
         { id: 6, username: 'yun', gameName: 'yun', avatar: '🥋', role: 'admin', team: 'b', slot: 1, ready: true, rating: 1190 },
         { id: 9, username: 'krillin', gameName: '克林', avatar: '', role: 'user', team: 'b', slot: 2, ready: false, rating: 1150 },
@@ -256,7 +256,7 @@ const api = {
         isParticipant: true,
       };
       const profile = {
-        rating: 1180,
+        rating: 1380,
         tier: '黄金',
         wins: 12,
         losses: 7,
@@ -271,9 +271,9 @@ const api = {
       }
       return { state: 'idle', profile };
     },
-    queue: async () => ({ state: 'queued', profile: { rating: 1180, tier: '黄金', coins: 128 }, queue: { mode: '2v2', elapsed: 0 } }),
-    cancel: async () => ({ state: 'idle', profile: { rating: 1180, tier: '黄金', coins: 128 } }),
-    ready: async () => ({ state: 'matched', profile: { rating: 1180, tier: '黄金', coins: 128 } }),
+    queue: async () => ({ state: 'queued', profile: { rating: 1380, tier: '黄金', coins: 128 }, queue: { mode: '2v2', elapsed: 0 } }),
+    cancel: async () => ({ state: 'idle', profile: { rating: 1380, tier: '黄金', coins: 128 } }),
+    ready: async () => ({ state: 'matched', profile: { rating: 1380, tier: '黄金', coins: 128 } }),
     bet: async () => ({ state: 'matched' }),
     spectate: async () => ({ id: 88 }),
     finish: async () => ({ id: 88 }),
@@ -281,7 +281,7 @@ const api = {
       players: [
         { position: 1, id: 10, gameName: '悟空', avatar: '🐒', tier: '钻石', rating: 1640, winRate: 72 },
         { position: 2, id: 6, gameName: 'yun', avatar: '🥋', tier: '铂金', rating: 1480, winRate: 66 },
-        { position: 3, id: 2, gameName: '测试玩家', avatar: '🐉', tier: '黄金', rating: 1180, winRate: 63 },
+        { position: 3, id: 2, gameName: '测试玩家', avatar: '🐉', tier: '黄金', rating: 1380, winRate: 63 },
         { position: 4, id: 9, gameName: '克林', avatar: '', tier: '白银', rating: 980, winRate: 48 },
       ],
     }),

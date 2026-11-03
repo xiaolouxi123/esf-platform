@@ -3,18 +3,18 @@
 const { pool, q, one } = require('../db');
 const { getWallet } = require('./economy');
 
-const MODE_SIZE = { '1v1': 2, '2v2': 4, '4v4': 8 };
+const MODE_SIZE = { '1v1': 2, '2v2': 4 };
 const MODES = Object.keys(MODE_SIZE);
 const BET_MIN = 10;
 const BET_MAX = 5000;
 const RAKE = 0.05;
 
 function tierOf(rating) {
-  if (rating >= 1700) return '王者';
-  if (rating >= 1500) return '钻石';
-  if (rating >= 1300) return '铂金';
-  if (rating >= 1100) return '黄金';
-  if (rating >= 900) return '白银';
+  if (rating >= 1900) return '王者';
+  if (rating >= 1700) return '钻石';
+  if (rating >= 1500) return '铂金';
+  if (rating >= 1300) return '黄金';
+  if (rating >= 1100) return '白银';
   return '青铜';
 }
 

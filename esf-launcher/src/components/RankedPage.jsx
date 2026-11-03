@@ -3,9 +3,8 @@ import Avatar from './Avatar';
 import Icon from './Icon';
 
 const MODE_META = {
-  '1v1': { label: '1v1', sub: '冰封王座', desc: '单挑，纯个人实力', slots: 1 },
+  '1v1': { label: '1v1', sub: '单排模式', desc: '单人匹配，纯个人实力', slots: 1 },
   '2v2': { label: '2v2', sub: '双人组队', desc: '两人一队，配合取胜', slots: 2 },
-  '4v4': { label: '4v4', sub: '团队天梯', desc: '四人一队，团队排位', slots: 4 },
 };
 
 const TIER_COLOR = {
@@ -23,11 +22,11 @@ function tierColor(tier) {
 
 const TIER_ORDER = [
   { name: '青铜', min: 0 },
-  { name: '白银', min: 900 },
-  { name: '黄金', min: 1100 },
-  { name: '铂金', min: 1300 },
-  { name: '钻石', min: 1500 },
-  { name: '王者', min: 1700 },
+  { name: '白银', min: 1100 },
+  { name: '黄金', min: 1300 },
+  { name: '铂金', min: 1500 },
+  { name: '钻石', min: 1700 },
+  { name: '王者', min: 1900 },
 ];
 
 function SeasonProgress({ profile }) {
@@ -424,7 +423,7 @@ export default function RankedPage({ user, toast }) {
               {busy === 'queue' ? '正在匹配…' : '开始快速匹配'}
             </button>
             <p className="rank-lobby-hint">
-              匹配范围会随时间扩大；1v1 需要 2 人，2v2 需要 4 人，4v4 需要 8 人。
+              匹配范围会随时间扩大；1v1 需要 2 人，2v2 需要 4 人。
             </p>
           </section>
         )}

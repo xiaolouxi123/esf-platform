@@ -232,7 +232,7 @@ export default function ServerRoomList({
                             </div>
                           ))}
                           {Array.from(
-                            { length: Math.max(0, (ranked.mode === '1v1' ? 1 : ranked.mode === '2v2' ? 2 : 4) - (ranked.teams?.[team]?.length || 0)) },
+                            { length: Math.max(0, (ranked.mode === '1v1' ? 1 : 2) - (ranked.teams?.[team]?.length || 0)) },
                             (_, index) => (
                               <div className="room-seat is-empty" key={`empty-${team}-${index}`}>
                                 <span>等待加入</span>

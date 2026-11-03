@@ -23,7 +23,7 @@ router.get('/ranked/state', requireAuth, async (req, res, next) => {
 router.post('/ranked/queue', requireAuth, async (req, res, next) => {
   try {
     const mode = String(req.body?.mode || '1v1');
-    if (!ranked.MODES.includes(mode)) throw badRequest('排位模式只能是 1v1 / 2v2 / 4v4');
+    if (!ranked.MODES.includes(mode)) throw badRequest('排位模式只能是 1v1 / 2v2');
     res.json({ ok: true, data: await ranked.joinQueue(req.user.id, mode) });
   } catch (err) {
     fail(err, next);
