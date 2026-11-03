@@ -153,6 +153,84 @@ async function main() {
          CONSTRAINT fk_coin_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
     );
+
+    // 排位：档案、队列、比赛、座位、竞猜、观战
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS ranked_profiles (
+         user_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+         rating INT NOT NULL DEFAULT 1000,
+         wins INT NOT NULL DEFAULT 0,
+         losses INT NOT NULL DEFAULT 0,
+         matches INT NOT NULL DEFAULT 0,
+         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+         CONSTRAINT fk_ranked_profile_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    );
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS ranked_queue (
+         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+         user_id BIGINT UNSIGNED NOT NULL UNIQUE,
+         mode VARCHAR(8) NOT NULL,
+         rating INT NOT NULL DEFAULT 1000,
+         joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         matched_match_id BIGINT UNSIGNED NULL,
+         INDEX idx_ranked_queue_mode (mode, matched_match_id, joined_at)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    );
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS ranked_matches (
+         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+         mode VARCHAR(8) NOT NULL,
+         server_key VARCHAR(32) NOT NULL,
+         map VARCHAR(64) NULL,
+         status ENUM('waiting','live','finished','cancelled') NOT NULL DEFAULT 'waiting',
+         winner ENUM('a','b') NULL,
+         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         started_at DATETIME NULL,
+         finished_at DATETIME NULL,
+         INDEX idx_ranked_match_server (server_key, status)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    );
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS ranked_match_players (
+         match_id BIGINT UNSIGNED NOT NULL,
+         user_id BIGINT UNSIGNED NOT NULL,
+         team ENUM('a','b') NOT NULL,
+         slot TINYINT UNSIGNED NOT NULL,
+         ready TINYINT NOT NULL DEFAULT 0,
+         rating_before INT NOT NULL DEFAULT 1000,
+         rating_after INT NULL,
+         PRIMARY KEY (match_id, user_id),
+         UNIQUE KEY uk_ranked_seat (match_id, team, slot),
+         CONSTRAINT fk_rmp_match FOREIGN KEY (match_id) REFERENCES ranked_matches(id) ON DELETE CASCADE,
+         CONSTRAINT fk_rmp_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    );
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS ranked_bets (
+         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+         match_id BIGINT UNSIGNED NOT NULL,
+         user_id BIGINT UNSIGNED NOT NULL,
+         team ENUM('a','b') NOT NULL,
+         amount INT NOT NULL,
+         settled TINYINT NOT NULL DEFAULT 0,
+         payout INT NOT NULL DEFAULT 0,
+         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         UNIQUE KEY uk_ranked_bet (match_id, user_id),
+         CONSTRAINT fk_ranked_bet_match FOREIGN KEY (match_id) REFERENCES ranked_matches(id) ON DELETE CASCADE,
+         CONSTRAINT fk_ranked_bet_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    );
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS ranked_spectators (
+         match_id BIGINT UNSIGNED NOT NULL,
+         user_id BIGINT UNSIGNED NOT NULL,
+         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         PRIMARY KEY (match_id, user_id),
+         CONSTRAINT fk_spectate_match FOREIGN KEY (match_id) REFERENCES ranked_matches(id) ON DELETE CASCADE,
+         CONSTRAINT fk_spectate_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    );
     await conn.query(
       `CREATE TABLE IF NOT EXISTS titles (
          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -6,6 +6,7 @@ const { contextBridge } = require('electron');
  */
 
 const state = process.env.MOCK_STATE || 'dashboard';
+const scenario = process.env.MOCK_SCENARIO || state;
 const role = process.env.MOCK_ROLE || 'owner';
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -54,6 +55,25 @@ const servers = [
     maxPlayers: 12,
     ping: 18,
     map: 'ape_foreshadow',
+    ranked: {
+      id: 88,
+      mode: '2v2',
+      status: 'live',
+      map: 'ape_foreshadow',
+      playerCount: 4,
+      readyCount: 4,
+      teams: {
+        a: [
+          { id: 2, gameName: '测试玩家', avatar: '🐉', ready: true },
+          { id: 10, gameName: '悟空', avatar: '🐒', ready: true },
+        ],
+        b: [
+          { id: 6, gameName: 'yun', avatar: '🥋', ready: true },
+          { id: 9, gameName: '克林', avatar: '', ready: true },
+        ],
+      },
+    },
+    locked: true,
   },
   {
     serverKey: 'fcx-1v1-2',
@@ -200,6 +220,69 @@ const api = {
       transactions: [
         { amount: 2, reason: 'game_time', createdAt: new Date(Date.now() - 120000).toISOString() },
         { amount: 1, reason: 'online_time', createdAt: new Date(Date.now() - 360000).toISOString() },
+      ],
+    }),
+  },
+
+  ranked: {
+    state: async () => {
+      const players = [
+        { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', role: 'owner', team: 'a', slot: 1, ready: true, rating: 1180 },
+        { id: 10, username: 'goku', gameName: '悟空', avatar: '🐒', role: 'creator', team: 'a', slot: 2, ready: false, rating: 1210 },
+        { id: 6, username: 'yun', gameName: 'yun', avatar: '🥋', role: 'admin', team: 'b', slot: 1, ready: true, rating: 1190 },
+        { id: 9, username: 'krillin', gameName: '克林', avatar: '', role: 'user', team: 'b', slot: 2, ready: false, rating: 1150 },
+      ];
+      const match = {
+        id: 88,
+        mode: '2v2',
+        status: 'waiting',
+        map: 'ape_foreshadow',
+        server: {
+          serverKey: 'fcx-1v1-1',
+          name: '[ESF-FCX]单挑房[1]',
+          ip: '114.132.84.150',
+          port: 27016,
+          map: 'ape_foreshadow',
+        },
+        players,
+        teams: { a: players.filter((p) => p.team === 'a'), b: players.filter((p) => p.team === 'b') },
+        readyCount: 2,
+        playerCount: 4,
+        allReady: false,
+        pool: { a: 320, b: 180, total: 500 },
+        betCount: 3,
+        myBet: null,
+        spectatorCount: 3,
+        isParticipant: true,
+      };
+      const profile = {
+        rating: 1180,
+        tier: '黄金',
+        wins: 12,
+        losses: 7,
+        matches: 19,
+        winRate: 63,
+        rank: 18,
+        coins: 128,
+      };
+      if (scenario === 'ranked') return { state: 'matched', profile, match };
+      if (scenario === 'ranked-queue') {
+        return { state: 'queued', profile, queue: { mode: '2v2', elapsed: 23, joinedAt: new Date().toISOString() } };
+      }
+      return { state: 'idle', profile };
+    },
+    queue: async () => ({ state: 'queued', profile: { rating: 1180, tier: '黄金', coins: 128 }, queue: { mode: '2v2', elapsed: 0 } }),
+    cancel: async () => ({ state: 'idle', profile: { rating: 1180, tier: '黄金', coins: 128 } }),
+    ready: async () => ({ state: 'matched', profile: { rating: 1180, tier: '黄金', coins: 128 } }),
+    bet: async () => ({ state: 'matched' }),
+    spectate: async () => ({ id: 88 }),
+    finish: async () => ({ id: 88 }),
+    leaderboard: async () => ({
+      players: [
+        { position: 1, id: 10, gameName: '悟空', avatar: '🐒', tier: '钻石', rating: 1640, winRate: 72 },
+        { position: 2, id: 6, gameName: 'yun', avatar: '🥋', tier: '铂金', rating: 1480, winRate: 66 },
+        { position: 3, id: 2, gameName: '测试玩家', avatar: '🐉', tier: '黄金', rating: 1180, winRate: 63 },
+        { position: 4, id: 9, gameName: '克林', avatar: '', tier: '白银', rating: 980, winRate: 48 },
       ],
     }),
   },

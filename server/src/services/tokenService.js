@@ -14,6 +14,7 @@ const crypto = require('crypto');
 const { q, one } = require('../db');
 const env = require('../env');
 const { notFound, badRequest } = require('../lib/errors');
+const { canEnterServer } = require('./ranked');
 
 async function requireServer(serverKey) {
   const server = await one(
@@ -27,6 +28,11 @@ async function requireServer(serverKey) {
 
 async function issueLaunchToken(userId, serverKey) {
   const server = await requireServer(serverKey);
+
+  const access = await canEnterServer(userId, serverKey);
+  if (!access.allowed) {
+    throw badRequest('该服务器正在进行排位赛，只有本场参赛玩家可以进入');
+  }
 
   if (server.mode === '新手') {
     const user = await one('SELECT combat_level FROM users WHERE id = ? LIMIT 1', [userId]);

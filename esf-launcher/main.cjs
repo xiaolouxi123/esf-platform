@@ -551,6 +551,27 @@ handle('economy:summary', async () =>
   apiCall(api.economySummary, getSettings(), requireToken())
 );
 
+handle('ranked:state', async () => apiCall(api.rankedState, getSettings(), requireToken()));
+handle('ranked:queue', async ({ mode } = {}) =>
+  apiCall(api.rankedQueue, getSettings(), requireToken(), mode)
+);
+handle('ranked:cancel', async ({ matchId } = {}) =>
+  apiCall(api.rankedCancel, getSettings(), requireToken(), matchId)
+);
+handle('ranked:ready', async () => apiCall(api.rankedReady, getSettings(), requireToken()));
+handle('ranked:bet', async ({ matchId, team, amount } = {}) =>
+  apiCall(api.rankedBet, getSettings(), requireToken(), matchId, team, amount)
+);
+handle('ranked:spectate', async ({ matchId } = {}) =>
+  apiCall(api.rankedSpectate, getSettings(), requireToken(), matchId)
+);
+handle('ranked:finish', async ({ matchId, winner } = {}) =>
+  apiCall(api.rankedFinish, getSettings(), requireToken(), matchId, winner)
+);
+handle('ranked:leaderboard', async ({ limit } = {}) =>
+  apiCall(api.rankedLeaderboard, getSettings(), requireToken(), limit)
+);
+
 handle('titles:list', async () => apiCall(api.titles, getSettings(), requireToken()));
 
 handle('titles:create', async (payload = {}) =>

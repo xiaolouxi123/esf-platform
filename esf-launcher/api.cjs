@@ -239,6 +239,28 @@ const setCombatLevel = (settings, token, id, combatLevel) =>
 const economySummary = (settings, token) =>
   request(settings, { path: '/api/economy/summary', token });
 
+const rankedState = (settings, token) =>
+  request(settings, { path: '/api/ranked/state', token });
+const rankedQueue = (settings, token, mode) =>
+  request(settings, { method: 'POST', path: '/api/ranked/queue', token, body: { mode } });
+const rankedCancel = (settings, token, matchId) =>
+  request(settings, { method: 'POST', path: '/api/ranked/cancel', token, body: { matchId } });
+const rankedReady = (settings, token) =>
+  request(settings, { method: 'POST', path: '/api/ranked/ready', token });
+const rankedBet = (settings, token, matchId, team, amount) =>
+  request(settings, {
+    method: 'POST',
+    path: '/api/ranked/bet',
+    token,
+    body: { matchId, team, amount },
+  });
+const rankedSpectate = (settings, token, matchId) =>
+  request(settings, { method: 'POST', path: '/api/ranked/spectate', token, body: { matchId } });
+const rankedFinish = (settings, token, matchId, winner) =>
+  request(settings, { method: 'POST', path: '/api/ranked/finish', token, body: { matchId, winner } });
+const rankedLeaderboard = (settings, token, limit) =>
+  request(settings, { path: `/api/ranked/leaderboard?limit=${encodeURIComponent(limit || 20)}`, token });
+
 const chatList = (settings, token, after) =>
   request(settings, { path: `/api/chat${queryString({ after })}`, token });
 
@@ -297,6 +319,14 @@ module.exports = {
   memberDetail,
   setCombatLevel,
   economySummary,
+  rankedState,
+  rankedQueue,
+  rankedCancel,
+  rankedReady,
+  rankedBet,
+  rankedSpectate,
+  rankedFinish,
+  rankedLeaderboard,
   chatList,
   chatSend,
   updateProfile,

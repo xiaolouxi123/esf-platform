@@ -6,6 +6,7 @@ const { Query } = require('goldsrc-query');
 const { q, one } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { badRequest, notFound } = require('../lib/errors');
+const { activeMatchesByServer } = require('../services/ranked');
 
 const router = express.Router();
 const QUERY_TIMEOUT_MS = 3000;
@@ -34,6 +35,7 @@ router.get('/servers', requireAuth, async (req, res, next) => {
         ORDER BY s.sort ASC, s.id ASC`
     );
 
+    const activeRanked = await activeMatchesByServer();
     const servers = rows.map((row) => ({
       serverKey: row.server_key,
       name: row.live_name || row.display_name,
@@ -46,6 +48,8 @@ router.get('/servers', requireAuth, async (req, res, next) => {
       ping: Number(row.ping_ms),
       map: row.map || null,
       updatedAt: row.updated_at,
+      ranked: activeRanked.get(row.server_key) || null,
+      locked: activeRanked.has(row.server_key),
     }));
 
     res.json({ ok: true, data: { servers } });

@@ -53,6 +53,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     summary: () => call('economy:summary'),
   },
 
+  ranked: {
+    state: () => call('ranked:state'),
+    queue: (mode) => call('ranked:queue', { mode }),
+    cancel: (matchId) => call('ranked:cancel', { matchId }),
+    ready: () => call('ranked:ready'),
+    bet: (matchId, team, amount) => call('ranked:bet', { matchId, team, amount }),
+    spectate: (matchId) => call('ranked:spectate', { matchId }),
+    finish: (matchId, winner) => call('ranked:finish', { matchId, winner }),
+    leaderboard: (limit) => call('ranked:leaderboard', { limit }),
+  },
+
   chat: {
     list: (after) => call('chat:list', { after }),
     send: (body) => call('chat:send', { body }),

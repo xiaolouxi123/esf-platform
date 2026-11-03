@@ -8,6 +8,7 @@ import AssetLibrary from './AssetLibrary';
 import MemberSidebar from './MemberSidebar';
 import ChatPanel from './ChatPanel';
 import RadarBadge from './RadarBadge';
+import RankedPage from './RankedPage';
 import ServerRoomList from './ServerRoomList';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import dragonBall from '../assets/dragon-ball.webp';
@@ -523,7 +524,7 @@ export default function Lobby({
         onOpenSettings={openSettings}
       />
 
-      <div className={`workspace${['servers', 'assets', 'admin'].includes(activePage) ? ' workspace--wide' : ''}`}>
+      <div className={`workspace${['servers', 'assets', 'admin', 'ranked'].includes(activePage) ? ' workspace--wide' : ''}`}>
         <aside className="game-rail">
           <button
             type="button"
@@ -689,7 +690,9 @@ export default function Lobby({
         </aside>
 
         <main className="center">
-          {activePage === 'channel' ? (
+          {activePage === 'ranked' ? (
+            <RankedPage user={user} toast={toast} />
+          ) : activePage === 'channel' ? (
             <div className="channel-page">
               <div className="channel-page-bar">
                 <button type="button" className="channel-back" onClick={() => setPage('lobby')}>
@@ -714,6 +717,8 @@ export default function Lobby({
               busyKey={joinBusyKey}
               toast={toast}
               syncedAt={lastSyncAt}
+              currentUserId={user?.id}
+              onOpenRanked={() => setPage('ranked')}
             />
           ) : activePage === 'assets' ? (
             <AssetLibrary toast={toast} settings={settings} />

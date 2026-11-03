@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Icon from './Icon';
+import Avatar from './Avatar';
 import { formatClock, pingTone } from '../lib/format';
 
 /** 三格信号条：延迟越低亮得越多 */
@@ -35,6 +36,8 @@ export default function ServerRoomList({
   onToggleFavorite,
   emptyText = '没有符合条件的房间',
   syncedAt = null,
+  currentUserId = null,
+  onOpenRanked,
 }) {
   const [openKey, setOpenKey] = useState('');
   const [details, setDetails] = useState({});
@@ -115,9 +118,16 @@ export default function ServerRoomList({
         const detail = details[key] || {};
         const favorite = favorites ? favorites.has(key) : false;
         const busy = busyKey === key;
+        const ranked = server.ranked || null;
+        const rankedPlayers = ranked
+          ? ranked.players || [...(ranked.teams?.a || []), ...(ranked.teams?.b || [])]
+          : [];
+        const rankedParticipant = rankedPlayers.some(
+          (player) => Number(player.id) === Number(currentUserId)
+        );
 
         return (
-          <div key={key} className={`room room--${tone}${open ? ' is-open' : ''}`}>
+          <div key={key} className={`room room--${tone}${open ? ' is-open' : ''}${ranked ? ' room--ranked' : ''}`}>
             <div
               className="room-row"
               role="button"
@@ -135,7 +145,10 @@ export default function ServerRoomList({
               </span>
 
               <span className="room-title">
-                <b>{server.name}</b>
+                <b>
+                  {server.name}
+                  {ranked && <span className="room-ranked-tag">排位 {ranked.mode} · 比赛中</span>}
+                </b>
                 <small>
                   {server.map || '未知地图'} · {server.ip}:{server.port}
                 </small>
@@ -165,11 +178,25 @@ export default function ServerRoomList({
 
                 <button
                   type="button"
-                  className={`btn btn-sm ${server.online ? 'btn-primary' : 'btn-ghost'}`}
-                  disabled={!server.online || busy}
-                  onClick={stop(() => onJoin && onJoin(server))}
+                  className={`btn btn-sm ${ranked ? 'btn-ghost' : server.online ? 'btn-primary' : 'btn-ghost'}`}
+                  disabled={!server.online || busy || (ranked && !rankedParticipant)}
+                  onClick={stop(() => {
+                    if (ranked && !rankedParticipant) {
+                      onOpenRanked?.();
+                      return;
+                    }
+                    onJoin && onJoin(server);
+                  })}
                 >
-                  {busy ? <span className="spinner" /> : server.online ? '加入' : '离线'}
+                  {busy ? (
+                    <span className="spinner" />
+                  ) : ranked ? (
+                    rankedParticipant ? '进入比赛' : '比赛中'
+                  ) : server.online ? (
+                    '加入'
+                  ) : (
+                    '离线'
+                  )}
                 </button>
 
                 <Icon name="chevron" size={14} className={`room-chev${open ? ' is-open' : ''}`} />
@@ -178,6 +205,53 @@ export default function ServerRoomList({
 
             {open && (
               <div className="room-detail">
+                {ranked && (
+                  <div className="room-ranked">
+                    <div className="room-ranked-head">
+                      <span>
+                        <Icon name="trophy" size={14} /> 排位赛 {ranked.mode}
+                      </span>
+                      <em className={`room-ranked-status${ranked.status === 'live' ? ' is-live' : ''}`}>
+                        {ranked.status === 'live' ? '比赛进行中' : '等待玩家准备'}
+                      </em>
+                    </div>
+
+                    <div className="room-seats">
+                      {['a', 'b'].map((team) => (
+                        <div className="room-seat-team" key={team}>
+                          <b>{team.toUpperCase()} 队</b>
+                          {(ranked.teams?.[team] || []).map((player) => (
+                            <div className="room-seat" key={player.id}>
+                              <span className="room-seat-avatar">
+                                <Avatar user={player} size="xs" />
+                              </span>
+                              <span>{player.gameName}</span>
+                              <em className={player.ready ? 'is-ready' : ''}>
+                                {player.ready ? '已准备' : '未准备'}
+                              </em>
+                            </div>
+                          ))}
+                          {Array.from(
+                            { length: Math.max(0, (ranked.mode === '1v1' ? 1 : ranked.mode === '2v2' ? 2 : 4) - (ranked.teams?.[team]?.length || 0)) },
+                            (_, index) => (
+                              <div className="room-seat is-empty" key={`empty-${team}-${index}`}>
+                                <span>等待加入</span>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="room-ranked-actions">
+                      <span>服务器已锁定，只有本场参赛玩家可以进入</span>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={stop(() => onOpenRanked?.())}>
+                        进入排位页 / 观战
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="room-detail-head">
                   <span>玩家</span>
                   <span>分数</span>

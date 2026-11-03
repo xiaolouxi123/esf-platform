@@ -116,6 +116,8 @@ export default function ServerHall({
   busyKey,
   toast,
   syncedAt,
+  currentUserId,
+  onOpenRanked,
 }) {
   const [keyword, setKeyword] = useState('');
   const [filter, setFilter] = useState('all');
@@ -365,6 +367,8 @@ export default function ServerHall({
         favorites={favorites}
         onToggleFavorite={onToggleFavorite}
         syncedAt={syncedAt}
+        currentUserId={currentUserId}
+        onOpenRanked={onOpenRanked}
       />
 
       <footer className="hall-tip">

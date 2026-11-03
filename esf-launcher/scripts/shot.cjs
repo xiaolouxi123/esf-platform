@@ -28,6 +28,7 @@ const zoom = Number(argOf('zoom', 1));
 
 // 必须在创建 BrowserWindow 之前设置：渲染进程的环境变量在进程创建时就固化了
 process.env.MOCK_STATE = state === 'login' || state === 'register' ? 'login' : 'dashboard';
+process.env.MOCK_SCENARIO = state;
 process.env.MOCK_ROLE = role;
 
 app.disableHardwareAcceleration();
