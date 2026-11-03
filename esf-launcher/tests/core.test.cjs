@@ -130,6 +130,17 @@ check('本地开图参数', () => {
   );
   assert.equal(core.buildLocalArgs('esf', 'esf_cell', 'deathmatch').at(-1), '0');
 });
+check('启动前写入 game.cfg 的模式', () => {
+  fs.writeFileSync(path.join(mod, 'game.cfg'), '"mp_gamemode" "2"\r\n', 'latin1');
+  const result = core.applyLocalGameMode(mod, 'deathmatch');
+  const text = fs.readFileSync(path.join(mod, 'game.cfg'), 'latin1');
+  assert.equal(result.mode, 0);
+  assert.match(text, /"mp_gamemode" "0"/);
+  assert.match(text, /esf_force_gamemode "0"/);
+
+  core.applyLocalGameMode(mod, 'team');
+  assert.match(fs.readFileSync(path.join(mod, 'game.cfg'), 'latin1'), /"mp_gamemode" "2"/);
+});
 check('命令格式化会加引号', () => {
   assert.strictEqual(
     core.formatCommand('C:\\a b\\hl.exe', ['-game', 'esf']),

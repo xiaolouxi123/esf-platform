@@ -6,6 +6,7 @@
 |---|---|
 | `esf_platform_auth.sma` | 平台身份校验：读取 `_platform_token`，消费 token，记录在线时长 |
 | `esf_ranked_lock.sma` | 比赛锁服：有 waiting/live 排位赛时只允许参赛玩家进入 |
+| `esf_gamemode.sma` | 启动后兜底应用 `esf_force_gamemode`（0 混战 / 2 组队） |
 | `test_ranked.sma` | 比赛逻辑：1v1/2v2 自动检测、队伍 HUD、结果回写、结束 5 秒 quit |
 
 `test_ranked.sma` 是从原有 `test.sma` 复制出来的分支，原始 `test.sma` 不被修改。

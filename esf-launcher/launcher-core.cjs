@@ -155,6 +155,63 @@ function buildLocalArgs(modName, map, mode = 'team') {
   ];
 }
 
+/**
+ * 启动前写入 game.cfg / listenserver.cfg。
+ * GoldSrc 退出时会把 mp_gamemode 写回 game.cfg，启动参数会被它覆盖；
+ * 只改命令行无法稳定切换模式，必须在拉起 hl.exe 前改文件。
+ */
+function applyLocalGameMode(modDir, mode = 'team') {
+  const value = mode === 'deathmatch' ? '0' : '2';
+  const changed = [];
+  const files = ['game.cfg', 'listenserver.cfg', 'server.cfg'];
+
+  const setCvar = (text) => {
+    let next = text;
+    let found = false;
+    next = next.replace(/^(\s*"?mp_gamemode"?\s+).*$/im, (line, prefix) => {
+      found = true;
+      return `${prefix}"${value}"`;
+    });
+    if (!found) {
+      next = `${next.replace(/\s*$/, '')}\r\nmp_gamemode "${value}"\r\n`;
+    }
+    // AMXX 模式守卫读取这个 cvar；没有插件也不影响游戏
+    next = next.replace(/^(\s*"?esf_force_gamemode"?\s+).*$/im, (line, prefix) => {
+      return `${prefix}"${value}"`;
+    });
+    if (!/^\s*"?esf_force_gamemode"?\s+/im.test(next)) {
+      next = `${next.replace(/\s*$/, '')}\r\nesf_force_gamemode "${value}"\r\n`;
+    }
+    return next;
+  };
+
+  for (const name of files) {
+    const file = path.join(modDir, name);
+    if (!fs.existsSync(file)) {
+      if (name !== 'game.cfg') continue;
+      try {
+        fs.writeFileSync(file, `mp_gamemode "${value}"\r\nesf_force_gamemode "${value}"\r\n`, 'latin1');
+        changed.push(name);
+      } catch {
+        /* ignore */
+      }
+      continue;
+    }
+    try {
+      const text = fs.readFileSync(file, 'latin1');
+      const next = setCvar(text);
+      if (next !== text) {
+        fs.writeFileSync(file, next, 'latin1');
+        changed.push(name);
+      }
+    } catch {
+      /* 权限/占用时仍保留命令行参数，不阻塞启动 */
+    }
+  }
+
+  return { mode: Number(value), changed };
+}
+
 /** 一键连服：先 exec 应用 Token，再 connect，顺序不能反 */
 function buildJoinArgs(modName, address) {
   return ['-game', modName, '+exec', CFG_NAME, '+connect', address];
@@ -297,6 +354,7 @@ module.exports = {
   writeLauncherCfg,
   stripStalePlatformInfo,
   buildLocalArgs,
+  applyLocalGameMode,
   buildJoinArgs,
   formatCommand,
   resolveInstallPath,

@@ -753,9 +753,11 @@ handle('launch:local', async ({ map, mode }) => {  const current = getSession();
 
   prepareLaunch(issued.token, username);
   lastServerKey = getSettings().localServerKey;
+  const modeInfo = core.applyLocalGameMode(getSettings().esfModDir, mode);
+  log(`🎮 本地模式 mp_gamemode=${modeInfo.mode}（写入 ${modeInfo.changed.join(', ') || '无'}）`);
   await spawnGame(core.buildLocalArgs(modName(), safeMap, mode));
   hideToTrayForGame();
-  return { map: safeMap, mode: mode === 'deathmatch' ? 'deathmatch' : 'team', maskedToken: maskToken(issued.token), switched };
+  return { map: safeMap, mode: mode === 'deathmatch' ? 'deathmatch' : 'team', gameMode: modeInfo.mode, changedFiles: modeInfo.changed, maskedToken: maskToken(issued.token), switched };
 });
 
 // 游客模式：不登录平台，直接拉起游戏主菜单（插件开放时可进服）
