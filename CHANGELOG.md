@@ -2,7 +2,7 @@
 
 所有重要变更记录在这里。格式参考 Keep a Changelog。
 
-## [Unreleased] - 0.4.0
+## [0.4.0] - 2026-11-04
 
 ### Added
 
