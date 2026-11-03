@@ -2,6 +2,14 @@
 
 所有重要变更记录在这里。格式参考 Keep a Changelog。
 
+## [0.4.1] - 2026-11-04
+
+### Fixed
+
+- 本地开图混战/组队切换失效：启动前写入 `game.cfg` / `listenserver.cfg` / `server.cfg`
+- 新增 AMXX `esf_gamemode` 守卫插件，启动后兜底应用 `esf_force_gamemode`
+- `mp_gamemode` 明确为 0=混战、2=组队
+
 ## [0.4.0] - 2026-11-04
 
 ### Added
