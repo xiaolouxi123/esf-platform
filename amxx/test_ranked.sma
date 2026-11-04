@@ -87,6 +87,7 @@ new bool:g_rankedSettled = false;
 new g_challengeRoomId = 0;
 new g_challengeKnown = 0;
 new g_challengeTeam[33];
+new g_challengeUserId[33];
 new g_challengeBaseKills[33];
 new g_challengeBaseDeaths[33];
 new g_challengeLimit = 10;
@@ -119,6 +120,7 @@ public client_putinserver(id)
     g_userCount[id]=0;
     g_rankedTeam[id]=0;
     g_challengeTeam[id]=0;
+    g_challengeUserId[id]=0;
     g_challengeBaseKills[id]=get_user_frags(id);
     g_challengeBaseDeaths[id]=get_user_deaths(id);
 
@@ -392,7 +394,7 @@ public taskChallengeIdentify(taskid) {
 
     new query[720];
     formatex(query, charsmax(query),
-        "SELECT r.id, p.team, COALESCE(c.victory_type, 'kills'), COALESCE(c.victory_limit, 10) \
+        "SELECT r.id, p.team, COALESCE(c.victory_type, 'kills'), COALESCE(c.victory_limit, 10), t.user_id \
            FROM launch_tokens t \
            JOIN challenge_room_players p ON p.user_id = t.user_id \
            JOIN challenge_rooms r ON r.id = p.room_id \
@@ -425,6 +427,7 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
         g_challengeActive = true;
         for (new i = 1; i <= get_maxplayers(); i++) {
             g_challengeTeam[i] = 0;
+            g_challengeUserId[i] = 0;
         }
     }
 
@@ -433,6 +436,7 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
     new type[16];
     SQL_ReadResult(query, 2, type, charsmax(type));
     new limit = SQL_ReadResult(query, 3);
+    g_challengeUserId[id] = SQL_ReadResult(query, 4);
 
     g_challengeTeam[id] = (team[0] == 'a') ? 1 : 2;
     g_challengeBaseKills[id] = get_user_frags(id);
@@ -515,7 +519,7 @@ bool:checkChallengeFinish() {
             stats[len] = 0;
         }
         len += formatex(stats[len], charsmax(stats) - len, "(%d,%d,'%s',%d,%d)",
-            g_challengeRoomId, i, teamChar, kills, deaths);
+            g_challengeRoomId, g_challengeUserId[i], teamChar, kills, deaths);
         count++;
     }
 
@@ -2326,6 +2330,7 @@ resetAll()
     for(new i = 1; i <= get_maxplayers(); i++)
     {
         g_challengeTeam[i] = 0;
+        g_challengeUserId[i] = 0;
         g_challengeBaseKills[i] = 0;
         g_challengeBaseDeaths[i] = 0;
     }
