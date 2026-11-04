@@ -53,3 +53,30 @@ jobs:
             esf-launcher/release/latest.yml
           fail_on_unmatched_files: false
           generate_release_notes: false
+
+      - name: Carry previous blockmap forward
+        # The generic feed resolves the old blockmap through
+        # releases/latest/download/<old>.blockmap. Keep the previous
+        # release's blockmap on the new release so differential updates
+        # do not fall back to a full 128 MB download.
+        if: success()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $prev = gh release list --limit 20 --json tagName --jq '.[].tagName' |
+            Where-Object { $_ -ne "${{ github.ref_name }}" } |
+            Select-Object -First 1
+          if (-not $prev) {
+            Write-Host "No previous release found."
+            exit 0
+          }
+          $dir = Join-Path $env:RUNNER_TEMP "previous-blockmaps"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          gh release download $prev --pattern "*.blockmap" --dir $dir
+          $files = @(Get-ChildItem $dir -Filter *.blockmap | ForEach-Object FullName)
+          if ($files.Count -eq 0) {
+            Write-Host "No blockmap assets in $prev."
+            exit 0
+          }
+          gh release upload "${{ github.ref_name }}" $files --clobber

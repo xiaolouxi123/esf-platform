@@ -1,0 +1,50 @@
+name: repair-blockmaps
+
+# One-off repair for the 0.4.4 generic update feed:
+# 0.4.3 clients ask latest/download/ESF-Platform-Setup-0.4.3.exe.blockmap
+# before doing a differential download. That path only exists if the old
+# blockmap is also an asset of the latest release, so attach historic
+# blockmaps to v0.4.4. The release workflow now carries the previous
+# release's blockmap forward for future versions.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/repair-blockmaps.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  attach-historic-blockmaps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download historic blockmaps
+        shell: bash
+        run: |
+          mkdir -p assets
+          for version in 0.4.0 0.4.1 0.4.2 0.4.3; do
+            url="https://github.com/xiaolouxi123/esf-platform/releases/download/v${version}/ESF-Platform-Setup-${version}.exe.blockmap"
+            out="assets/ESF-Platform-Setup-${version}.exe.blockmap"
+            if curl -fsSL "$url" -o "$out"; then
+              echo "downloaded $version ($(stat -c%s "$out") bytes)"
+            else
+              echo "skip $version (not found)"
+              rm -f "$out"
+            fi
+          done
+
+      - name: Attach to v0.4.4 release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(assets/*.blockmap)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no blockmaps to upload"
+            exit 1
+          fi
+          printf 'uploading %s\n' "${files[@]}"
+          gh release upload v0.4.4 "${files[@]}" --clobber
