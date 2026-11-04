@@ -60,6 +60,7 @@ jobs:
         # release's blockmap on the new release so differential updates
         # do not fall back to a full 128 MB download.
         if: success()
+        continue-on-error: true
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
