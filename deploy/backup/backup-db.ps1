@@ -30,6 +30,10 @@
 .PARAMETER OffsiteDir
   Optional second directory (another disk or UNC share) to copy the backup to.
   A copy failure is logged as a warning and does not delete the local backup.
+
+.PARAMETER RequiredPattern
+  Optional literal text that must appear in the dump. For this platform use
+  settle_ranked_match so a dump with missing routines fails loudly.
 #>
 [CmdletBinding()]
 param(
@@ -38,7 +42,8 @@ param(
   [string]$MySqlDump = 'C:\esf\mysql\bin\mysqldump.exe',
   [string]$DefaultsFile = 'C:\esf\backup\backup.cnf',
   [string]$Database = 'esf_platform',
-  [string]$OffsiteDir = ''
+  [string]$OffsiteDir = '',
+  [string]$RequiredPattern = ''
 )
 
 Set-StrictMode -Version Latest
@@ -99,6 +104,13 @@ try {
   $tail = (Get-Content -LiteralPath $sqlPath -Tail 20 | Out-String)
   if ($tail -notmatch 'Dump completed') {
     throw 'backup is incomplete: missing "Dump completed" marker'
+  }
+
+  if ($RequiredPattern) {
+    $found = Select-String -LiteralPath $sqlPath -Pattern $RequiredPattern -SimpleMatch -Quiet
+    if (-not $found) {
+      throw "backup is missing required pattern: $RequiredPattern"
+    }
   }
 
   $hash = (Get-FileHash -LiteralPath $sqlPath -Algorithm SHA256).Hash.ToLowerInvariant()

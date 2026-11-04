@@ -21,10 +21,11 @@
 CREATE USER 'esf_backup'@'127.0.0.1' IDENTIFIED BY '<strong-random-password>';
 GRANT SELECT, LOCK TABLES, SHOW VIEW, EVENT, TRIGGER
   ON esf_platform.* TO 'esf_backup'@'127.0.0.1';
+GRANT SHOW_ROUTINE ON *.* TO 'esf_backup'@'127.0.0.1';
 FLUSH PRIVILEGES;
 ```
 
-不需要 `PROCESS`、`RELOAD` 或全局权限（已在本机与生产 MySQL 8.0.29 验证）。
+`SHOW_ROUTINE` 是 MySQL 8.0.20+ 的只读全局权限，用于导出 `settle_ranked_match` 等存储过程；没有它 `mysqldump --routines` 会静默漏掉过程。不需要 `PROCESS`、`RELOAD` 或写权限（已在本机与生产 MySQL 8.0.29 验证）。
 
 ## 安装 / 更新
 
@@ -55,7 +56,7 @@ icacls C:\esf\backups /grant '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F'
 
 ```powershell
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-  -Argument '-NoProfile -ExecutionPolicy Bypass -File "C:\esf\backup\backup-db.ps1"'
+  -Argument '-NoProfile -ExecutionPolicy Bypass -File "C:\esf\backup\backup-db.ps1" -RequiredPattern settle_ranked_match'
 $trigger = New-ScheduledTaskTrigger -Daily -At '04:00'
 $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew `
   -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -StartWhenAvailable
@@ -68,7 +69,7 @@ Get-ScheduledTaskInfo -TaskName 'ESFDBBackup'
 5. 手动执行一次：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\esf\backup\backup-db.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\esf\backup\backup-db.ps1 -RequiredPattern settle_ranked_match
 Get-Content C:\esf\backups\backup.log -Tail 10
 ```
 
@@ -113,10 +114,10 @@ Remove-Item C:\esf\backup\admin-drill.cnf -Force
 预期输出：
 
 ```text
-restore ok tables=21 users=4 servers=2 titles=6
+restore ok tables=21 users=4 servers=2 titles=6 routine=1
 ```
 
-行数随线上数据变化，关键是 `restore ok` 且退出码 0；临时库名形如 `esf_restore_check_yyyyMMdd_HHmmss`，脚本默认自动删除。
+行数随线上数据变化，关键是 `restore ok` 且退出码 0、`routine=1`；临时库名形如 `esf_restore_check_yyyyMMdd_HHmmss`，脚本默认自动删除。
 
 > 该演练是“备份能否恢复”的验证，不是生产切换。生产恢复见下一节。
 
@@ -159,6 +160,7 @@ cmd.exe /c "`"$mysql`" --defaults-extra-file=`"$admin`" esf_platform_restore < `
 | --- | --- |
 | `Access denied` | 检查 `backup.cnf` 的 host/user，确认 MySQL 账号是 `'esf_backup'@'127.0.0.1'` |
 | `mysqldump: Couldn't execute ... SHOW CREATE PROCEDURE` | 补 `SHOW_ROUTINE` 或检查 `--routines` 权限 |
+| 备份成功但缺 `settle_ranked_match` | 备份账号没有 `SHOW_ROUTINE`；补授权后重跑，并用 `-RequiredPattern settle_ranked_match` 让任务失败可见 |
 | 备份文件只有几 KB / 无 `Dump completed` | 脚本会自动删除并返回 1；查看 `backup.log` 的 mysqldump stderr |
 | 任务 `LastTaskResult` 非 0 | `Get-ScheduledTaskInfo -TaskName ESFDBBackup`，再查 `backup.log`；确认 SYSTEM 对 `C:\esf\backup` 有读权限 |
 | 恢复报 `Unknown database` | 先 `CREATE DATABASE`，或用管理员账号导入 |

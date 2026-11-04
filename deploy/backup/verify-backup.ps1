@@ -38,6 +38,8 @@ param(
 
   [string]$DatabasePrefix = 'esf_restore_check_',
 
+  [string]$RequiredRoutine = 'settle_ranked_match',
+
   [switch]$KeepDatabase
 )
 
@@ -48,6 +50,7 @@ if (-not (Test-Path -LiteralPath $BackupFile)) { throw "backup not found: $Backu
 if (-not (Test-Path -LiteralPath $MySql)) { throw "mysql client not found: $MySql" }
 if (-not (Test-Path -LiteralPath $AdminDefaultsFile)) { throw "admin option file not found: $AdminDefaultsFile" }
 if ($DatabasePrefix -notmatch '^[A-Za-z0-9_]+$') { throw "Unsafe database prefix: $DatabasePrefix" }
+if ($RequiredRoutine -and $RequiredRoutine -notmatch '^[A-Za-z0-9_]+$') { throw "Unsafe routine name: $RequiredRoutine" }
 
 $backup = Get-Item -LiteralPath $BackupFile
 if ($backup.Length -lt 1024) { throw "backup is suspiciously small: $($backup.Length) bytes" }
@@ -89,22 +92,27 @@ SELECT COUNT(*) AS tables_count
 SELECT COUNT(*) AS users_count FROM ``$db``.users;
 SELECT COUNT(*) AS servers_count FROM ``$db``.servers;
 SELECT COUNT(*) AS titles_count FROM ``$db``.titles;
+SELECT COUNT(*) AS routine_count
+  FROM information_schema.routines
+ WHERE routine_schema = '$db' AND routine_name = '$RequiredRoutine';
 "@
   $rows = & $MySql "--defaults-extra-file=$AdminDefaultsFile" -N -e $query
   if ($LASTEXITCODE -ne 0) { throw "verification query failed with code $LASTEXITCODE" }
 
   $counts = @($rows | ForEach-Object { [int]($_ -split "`t")[0] })
-  if ($counts.Count -lt 4) { throw "unexpected verification output: $($rows -join ' | ')" }
+  if ($counts.Count -lt 5) { throw "unexpected verification output: $($rows -join ' | ')" }
 
   $tables = $counts[0]
   $users = $counts[1]
   $servers = $counts[2]
   $titles = $counts[3]
+  $routine = $counts[4]
 
-  Write-Host "restore ok tables=$tables users=$users servers=$servers titles=$titles"
+  Write-Host "restore ok tables=$tables users=$users servers=$servers titles=$titles routine=$routine"
 
   if ($tables -lt 15) { throw "restored schema looks incomplete: only $tables tables" }
   if ($users -lt 1) { throw 'restored data has no users' }
+  if ($RequiredRoutine -and $routine -lt 1) { throw "restored database is missing routine: $RequiredRoutine" }
 } finally {
   if ($created -and -not $KeepDatabase) {
     Write-Host "dropping temporary database $db"
