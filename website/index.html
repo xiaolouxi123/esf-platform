@@ -372,16 +372,21 @@
     if(nav.style.display==='flex')Object.assign(nav.style,{position:'absolute',top:'68px',left:'16px',right:'16px',flexDirection:'column',alignItems:'stretch',background:'rgba(10,14,23,.98)',border:'1px solid var(--line)',borderRadius:'12px',padding:'8px',zIndex:60});
   });
 
-  fetch('/api/config',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(body=>{
-    const data=body&&body.ok?body.data:null;if(!data)return;
-    const version=data.latestVersion||'0.4.2';
-    ['#versionCode','#versionCode2','#downloadVersion'].forEach(id=>{const el=$(id);if(el)el.textContent=version});
-    if(data.downloadUrl){['#heroDownload','#downloadButton','#headerDownload'].forEach(id=>{const el=$(id);if(el)el.href=data.downloadUrl})}
-  }).catch(()=>{});
+  const isStaticHost = location.protocol === 'file:' || /(^|\.)github\.io$/i.test(location.hostname) || /\.pages\.dev$/i.test(location.hostname);
+  if (isStaticHost) {
+    $('#healthText').textContent = '静态官网';
+  } else {
+    fetch('/api/config',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(body=>{
+      const data=body&&body.ok?body.data:null;if(!data)return;
+      const version=data.latestVersion||'0.4.2';
+      ['#versionCode','#versionCode2','#downloadVersion'].forEach(id=>{const el=$(id);if(el)el.textContent=version});
+      if(data.downloadUrl){['#heroDownload','#downloadButton','#headerDownload'].forEach(id=>{const el=$(id);if(el)el.href=data.downloadUrl})}
+    }).catch(()=>{});
 
-  fetch('/api/health',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(body=>{
-    const ok=Boolean(body&&body.ok);$('#healthText').textContent=ok?'平台服务在线':'平台服务维护中';
-  }).catch(()=>{$('#healthText').textContent='平台服务离线'});
+    fetch('/api/health',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(body=>{
+      const ok=Boolean(body&&body.ok);$('#healthText').textContent=ok?'平台服务在线':'平台服务维护中';
+    }).catch(()=>{$('#healthText').textContent='平台服务离线'});
+  }
 })();
 </script>
 </body>
