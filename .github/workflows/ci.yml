@@ -51,10 +51,10 @@ jobs:
       DB_PASSWORD: ci-app-password
       DB_ROOT_USER: root
       DB_ROOT_PASSWORD: root-test
-      DB_ALLOWED_HOST: 127.0.0.1
+      DB_ALLOWED_HOST: '%'
       AMXX_DB_USER: esf_amxx
       AMXX_DB_PASSWORD: ci-amxx-password
-      AMXX_ALLOWED_HOST: 127.0.0.1
+      AMXX_ALLOWED_HOST: '%'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
