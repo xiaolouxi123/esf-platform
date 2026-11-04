@@ -96,6 +96,9 @@ GitHub 仓库根目录的文件列表显示的是每个文件**最后一次提�
 | 文件 | 说明 |
 |---|---|
 | `deploy-esf-server.ps1` | Windows 服务器一键部署（Node/MySQL/服务/防火墙） |
+| `backup/backup-db.ps1` | 每日 mysqldump、SHA-256、保留、可选异地复制 |
+| `backup/verify-backup.ps1` | 临时库恢复演练（建库/导入/计数/删库） |
+| `backup/README.md` | 备份、计划任务、恢复与故障排查 |
 | `amxx/`（gitignore） | 含数据库密码的 AMXX 安装包，不进入公开仓库 |
 
 > `deploy/amxx` 被 `.gitignore` 排除；插件源码在 `amxx/`，安装包请私下分发。
