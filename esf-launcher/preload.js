@@ -105,6 +105,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
     customRemove: (address) => call('servers:custom-remove', { address }),
   },
 
+  favorites: {
+    list: () => call('favorites:list'),
+    set: (serverKeys) => call('favorites:set', { serverKeys }),
+    add: (serverKey) => call('favorites:add', { serverKey }),
+    remove: (serverKey) => call('favorites:remove', { serverKey }),
+  },
+
+  challenges: {
+    state: () => call('challenges:state'),
+    create: (payload) => call('challenges:create', payload),
+    join: (id) => call('challenges:join', { id }),
+    leave: (id) => call('challenges:leave', { id }),
+    close: (id) => call('challenges:close', { id }),
+    invite: (id, userId) => call('challenges:invite', { id, userId }),
+    respond: (id, action) => call('challenges:respond', { id, action }),
+    ready: (id, ready = true) => call('challenges:ready', { id, ready }),
+    start: (id) => call('challenges:start', { id }),
+  },
+
   maps: {
     scan: () => call('maps:scan'),
   },
@@ -127,6 +146,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     transferOwner: (userId) => call('admin:transfer-owner', { userId }),
     platform: () => call('admin:platform'),
     updatePlatform: (patch) => call('admin:update-platform', patch),
+    servers: () => call('admin:servers'),
+    createServer: (payload) => call('admin:create-server', payload),
+    updateServer: (serverKey, patch) => call('admin:update-server', { serverKey, ...patch }),
     openDevTools: () => call('devtools:open'),
   },
 

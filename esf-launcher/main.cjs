@@ -606,6 +606,20 @@ handle('servers:custom-remove', async ({ address } = {}) => {
   return { servers: next };
 });
 
+handle('favorites:list', async () => apiCall(api.favoritesList, getSettings(), requireToken()));
+
+handle('favorites:set', async ({ serverKeys } = {}) =>
+  apiCall(api.favoritesSet, getSettings(), requireToken(), Array.isArray(serverKeys) ? serverKeys : [])
+);
+
+handle('favorites:add', async ({ serverKey } = {}) =>
+  apiCall(api.favoriteAdd, getSettings(), requireToken(), serverKey)
+);
+
+handle('favorites:remove', async ({ serverKey } = {}) =>
+  apiCall(api.favoriteRemove, getSettings(), requireToken(), serverKey)
+);
+
 // ---- 在线状态 / 大厅频道 ----
 handle('presence:ping', async () => {
   requireToken();
@@ -652,6 +666,34 @@ handle('ranked:finish', async ({ matchId, winner } = {}) =>
 );
 handle('ranked:leaderboard', async ({ limit } = {}) =>
   apiCall(api.rankedLeaderboard, getSettings(), requireToken(), limit)
+);
+
+handle('challenges:state', async () =>
+  apiCall(api.challengeState, getSettings(), requireToken())
+);
+handle('challenges:create', async (payload = {}) =>
+  apiCall(api.challengeCreate, getSettings(), requireToken(), payload)
+);
+handle('challenges:join', async ({ id } = {}) =>
+  apiCall(api.challengeJoin, getSettings(), requireToken(), id)
+);
+handle('challenges:leave', async ({ id } = {}) =>
+  apiCall(api.challengeLeave, getSettings(), requireToken(), id)
+);
+handle('challenges:close', async ({ id } = {}) =>
+  apiCall(api.challengeClose, getSettings(), requireToken(), id)
+);
+handle('challenges:invite', async ({ id, userId } = {}) =>
+  apiCall(api.challengeInvite, getSettings(), requireToken(), id, userId)
+);
+handle('challenges:respond', async ({ id, action } = {}) =>
+  apiCall(api.challengeRespond, getSettings(), requireToken(), id, action)
+);
+handle('challenges:ready', async ({ id, ready } = {}) =>
+  apiCall(api.challengeReady, getSettings(), requireToken(), id, ready !== false)
+);
+handle('challenges:start', async ({ id } = {}) =>
+  apiCall(api.challengeStart, getSettings(), requireToken(), id)
 );
 
 handle('titles:list', async () => apiCall(api.titles, getSettings(), requireToken()));
@@ -1080,6 +1122,25 @@ handle('admin:update-platform', async (patch = {}) => {
   requireStaff();
   const data = await apiCall(api.adminUpdatePlatform, getSettings(), requireToken(), patch);
   log('🛠️ 运营设置已更新（公告 / 维护模式）');
+  return data;
+});
+
+handle('admin:servers', async () => {
+  requireStaff();
+  return apiCall(api.adminServers, getSettings(), requireToken());
+});
+
+handle('admin:create-server', async (payload = {}) => {
+  requireStaff();
+  const data = await apiCall(api.adminCreateServer, getSettings(), requireToken(), payload);
+  log(`🖥️ 新增服务器 ${payload.serverKey || ''}`);
+  return data;
+});
+
+handle('admin:update-server', async ({ serverKey, ...patch } = {}) => {
+  requireStaff();
+  const data = await apiCall(api.adminUpdateServer, getSettings(), requireToken(), serverKey, patch);
+  log(`🖥️ 更新服务器 ${serverKey}`);
   return data;
 });
 

@@ -96,6 +96,24 @@ const serverDetail = (settings, token, params) =>
 const launchToken = (settings, token, serverKey) =>
   request(settings, { method: 'POST', path: '/api/launch-token', token, body: { serverKey } });
 
+/* ---------------- 收藏服务器 ---------------- */
+
+const favoritesList = (settings, token) => request(settings, { path: '/api/favorites', token });
+const favoritesSet = (settings, token, serverKeys) =>
+  request(settings, { method: 'PUT', path: '/api/favorites', token, body: { serverKeys } });
+const favoriteAdd = (settings, token, serverKey) =>
+  request(settings, {
+    method: 'POST',
+    path: `/api/favorites/${encodeURIComponent(serverKey)}`,
+    token,
+  });
+const favoriteRemove = (settings, token, serverKey) =>
+  request(settings, {
+    method: 'DELETE',
+    path: `/api/favorites/${encodeURIComponent(serverKey)}`,
+    token,
+  });
+
 /* ---------------- 资源库 ---------------- */
 
 function queryString(params = {}) {
@@ -219,6 +237,17 @@ const adminPlatform = (settings, token) =>
 const adminUpdatePlatform = (settings, token, patch) =>
   request(settings, { method: 'PATCH', path: '/api/admin/platform', token, body: patch });
 
+const adminServers = (settings, token) => request(settings, { path: '/api/admin/servers', token });
+const adminCreateServer = (settings, token, body) =>
+  request(settings, { method: 'POST', path: '/api/admin/servers', token, body });
+const adminUpdateServer = (settings, token, serverKey, patch) =>
+  request(settings, {
+    method: 'PATCH',
+    path: `/api/admin/servers/${encodeURIComponent(serverKey)}`,
+    token,
+    body: patch,
+  });
+
 /* ---------------- 社交：在线状态 / 大厅频道 ---------------- */
 
 const pingPresence = (settings, token, payload) =>
@@ -261,6 +290,31 @@ const rankedFinish = (settings, token, matchId, winner) =>
 const rankedLeaderboard = (settings, token, limit) =>
   request(settings, { path: `/api/ranked/leaderboard?limit=${encodeURIComponent(limit || 20)}`, token });
 
+/* ---------------- 约战房间 ---------------- */
+
+const challengeState = (settings, token) => request(settings, { path: '/api/challenges', token });
+const challengeCreate = (settings, token, body) =>
+  request(settings, { method: 'POST', path: '/api/challenges', token, body });
+const challengeJoin = (settings, token, id) =>
+  request(settings, { method: 'POST', path: `/api/challenges/${id}/join`, token });
+const challengeLeave = (settings, token, id) =>
+  request(settings, { method: 'POST', path: `/api/challenges/${id}/leave`, token });
+const challengeClose = (settings, token, id) =>
+  request(settings, { method: 'POST', path: `/api/challenges/${id}/close`, token });
+const challengeInvite = (settings, token, id, userId) =>
+  request(settings, { method: 'POST', path: `/api/challenges/${id}/invite`, token, body: { userId } });
+const challengeRespond = (settings, token, id, action) =>
+  request(settings, {
+    method: 'POST',
+    path: `/api/challenges/invites/${id}/respond`,
+    token,
+    body: { action },
+  });
+const challengeReady = (settings, token, id, ready = true) =>
+  request(settings, { method: 'POST', path: `/api/challenges/${id}/ready`, token, body: { ready } });
+const challengeStart = (settings, token, id) =>
+  request(settings, { method: 'POST', path: `/api/challenges/${id}/start`, token });
+
 const chatList = (settings, token, after) =>
   request(settings, { path: `/api/chat${queryString({ after })}`, token });
 
@@ -299,6 +353,10 @@ module.exports = {
   lookupServer,
   serverDetail,
   launchToken,
+  favoritesList,
+  favoritesSet,
+  favoriteAdd,
+  favoriteRemove,
   assets,
   assetDetail,
   setAssetStatus,
@@ -313,6 +371,9 @@ module.exports = {
   adminTransferOwner,
   adminPlatform,
   adminUpdatePlatform,
+  adminServers,
+  adminCreateServer,
+  adminUpdateServer,
   pingPresence,
   presenceList,
   membersList,
@@ -327,6 +388,15 @@ module.exports = {
   rankedSpectate,
   rankedFinish,
   rankedLeaderboard,
+  challengeState,
+  challengeCreate,
+  challengeJoin,
+  challengeLeave,
+  challengeClose,
+  challengeInvite,
+  challengeRespond,
+  challengeReady,
+  challengeStart,
   chatList,
   chatSend,
   updateProfile,

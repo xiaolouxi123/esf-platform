@@ -266,6 +266,17 @@ export default function MemberSidebar({
                       {Number(member.combatLevel) > 0 && (
                         <span className="combat-level">Lv.{member.combatLevel}</span>
                       )}
+                      {member.ranked && (
+                        <span className={`member-ranked is-${member.ranked.status}`}>
+                          {member.ranked.status === 'queued'
+                            ? '匹配中'
+                            : member.ranked.status === 'waiting'
+                              ? '待准备'
+                              : '比赛中'}
+                          {' · '}
+                          {member.ranked.mode}
+                        </span>
+                      )}
                       {member.online
                         ? member.state === 'ingame'
                           ? member.serverMap || member.serverName || '游戏中'
@@ -274,7 +285,7 @@ export default function MemberSidebar({
                     </small>
                   </span>
                   <span
-                    className={`member-dot${member.online ? (member.state === 'ingame' ? ' is-ingame' : '') : ' is-offline'}`}
+                    className={`member-dot${member.online ? (member.state === 'ingame' ? ' is-ingame' : '') : ' is-offline'}${member.ranked ? ' is-ranked' : ''}`}
                   />
                 </div>
               ))}
@@ -326,6 +337,17 @@ export default function MemberSidebar({
                     <span className={`member-profile-state${profile.online ? ' is-online' : ''}`}>
                       {profile.online ? (profile.state === 'ingame' ? '游戏中' : '在线') : '离线'}
                     </span>
+                    {profile.ranked && (
+                      <span className={`member-ranked is-${profile.ranked.status}`}>
+                        {profile.ranked.status === 'queued'
+                          ? '排位匹配中'
+                          : profile.ranked.status === 'waiting'
+                            ? '排位待准备'
+                            : '排位比赛中'}
+                        {' · '}
+                        {profile.ranked.mode}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -370,6 +392,20 @@ export default function MemberSidebar({
                         ? profile.serverMap || profile.serverName || '游戏中'
                         : '大厅'
                       : '离线'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>排位状态</dt>
+                  <dd>
+                    {profile.ranked
+                      ? `${profile.ranked.mode} · ${
+                          profile.ranked.status === 'queued'
+                            ? '匹配中'
+                            : profile.ranked.status === 'waiting'
+                              ? '待准备'
+                              : '比赛中'
+                        }`
+                      : '未在排位'}
                   </dd>
                 </div>
               </dl>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Icon from './Icon';
 import Avatar from './Avatar';
+import AdminServers from './AdminServers';
 import {
   formatBytes,
   formatDuration,
@@ -378,6 +379,8 @@ export default function AdminPanel({
           </div>
         ))}
       </div>
+
+      <AdminServers toast={toast} />
 
       <section className="admin-section">
         <div className="admin-section-head">

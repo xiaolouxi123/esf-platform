@@ -180,14 +180,14 @@
       <article class="slide is-active" data-slide="0">
         <div class="slide-in">
           <div class="slide-copy">
-            <span class="kicker">VERSION <span id="versionCode">0.4.2</span> · DRAGON BALL COMMUNITY</span>
+            <span class="kicker">VERSION <span id="versionCode">0.4.3</span> · DRAGON BALL COMMUNITY</span>
             <h1>龙珠社区<br /><em>重新集结</em></h1>
             <p>一个账号，连接整个龙珠社区。一键连服、天梯排位、金币竞猜、成员频道与服务端插件，都在同一个客户端里完成。</p>
             <div class="slide-actions">
               <a class="btn btn-primary" id="heroDownload" href="#download">下载 Windows 客户端 ↓</a>
               <a class="btn btn-line" href="#features">了解平台</a>
             </div>
-            <div class="slide-meta"><span><b id="healthText">服务检测中</b></span><span>Windows 10 / 11 · 64 位</span><span>最新版本 <b id="versionCode2">0.4.2</b></span></div>
+            <div class="slide-meta"><span><b id="healthText">服务检测中</b></span><span>Windows 10 / 11 · 64 位</span><span>最新版本 <b id="versionCode2">0.4.3</b></span></div>
           </div>
           <div class="slide-visual">
             <div class="slide-frame"><img src="assets/dashboard.png" alt="ESF China 客户端大厅" /></div>
@@ -298,13 +298,13 @@
             <h2>下载 ESF China</h2>
             <p>Windows 10 / 11 · 64 位。安装后在设置中选择包含 hl.exe 的半条命根目录即可开始。</p>
             <div class="download-meta">
-              <span>版本 <code id="downloadVersion">0.4.2</code></span>
+              <span>版本 <code id="downloadVersion">0.4.3</code></span>
               <span>大小 <code id="downloadSize">128 MB</code></span>
               <span>官网 <code>esfcn.cn</code></span>
             </div>
           </div>
           <div class="download-actions">
-            <a class="btn btn-primary" id="downloadButton" href="https://github.com/xiaolouxi123/esf-platform/releases/download/v0.4.2/ESF-Platform-Setup-0.4.2.exe">下载安装包 ↓</a>
+            <a class="btn btn-primary" id="downloadButton" href="https://github.com/xiaolouxi123/esf-platform/releases/download/v0.4.3/ESF-Platform-Setup-0.4.3.exe">下载安装包 ↓</a>
             <a class="btn btn-line" href="https://github.com/xiaolouxi123/esf-platform" target="_blank" rel="noreferrer">源代码 ↗</a>
           </div>
         </div>
@@ -319,6 +319,7 @@
         <p>每个版本都会同步到客户端更新源，并在平台公告中发布。</p>
       </div>
       <div class="updates">
+        <article class="update-item"><div class="v"><b>0.4.3</b><span>2026-11-05</span></div><p>约战大厅、收藏服快捷进服、管理台服务器列表、成员排位状态。</p></article>
         <article class="update-item"><div class="v"><b>0.4.2</b><span>2026-11-04</span></div><p>新龙珠图标、更新暂停/继续/关闭、本地模式修复。</p></article>
         <article class="update-item"><div class="v"><b>0.4.1</b><span>2026-11-04</span></div><p>启动前写入 game.cfg，新增 gamemode 守卫。</p></article>
         <article class="update-item"><div class="v"><b>0.4.0</b><span>2026-11-04</span></div><p>排位天梯、金币、成员生态与托盘。</p></article>
@@ -378,7 +379,7 @@
   } else {
     fetch('/api/config',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(body=>{
       const data=body&&body.ok?body.data:null;if(!data)return;
-      const version=data.latestVersion||'0.4.2';
+      const version=data.latestVersion||'0.4.3';
       ['#versionCode','#versionCode2','#downloadVersion'].forEach(id=>{const el=$(id);if(el)el.textContent=version});
       if(data.downloadUrl){['#heroDownload','#downloadButton','#headerDownload'].forEach(id=>{const el=$(id);if(el)el.href=data.downloadUrl})}
     }).catch(()=>{});

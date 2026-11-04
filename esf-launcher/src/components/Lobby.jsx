@@ -9,6 +9,7 @@ import MemberSidebar from './MemberSidebar';
 import ChatPanel from './ChatPanel';
 import RadarBadge from './RadarBadge';
 import RankedPage from './RankedPage';
+import ChallengePage from './ChallengePage';
 import ServerRoomList from './ServerRoomList';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import dragonBall from '../assets/dragon-ball.webp';
@@ -206,6 +207,23 @@ export default function Lobby({
     };
   }, [toast]);
 
+  // 收藏服务器以服务端为准：换设备也能同步；请求失败时继续用本地缓存
+  useEffect(() => {
+    let alive = true;
+    const request = window.electronAPI.favorites?.list();
+    request
+      ?.then((data) => {
+        if (!alive || !Array.isArray(data?.serverKeys)) return;
+        const next = new Set(data.serverKeys);
+        setFavServers(next);
+        saveFavoriteSet(FAV_SERVERS, next);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // 服务器状态自动刷新：每 15 秒静默拉一次，窗口重新聚焦也拉（后端轮询同样 15 秒）
   useEffect(() => {
     const timer = setInterval(() => refreshServers({ silent: true }), 15000);
@@ -387,8 +405,24 @@ export default function Lobby({
     });
   };
 
-  const toggleServerFav = toggleFavorite(setFavServers, FAV_SERVERS);
+  const toggleServerFav = (key) => {
+    const next = new Set(favServers);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setFavServers(next);
+    saveFavoriteSet(FAV_SERVERS, next);
+    window.electronAPI.favorites
+      ?.set([...next])
+      ?.catch((err) => {
+        toast(`收藏同步失败：${err.message}`, 'error');
+      });
+  };
   const toggleMapFav = toggleFavorite(setFavMaps, FAV_MAPS);
+
+  const favoriteServers = useMemo(
+    () => servers.filter((server) => favServers.has(server.serverKey)),
+    [servers, favServers]
+  );
 
   const ensureGameDir = () => {
     if (hasGameDir) return true;
@@ -524,7 +558,7 @@ export default function Lobby({
         onOpenSettings={openSettings}
       />
 
-      <div className={`workspace${['servers', 'assets', 'admin', 'ranked'].includes(activePage) ? ' workspace--wide' : ''}`}>
+      <div className={`workspace${['servers', 'assets', 'admin', 'ranked', 'challenges'].includes(activePage) ? ' workspace--wide' : ''}`}>
         <aside className="game-rail">
           <button
             type="button"
@@ -692,6 +726,14 @@ export default function Lobby({
         <main className="center">
           {activePage === 'ranked' ? (
             <RankedPage user={user} toast={toast} />
+          ) : activePage === 'challenges' ? (
+            <ChallengePage
+              user={user}
+              toast={toast}
+              servers={servers}
+              maps={maps}
+              onJoinServer={joinServer}
+            />
           ) : activePage === 'channel' ? (
             <div className="channel-page">
               <div className="channel-page-bar">
@@ -863,6 +905,88 @@ export default function Lobby({
                   </button>
                 </div>
               )}
+
+              <section className="lobby-command">
+                <div className="lobby-quick">
+                  <div className="lobby-command-head">
+                    <span>
+                      <Icon name="starFill" size={13} /> 我的收藏服
+                    </span>
+                    <button type="button" className="link" onClick={() => setPage('servers')}>
+                      管理 <Icon name="chevronRight" size={12} />
+                    </button>
+                  </div>
+                  {favoriteServers.length === 0 ? (
+                    <button type="button" className="lobby-quick-empty" onClick={() => setPage('servers')}>
+                      <Icon name="star" size={15} />
+                      <span>
+                        <b>还没有收藏服务器</b>
+                        <small>去服务器页点星标，收藏会显示在这里，一键进服</small>
+                      </span>
+                      <Icon name="chevronRight" size={14} />
+                    </button>
+                  ) : (
+                    <div className="lobby-quick-list">
+                      {favoriteServers.slice(0, 4).map((server) => (
+                        <button
+                          key={server.serverKey}
+                          type="button"
+                          className="lobby-quick-server"
+                          disabled={!server.online || joinBusyKey === server.serverKey}
+                          onClick={() => joinServer(server)}
+                          title={server.online ? `进入 ${server.name}` : '服务器当前离线'}
+                        >
+                          <span className={`lobby-quick-dot${server.online ? ' is-online' : ''}`} />
+                          <span className="lobby-quick-meta">
+                            <b>{server.name}</b>
+                            <small>
+                              {server.online
+                                ? `${server.players}/${server.maxPlayers} 人 · ${server.ping || 0}ms`
+                                : '当前离线'}
+                            </small>
+                          </span>
+                          {joinBusyKey === server.serverKey ? (
+                            <span className="spinner" />
+                          ) : (
+                            <Icon name="play" size={13} />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="lobby-command-actions">
+                  <button
+                    type="button"
+                    className="lobby-action lobby-action--ranked"
+                    onClick={() => setPage('ranked')}
+                  >
+                    <span className="lobby-action-icon">
+                      <Icon name="trophy" size={18} />
+                    </span>
+                    <span className="lobby-action-text">
+                      <b>天梯排位</b>
+                      <small>1v1 / 2v2 · 快速匹配</small>
+                    </span>
+                    <Icon name="chevronRight" size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="lobby-action lobby-action--challenge"
+                    onClick={() => setPage('challenges')}
+                  >
+                    <span className="lobby-action-icon">
+                      <Icon name="swords" size={18} />
+                    </span>
+                    <span className="lobby-action-text">
+                      <b>约战大厅</b>
+                      <small>开房邀请 · 不计分不锁服</small>
+                    </span>
+                    <Icon name="chevronRight" size={15} />
+                  </button>
+                </div>
+              </section>
 
               <section className={`hero hero--${selectedMeta.tone}`}>
                 <div className="hero-content">
