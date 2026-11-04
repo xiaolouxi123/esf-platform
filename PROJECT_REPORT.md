@@ -123,6 +123,14 @@ GitHub Releases → 安装包 / blockmap / latest.yml
 | 官网 | GitHub Pages / 静态托管，不依赖 Express |
 | 下载 | 继续 GitHub Release；后续可加 119.29 下载镜像或 COS |
 
+静态官网已上线：
+
+```text
+https://xiaolouxi123.github.io/esf-platform/
+```
+
+该页面检测到 `github.io` 后不再请求 `/api/*`，版本号和下载按钮走静态默认值，不会出现 `fetch failed`。Express 官网 `http://119.91.99.176:3000/` 仍保留。
+
 **关于“全部端口放行”：** 安全组放行只代表允许流量，不代表有服务在监听。  
 `119.29.82.217` 当前 3389/5985 可连，80/443/3000 关闭，且未安装 Node/MySQL，因此不能作为 API 或官网入口。
 
