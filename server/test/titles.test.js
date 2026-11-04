@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const bcrypt = require('bcryptjs');
 
 const app = require('../src/app');
-const { q, ping, close } = require('../src/db');
+const { pool, q, close } = require('../src/db');
 
 const stamp = Date.now().toString(36);
 const names = {
@@ -44,7 +44,12 @@ async function login(username) {
 }
 
 before(async () => {
-  assert.ok(await ping(), '数据库不可用');
+  try {
+    await pool.query('SELECT 1');
+  } catch (err) {
+    console.error('[titles] db connect failed:', err.code, err.errno, err.message);
+    throw err;
+  }
   const hash = bcrypt.hashSync(password, 4);
   for (const role of ['owner', 'admin', 'ops', 'user']) {
     const result = await q(
