@@ -13,6 +13,7 @@
 | 计划任务 | `ESFDBBackup`，每天 04:00，SYSTEM，最高权限 |
 | 保留 | 14 天 |
 | 备份文件 | `esf_platform-yyyyMMdd-HHmmss.sql` + `.sha256` |
+| 状态心跳 | `C:\esf\website\ops\backup.json` |
 | 日志 | `C:\esf\backups\backup.log` |
 
 `backup-db.ps1` 使用 `--single-transaction`，对 InnoDB 表做一致性快照；同时导出存储过程、触发器、事件。备份账号只需要：
@@ -56,7 +57,7 @@ icacls C:\esf\backups /grant '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F'
 
 ```powershell
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-  -Argument '-NoProfile -ExecutionPolicy Bypass -File "C:\esf\backup\backup-db.ps1" -RequiredPattern settle_ranked_match'
+  -Argument '-NoProfile -ExecutionPolicy Bypass -File "C:\esf\backup\backup-db.ps1" -RequiredPattern settle_ranked_match -StatusFile "C:\esf\website\ops\backup.json"'
 $trigger = New-ScheduledTaskTrigger -Daily -At '04:00'
 $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew `
   -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -StartWhenAvailable
@@ -69,7 +70,8 @@ Get-ScheduledTaskInfo -TaskName 'ESFDBBackup'
 5. 手动执行一次：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\esf\backup\backup-db.ps1 -RequiredPattern settle_ranked_match
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\esf\backup\backup-db.ps1 `
+  -RequiredPattern settle_ranked_match -StatusFile C:\esf\website\ops\backup.json
 Get-Content C:\esf\backups\backup.log -Tail 10
 ```
 
@@ -153,6 +155,18 @@ cmd.exe /c "`"$mysql`" --defaults-extra-file=`"$admin`" esf_platform_restore < `
 ```
 
 或 UNC 路径。脚本会复制 `.sql` 和 `.sha256`；复制失败只记 `WARNING`，不会删除本地备份。生产服务器如果没有第二块盘，至少定期把最新备份下载到另一台机器/私有对象存储，并定期做一次下载后的恢复演练。
+
+## 备份心跳与外部监控
+
+任务成功后会原子写入 `C:\esf\website\ops\backup.json`，由 Express 静态站点暴露为：
+
+```text
+http://119.91.99.176:3000/ops/backup.json
+```
+
+文件只含 `ok`、`lastAttemptAt`、`lastSuccessAt`、`file`、`size`、`sha256`、`requiredPattern`，不含密码或玩家数据。失败时 `ok=false` 并带 `error`，不会保留旧的成功时间。
+
+`.github/workflows/uptime.yml` 每 15 分钟检查一次：API `db:up`、备份 `ok=true` 且不超过 30 小时、静态官网可访问、Release feed 可访问。任一失败，GitHub Actions 会标红并向仓库 owner 发送失败通知。
 
 ## 故障排查
 

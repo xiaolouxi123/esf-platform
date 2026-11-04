@@ -7,6 +7,7 @@
 ### Added
 
 - 生产数据库每日 04:00 自动备份、14 天保留、SHA-256 校验、恢复演练脚本（`deploy/backup/`）
+- 生产监控：GitHub Actions 每 15 分钟探测 API、静态官网、更新源和备份心跳（`.github/workflows/uptime.yml`）
 
 ## [0.4.2] - 2026-11-04
 

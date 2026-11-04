@@ -34,6 +34,11 @@
 .PARAMETER RequiredPattern
   Optional literal text that must appear in the dump. For this platform use
   settle_ranked_match so a dump with missing routines fails loudly.
+
+.PARAMETER StatusFile
+  Optional JSON file updated after every run. It contains only the timestamp,
+  file name, size, SHA-256 and success flag; never credentials. Point this at a
+  static-served path so the external uptime check can verify backup freshness.
 #>
 [CmdletBinding()]
 param(
@@ -43,7 +48,8 @@ param(
   [string]$DefaultsFile = 'C:\esf\backup\backup.cnf',
   [string]$Database = 'esf_platform',
   [string]$OffsiteDir = '',
-  [string]$RequiredPattern = ''
+  [string]$RequiredPattern = '',
+  [string]$StatusFile = ''
 )
 
 Set-StrictMode -Version Latest
@@ -61,6 +67,44 @@ function Write-BackupLog([string]$Message) {
   $line = '[{0}] {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message
   Add-Content -LiteralPath $logFile -Value $line -Encoding UTF8
   Write-Host $line
+}
+
+function Write-BackupStatus {
+  param(
+    [bool]$Ok,
+    [string]$ErrorText = '',
+    [string]$FileName = '',
+    [long]$Size = 0,
+    [string]$Hash = ''
+  )
+
+  if (-not $StatusFile) { return }
+
+  try {
+    $parent = Split-Path -Parent $StatusFile
+    if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+
+    $now = (Get-Date).ToUniversalTime().ToString('o')
+    $lastSuccess = $null
+    if ($Ok) { $lastSuccess = $now }
+    $payload = [ordered]@{
+      ok              = $Ok
+      lastAttemptAt   = $now
+      lastSuccessAt   = $lastSuccess
+      file            = $FileName
+      size            = $Size
+      sha256          = $Hash
+      requiredPattern = $RequiredPattern
+    }
+    if (-not $Ok) { $payload.error = $ErrorText }
+
+    $json = $payload | ConvertTo-Json -Compress
+    $tmp = "$StatusFile.tmp"
+    [IO.File]::WriteAllText($tmp, $json, (New-Object Text.UTF8Encoding($false)))
+    Move-Item -LiteralPath $tmp -Destination $StatusFile -Force
+  } catch {
+    Write-BackupLog "status WARNING: $($_.Exception.Message)"
+  }
 }
 
 $started = Get-Date
@@ -118,8 +162,10 @@ try {
 
   $elapsed = [int]((Get-Date) - $started).TotalSeconds
   Write-BackupLog "backup ok size=$($file.Length) sha256=$hash elapsed=${elapsed}s"
+  Write-BackupStatus -Ok $true -FileName "$baseName.sql" -Size $file.Length -Hash $hash
 } catch {
   Write-BackupLog "backup FAILED: $($_.Exception.Message)"
+  Write-BackupStatus -Ok $false -ErrorText $_.Exception.Message
   if (Test-Path -LiteralPath $sqlPath) { Remove-Item -LiteralPath $sqlPath -Force }
   if (Test-Path -LiteralPath $hashPath) { Remove-Item -LiteralPath $hashPath -Force }
   exit 1
