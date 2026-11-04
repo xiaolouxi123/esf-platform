@@ -108,6 +108,12 @@ amxxpc.exe ..\..\amxx\test_ranked.sma -i"include" -o"..\plugins\test_ranked.amxx
 - `server/scripts/migrate.js`：建表 / 迁移 / 结算存储过程
 - `amxx/*.sma`：AMXX 源码
 
+## 运维
+
+- 生产 MySQL 每日 04:00 自动备份，保留 14 天，带 SHA-256 和恢复演练脚本
+- 说明、安装、恢复流程见 [deploy/backup/README.md](deploy/backup/README.md)
+- 备份文件包含玩家个人信息，只存放在受限目录/私有存储，不提交仓库
+
 ## 安全
 
 - 服务器 Token 是 32 位 hex，一次性消费，绑定 `server_key`

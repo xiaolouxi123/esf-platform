@@ -2,6 +2,12 @@
 
 所有重要变更记录在这里。格式参考 Keep a Changelog。
 
+## [Unreleased]
+
+### Added
+
+- 生产数据库每日 04:00 自动备份、14 天保留、SHA-256 校验、恢复演练脚本（`deploy/backup/`）
+
 ## [0.4.2] - 2026-11-04
 
 ### Added
