@@ -47,4 +47,4 @@ jobs:
             exit 1
           fi
           printf 'uploading %s\n' "${files[@]}"
-          gh release upload v0.4.4 "${files[@]}" --clobber
+          gh release upload v0.4.4 "${files[@]}" --clobber --repo "${{ github.repository }}"
