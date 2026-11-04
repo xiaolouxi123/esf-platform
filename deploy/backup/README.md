@@ -166,7 +166,7 @@ http://119.91.99.176:3000/ops/backup.json
 
 文件只含 `ok`、`lastAttemptAt`、`lastSuccessAt`、`file`、`size`、`sha256`、`requiredPattern`，不含密码或玩家数据。失败时 `ok=false` 并带 `error`，不会保留旧的成功时间。
 
-`.github/workflows/uptime.yml` 每 15 分钟检查一次：API `db:up`、备份 `ok=true` 且不超过 30 小时、静态官网可访问、Release feed 可访问。任一失败，GitHub Actions 会标红并向仓库 owner 发送失败通知。
+`.github/workflows/uptime.yml` 每 15 分钟检查一次：API `db:up`、备份 `ok=true` 且不超过 30 小时、静态官网可访问、Release feed 可访问。任一失败，GitHub Actions 会标红并触发仓库 owner 的 GitHub 通知（以账号通知设置为准）。
 
 ## 故障排查
 
