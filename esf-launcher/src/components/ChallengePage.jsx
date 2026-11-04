@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from './Icon';
 import Avatar from './Avatar';
+import { DEFAULT_RANKS, rankFor } from '../lib/ranks';
 
 const MODE_META = {
   '1v1': { label: '1v1', slots: 1, note: '单挑 · 2 人' },
@@ -22,7 +23,7 @@ function playerLabel(player) {
   return player?.gameName || player?.username || '玩家';
 }
 
-function TeamSeat({ player, hostId, selfId, emptyLabel }) {
+function TeamSeat({ player, hostId, selfId, emptyLabel, ranks = DEFAULT_RANKS }) {
   if (!player) {
     return (
       <div className="challenge-seat challenge-seat--empty">
@@ -31,6 +32,8 @@ function TeamSeat({ player, hostId, selfId, emptyLabel }) {
       </div>
     );
   }
+
+  const rank = rankFor(ranks, player.combatLevel);
 
   return (
     <div className="challenge-seat">
@@ -42,7 +45,12 @@ function TeamSeat({ player, hostId, selfId, emptyLabel }) {
           {Number(player.id) === Number(selfId) && <em className="challenge-self-tag">你</em>}
         </b>
         <small>
-          战斗等级 {player.combatLevel || 0}
+          <span
+            className={`combat-level rank-badge${Number(player.combatLevel) === 0 ? ' rank-badge--unranked' : ''}`}
+            style={{ color: rank.color, borderColor: `${rank.color}55`, background: `${rank.color}14` }}
+          >
+            {rank.name}
+          </span>
           {player.ready ? ' · 已准备' : ' · 未准备'}
         </small>
       </div>
@@ -51,7 +59,14 @@ function TeamSeat({ player, hostId, selfId, emptyLabel }) {
   );
 }
 
-export default function ChallengePage({ user, toast, servers = [], maps = [], onJoinServer }) {
+export default function ChallengePage({
+  user,
+  toast,
+  servers = [],
+  maps = [],
+  ranks = DEFAULT_RANKS,
+  onJoinServer,
+}) {
   const [state, setState] = useState({ myRoom: null, rooms: [], invites: [] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
@@ -338,6 +353,7 @@ export default function ChallengePage({ user, toast, servers = [], maps = [], on
                         player={players[index]}
                         hostId={myRoom.host?.id}
                         selfId={user?.id}
+                        ranks={ranks}
                         emptyLabel={`${teamKey === 'a' ? 'A' : 'B'} 队 ${index + 1} 号位`}
                       />
                     ))}

@@ -73,7 +73,7 @@ router.get('/members', requireAuth, async (req, res, next) => {
   }
 });
 
-/** 管理员设置格斗等级：0=未定级，1-5=已定级 */
+/** 管理员设置格斗等级：0=未定级，1-6=D/C/B/A/X/S */
 router.patch('/members/:id/combat-level', requireAuth, async (req, res, next) => {
   try {
     if (!['admin', 'owner'].includes(req.user.role)) {
@@ -82,8 +82,8 @@ router.patch('/members/:id/combat-level', requireAuth, async (req, res, next) =>
     }
     const id = Number(req.params.id);
     const level = Number(req.body?.combatLevel);
-    if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(level) || level < 0 || level > 5) {
-      res.status(400).json({ ok: false, code: 'BAD_REQUEST', message: '格斗等级必须是 0-5' });
+    if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(level) || level < 0 || level > 6) {
+      res.status(400).json({ ok: false, code: 'BAD_REQUEST', message: '格斗等级必须是 0-6' });
       return;
     }
     const result = await q('UPDATE users SET combat_level = ? WHERE id = ? AND status = ?', [

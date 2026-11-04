@@ -19,7 +19,7 @@ function fail(err, next) {
   next(err.status ? err : badRequest(err.message));
 }
 
-router.use(requireAuth);
+router.use('/challenges', requireAuth);
 
 router.get('/challenges', async (req, res, next) => {
   try {

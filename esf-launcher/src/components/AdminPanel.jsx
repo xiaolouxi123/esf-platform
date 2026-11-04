@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Icon from './Icon';
 import Avatar from './Avatar';
 import AdminServers from './AdminServers';
+import AdminRanks from './AdminRanks';
 import {
   formatBytes,
   formatDuration,
@@ -56,6 +57,7 @@ export default function AdminPanel({
   toast,
   titles = [],
   onTitlesChanged,
+  onRanksChanged,
   onOpenSettings,
   onLogout,
 }) {
@@ -381,6 +383,8 @@ export default function AdminPanel({
       </div>
 
       <AdminServers toast={toast} />
+
+      {canAssign && <AdminRanks toast={toast} onRanksChanged={onRanksChanged} />}
 
       <section className="admin-section">
         <div className="admin-section-head">

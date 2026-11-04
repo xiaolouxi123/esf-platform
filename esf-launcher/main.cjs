@@ -606,8 +606,9 @@ handle('servers:custom-remove', async ({ address } = {}) => {
   return { servers: next };
 });
 
-handle('favorites:list', async () => apiCall(api.favoritesList, getSettings(), requireToken()));
+handle('ranks:list', async () => apiCall(api.ranksList, getSettings()));
 
+handle('favorites:list', async () => apiCall(api.favoritesList, getSettings(), requireToken()));
 handle('favorites:set', async ({ serverKeys } = {}) =>
   apiCall(api.favoritesSet, getSettings(), requireToken(), Array.isArray(serverKeys) ? serverKeys : [])
 );
@@ -1128,6 +1129,18 @@ handle('admin:update-platform', async (patch = {}) => {
 handle('admin:servers', async () => {
   requireStaff();
   return apiCall(api.adminServers, getSettings(), requireToken());
+});
+
+handle('admin:ranks', async () => {
+  requireAdminRole();
+  return apiCall(api.adminRanks, getSettings(), requireToken());
+});
+
+handle('admin:save-ranks', async ({ ranks } = {}) => {
+  requireAdminRole();
+  const data = await apiCall(api.adminSaveRanks, getSettings(), requireToken(), ranks);
+  log('🏅 更新格斗等级配置');
+  return data;
 });
 
 handle('admin:create-server', async (payload = {}) => {

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import { roleLabel, formatDuration, formatRelative } from '../lib/format';
+import { DEFAULT_RANKS, normalizeRanks, rankFor } from '../lib/ranks';
 
 const ROLE_RANK = { owner: 4, admin: 3, ops: 2, creator: 1, user: 0 };
 const ROLE_COLOR = {
@@ -17,6 +18,7 @@ const ROLE_COLOR = {
 export default function MemberSidebar({
   user,
   titles = [],
+  ranks = DEFAULT_RANKS,
   stats,
   coins = 0,
   staff,
@@ -91,7 +93,8 @@ export default function MemberSidebar({
     try {
       await window.electronAPI.members.setCombatLevel(member.id, level);
       await reloadMembers();
-      toast?.(`已把 ${member.gameName} 的格斗等级设为 ${level === 0 ? '未定级' : `Lv.${level}`}`, 'ok');
+      const rankName = rankFor(rankList, level).name;
+      toast?.(`已把 ${member.gameName} 的格斗等级设为 ${Number(level) === 0 ? '未定级' : rankName}`, 'ok');
     } catch (err) {
       toast?.(err.message, 'error');
     }
@@ -158,6 +161,9 @@ export default function MemberSidebar({
   }, []);
 
   const titleById = new Map(titles.map((item) => [Number(item.id), item]));
+  const rankList = normalizeRanks(ranks);
+  const rankOf = (member) => rankFor(rankList, member?.combatLevel);
+  const rankValue = (member) => rankOf(member).sortOrder * 10 + rankOf(member).level;
   const metaOf = (member) => {
     const title = titleById.get(Number(member.titleId));
     if (title) return { label: title.name, color: title.color, rank: Number(title.rank) };
@@ -177,6 +183,8 @@ export default function MemberSidebar({
   const sorted = [...filtered].sort((a, b) => {
     const diff = metaOf(b).rank - metaOf(a).rank;
     if (diff !== 0) return diff;
+    const rankDiff = rankValue(b) - rankValue(a);
+    if (rankDiff !== 0) return rankDiff;
     if (Boolean(a.online) !== Boolean(b.online)) return a.online ? -1 : 1;
     return String(a.gameName || '').localeCompare(String(b.gameName || ''));
   });
@@ -263,9 +271,21 @@ export default function MemberSidebar({
                     </b>
                     <small>
                       <span className="member-level">{roleLabel(member.role)}</span>
-                      {Number(member.combatLevel) > 0 && (
-                        <span className="combat-level">Lv.{member.combatLevel}</span>
-                      )}
+                      {Number(member.combatLevel) >= 0 && (() => {
+                        const rank = rankOf(member);
+                        return (
+                          <span
+                            className={`combat-level rank-badge${Number(member.combatLevel) === 0 ? ' rank-badge--unranked' : ''}`}
+                            style={{
+                              color: rank.color,
+                              borderColor: `${rank.color}55`,
+                              background: `${rank.color}14`,
+                            }}
+                          >
+                            {rank.name}
+                          </span>
+                        );
+                      })()}
                       {member.ranked && (
                         <span className={`member-ranked is-${member.ranked.status}`}>
                           {member.ranked.status === 'queued'
@@ -331,9 +351,21 @@ export default function MemberSidebar({
                   <div className="member-profile-badges">
                     <span style={{ color: profileMeta?.color }}>{profileMeta?.label}</span>
                     <span className="member-level">{roleLabel(profile.role)}</span>
-                    {Number(profile.combatLevel) > 0 && (
-                      <span className="combat-level">Lv.{profile.combatLevel}</span>
-                    )}
+                    {Number(profile.combatLevel) >= 0 && (() => {
+                      const rank = rankOf(profile);
+                      return (
+                        <span
+                          className={`combat-level rank-badge${Number(profile.combatLevel) === 0 ? ' rank-badge--unranked' : ''}`}
+                          style={{
+                            color: rank.color,
+                            borderColor: `${rank.color}55`,
+                            background: `${rank.color}14`,
+                          }}
+                        >
+                          {rank.name}
+                        </span>
+                      );
+                    })()}
                     <span className={`member-profile-state${profile.online ? ' is-online' : ''}`}>
                       {profile.online ? (profile.state === 'ingame' ? '游戏中' : '在线') : '离线'}
                     </span>
@@ -382,7 +414,9 @@ export default function MemberSidebar({
                 </div>
                 <div>
                   <dt>格斗等级</dt>
-                  <dd>{Number(profile.combatLevel) > 0 ? `Lv.${profile.combatLevel}` : '未定级'}</dd>
+                  <dd>
+                    <span style={{ color: rankOf(profile).color }}>{rankOf(profile).name}</span>
+                  </dd>
                 </div>
                 <div>
                   <dt>所在位置</dt>
@@ -480,16 +514,24 @@ export default function MemberSidebar({
               {canManageRoles && !menu.isSelf && (
                 <>
                   <div className="member-menu-label">格斗等级</div>
-                  {[0, 1, 2, 3, 4, 5].map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      className={`member-menu-item${Number(menu.member.combatLevel || 0) === level ? ' is-current' : ''}`}
-                      onClick={() => changeCombatLevel(level)}
-                    >
-                      {level === 0 ? '未定级' : `Lv.${level}`}
-                    </button>
-                  ))}
+                  {[...rankList]
+                    .sort((a, b) => b.sortOrder - a.sortOrder || b.level - a.level)
+                    .map((rank) => (
+                      <button
+                        key={rank.level}
+                        type="button"
+                        className={`member-menu-item${Number(menu.member.combatLevel || 0) === rank.level ? ' is-current' : ''}`}
+                        style={{ color: rank.level === 0 ? undefined : rank.color }}
+                        onClick={() => changeCombatLevel(rank.level)}
+                      >
+                        <span
+                          className="member-menu-dot"
+                          style={{ background: rank.level === 0 ? '#7C879E' : rank.color }}
+                        />
+                        {rank.name}
+                        <em>排序 {rank.sortOrder}</em>
+                      </button>
+                    ))}
                   <div className="member-menu-label">权限等级</div>
                   {['user', 'creator', 'ops', 'admin'].map((role) => (
                     <button

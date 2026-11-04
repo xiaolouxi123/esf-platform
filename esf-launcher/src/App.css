@@ -19,7 +19,12 @@
 
 .app-shell {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 56px minmax(0, 1fr) 28px;
+  width: 100%;
+  max-width: 100vw;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* 背景图：模糊 + 压暗后当氛围底纹用，避免海报细节抢主体内容 */
@@ -230,6 +235,8 @@
   gap: 14px;
   padding: 14px;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
   overflow: hidden;
 }
 
@@ -402,6 +409,7 @@
   flex-direction: column;
   gap: 14px;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
   padding-right: 2px;
 }
@@ -450,6 +458,11 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #ffb877;
+}
+
+.hero-content {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .hero h1 {
@@ -5828,6 +5841,136 @@ select:focus {
   flex: none;
 }
 
+/* 大厅信息层级：当前地图置顶，更新提示随后，收藏/排位/约战快捷入口再次之 */
+.center > .hero { order: 1; }
+.center > .update-strip,
+.center > .maintenance-strip { order: 2; }
+.center > .lobby-command { order: 3; }
+.center > .section,
+.center > .feed { order: 4; }
+
+/* 版本更新使用绿色状态色，与管理员公告明确区分 */
+.update-strip--release {
+  border-color: rgba(61, 220, 151, 0.28);
+  background:
+    linear-gradient(90deg, rgba(61, 220, 151, 0.12), rgba(61, 220, 151, 0.03) 62%),
+    rgba(12, 20, 18, 0.82);
+}
+.update-strip--release > svg { color: #53e0a2; }
+.update-strip--release b { color: #8ff2c4; }
+.update-strip-note {
+  font-style: normal;
+  color: #71837c;
+}
+
+.update-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 5, 9, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.update-modal {
+  width: min(520px, 100%);
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(61, 220, 151, 0.26);
+  background:
+    radial-gradient(120% 120% at 92% 0%, rgba(61, 220, 151, 0.16), transparent 56%),
+    linear-gradient(180deg, #151c20, #0d1217);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
+}
+
+.update-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px 26px 16px;
+}
+.update-modal-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #53e0a2;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.update-modal h2 {
+  margin: 10px 0 6px;
+  color: #f4f8f6;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+.update-modal p {
+  color: #97a6a1;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.update-modal-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.04);
+  color: #aab7b2;
+  cursor: pointer;
+}
+.update-modal-close:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+
+.update-modal-body {
+  padding: 0 26px 22px;
+}
+.update-modal-notes {
+  padding: 14px 15px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(5, 10, 12, 0.42);
+  color: #c9d6d1;
+  font-size: 12.5px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.update-modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 14px;
+  color: #74837e;
+  font-size: 10.5px;
+}
+.update-modal-meta b { color: #a9bbb4; }
+
+.update-modal-actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 18px;
+}
+.update-modal-actions .btn { flex: 1; }
+.update-modal-foot {
+  margin-top: 12px;
+  color: #61706b;
+  font-size: 10px;
+  text-align: center;
+}
+
+@media (max-width: 680px) {
+  .update-modal-head { padding: 20px 20px 14px; }
+  .update-modal-body { padding: 0 20px 18px; }
+  .update-modal h2 { font-size: 22px; }
+  .update-modal-actions { flex-direction: column; }
+}
+
 /* ============================ 约战大厅 ============================ */
 .challenge-page {
   display: flex;
@@ -6680,6 +6823,64 @@ select:focus {
 }
 
 @media (max-width: 680px) {
+  .brand-text {
+    display: none;
+  }
+
+  .brand {
+    display: none;
+  }
+
+  .brand-mark {
+    flex: none;
+  }
+
+  .titlebar {
+    gap: 2px;
+    padding: 0 6px;
+  }
+
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+  }
+
+  .nav {
+    gap: 2px;
+    margin-left: 2px;
+  }
+
+  .nav-item {
+    padding: 7px 6px;
+  }
+
+  .titlebar-right {
+    gap: 4px;
+  }
+
+  .statusbar {
+    gap: 8px;
+    padding: 0 8px;
+    overflow: hidden;
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  .statusbar .status-item--db,
+  .statusbar .status-item--pending,
+  .statusbar .status-item--api {
+    display: none;
+  }
+
+  .hero-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .hero-actions .mode-switch {
+    margin-right: 0;
+  }
+
   .lobby-quick-list,
   .lobby-command-actions {
     grid-template-columns: 1fr;
@@ -6718,5 +6919,103 @@ select:focus {
   .challenge-invite-actions {
     width: 100%;
     justify-content: flex-end;
+  }
+}
+
+/* ---------------- 格斗等级 ---------------- */
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  margin-left: 5px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 15px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.rank-badge--unranked {
+  opacity: 0.72;
+}
+.member-profile dd .rank-badge {
+  margin-left: 0;
+}
+.rank-admin-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.rank-admin-preview .rank-badge {
+  margin-left: 0;
+  padding: 1px 9px;
+  font-size: 10px;
+  line-height: 18px;
+}
+.rank-admin-table td {
+  vertical-align: middle;
+}
+.rank-admin-table input[type="text"],
+.rank-admin-table input[type="number"] {
+  width: 100%;
+  min-width: 72px;
+  padding: 7px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: rgba(7, 10, 18, 0.55);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+}
+.rank-admin-table input[type="number"] {
+  width: 74px;
+}
+.rank-admin-table input:focus {
+  outline: none;
+  border-color: rgba(255, 138, 31, 0.55);
+  box-shadow: 0 0 0 2px rgba(255, 138, 31, 0.1);
+}
+.rank-admin-level {
+  color: var(--dim);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.rank-color-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rank-color-cell input[type="color"] {
+  width: 28px;
+  height: 26px;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.rank-color-cell code {
+  color: var(--dim);
+  font-size: 9px;
+}
+.admin-ranks .admin-actions {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .rank-admin-table {
+    min-width: 620px;
+  }
+  .rank-admin-preview {
+    padding: 10px;
   }
 }

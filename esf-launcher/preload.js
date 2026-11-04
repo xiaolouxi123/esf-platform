@@ -105,6 +105,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     customRemove: (address) => call('servers:custom-remove', { address }),
   },
 
+  ranks: {
+    list: () => call('ranks:list'),
+  },
+
   favorites: {
     list: () => call('favorites:list'),
     set: (serverKeys) => call('favorites:set', { serverKeys }),
@@ -149,6 +153,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     servers: () => call('admin:servers'),
     createServer: (payload) => call('admin:create-server', payload),
     updateServer: (serverKey, patch) => call('admin:update-server', { serverKey, ...patch }),
+    ranks: () => call('admin:ranks'),
+    saveRanks: (ranks) => call('admin:save-ranks', { ranks }),
     openDevTools: () => call('devtools:open'),
   },
 

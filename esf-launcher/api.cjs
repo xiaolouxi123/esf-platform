@@ -248,6 +248,11 @@ const adminUpdateServer = (settings, token, serverKey, patch) =>
     body: patch,
   });
 
+const ranksList = (settings) => request(settings, { path: '/api/ranks' });
+const adminRanks = (settings, token) => request(settings, { path: '/api/admin/ranks', token });
+const adminSaveRanks = (settings, token, ranks) =>
+  request(settings, { method: 'PUT', path: '/api/admin/ranks', token, body: { ranks } });
+
 /* ---------------- 社交：在线状态 / 大厅频道 ---------------- */
 
 const pingPresence = (settings, token, payload) =>
@@ -374,6 +379,9 @@ module.exports = {
   adminServers,
   adminCreateServer,
   adminUpdateServer,
+  ranksList,
+  adminRanks,
+  adminSaveRanks,
   pingPresence,
   presenceList,
   membersList,

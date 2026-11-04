@@ -12,6 +12,7 @@ import RankedPage from './RankedPage';
 import ChallengePage from './ChallengePage';
 import ServerRoomList from './ServerRoomList';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
+import { DEFAULT_RANKS, normalizeRanks } from '../lib/ranks';
 import dragonBall from '../assets/dragon-ball.webp';
 import {
   formatRelative,
@@ -54,7 +55,9 @@ export default function Lobby({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [favServers, setFavServers] = useState(() => loadFavoriteSet(FAV_SERVERS));
   const [favMaps, setFavMaps] = useState(() => loadFavoriteSet(FAV_MAPS));
+  const [combatRanks, setCombatRanks] = useState(DEFAULT_RANKS);
   const [updateInfo, setUpdateInfo] = useState(null);
+  const [releaseNotice, setReleaseNotice] = useState(null);
   const [autoUpdate, setAutoUpdate] = useState(null);
   const [adminSummary, setAdminSummary] = useState(null);
   const [recentAssets, setRecentAssets] = useState([]);
@@ -106,6 +109,20 @@ export default function Lobby({
       setTitles([]);
     }
   }, []);
+
+  const loadRanks = useCallback(async () => {
+    try {
+      const data = await window.electronAPI.ranks?.list();
+      if (Array.isArray(data?.ranks)) setCombatRanks(normalizeRanks(data.ranks));
+    } catch {
+      /* 配置接口不可用时保留默认等级 */
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 异步读取后台等级配置后落地
+    loadRanks();
+  }, [loadRanks]);
 
   useEffect(() => {
     let alive = true;
@@ -206,6 +223,43 @@ export default function Lobby({
       alive = false;
     };
   }, [toast]);
+
+  // 版本更新公告：每个版本只在首次进入大厅时弹一次，管理员公告仍在公告栏独立展示
+  useEffect(() => {
+    const version = String(updateInfo?.latest || '').trim();
+    if (!version) return;
+    if (localStorage.getItem('esf:seenReleaseVersion') === version) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 首次登录时根据更新配置弹出公告
+    setReleaseNotice({
+      version,
+      current: updateInfo?.current || appInfo?.version || '',
+      notes:
+        String(updateInfo?.releaseNotes || '').trim() ||
+        '本次更新包含新功能、体验优化与稳定性修复。',
+      downloadUrl: updateInfo?.downloadUrl || '',
+      hasUpdate: Boolean(updateInfo?.hasUpdate),
+    });
+  }, [updateInfo, appInfo?.version]);
+
+  const dismissReleaseNotice = () => {
+    if (releaseNotice?.version) {
+      localStorage.setItem('esf:seenReleaseVersion', releaseNotice.version);
+    }
+    setReleaseNotice(null);
+  };
+
+  const downloadRelease = async () => {
+    if (!releaseNotice?.downloadUrl) {
+      toast('管理员还没有填写下载地址，请稍后再试或联系服主', 'ok');
+      return;
+    }
+    try {
+      await window.electronAPI.shell.openExternal(releaseNotice.downloadUrl);
+      dismissReleaseNotice();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
 
   // 收藏服务器以服务端为准：换设备也能同步；请求失败时继续用本地缓存
   useEffect(() => {
@@ -732,6 +786,7 @@ export default function Lobby({
               toast={toast}
               servers={servers}
               maps={maps}
+              ranks={combatRanks}
               onJoinServer={joinServer}
             />
           ) : activePage === 'channel' ? (
@@ -773,6 +828,7 @@ export default function Lobby({
               toast={toast}
               titles={titles}
               onTitlesChanged={loadTitles}
+              onRanksChanged={loadRanks}
               onOpenSettings={openSettings}
               onLogout={onLogout}
             />
@@ -880,29 +936,81 @@ export default function Lobby({
 
               {updateInfo?.hasUpdate &&
                 !['available', 'downloading', 'downloaded', 'paused', 'dismissed'].includes(autoUpdate?.status) && (
-                <div className="update-strip">
+                <div className="update-strip update-strip--release">
                   <Icon name="spark" size={15} />
                   <span>
-                    发现新版本 <b>v{updateInfo.latest}</b>（当前 v{updateInfo.current}）
-                    {updateInfo.releaseNotes ? ` · ${updateInfo.releaseNotes}` : ''}
+                    新版本 <b>v{updateInfo.latest}</b> 已发布
+                    <em className="update-strip-note"> · 更新说明与下载</em>
                   </span>
                   <button
                     type="button"
                     className="btn btn-sm btn-primary"
-                    onClick={async () => {
-                      if (!updateInfo.downloadUrl) {
-                        toast('管理员还没填下载地址，请联系服主获取新版本', 'ok');
-                        return;
-                      }
-                      try {
-                        await window.electronAPI.shell.openExternal(updateInfo.downloadUrl);
-                      } catch (err) {
-                        toast(err.message, 'error');
-                      }
+                    onClick={() => {
+                      setReleaseNotice((prev) => prev || {
+                        version: updateInfo.latest,
+                        current: updateInfo.current,
+                        notes: updateInfo.releaseNotes || '本次更新包含新功能、体验优化与稳定性修复。',
+                        downloadUrl: updateInfo.downloadUrl || '',
+                        hasUpdate: Boolean(updateInfo.hasUpdate),
+                      });
                     }}
                   >
-                    去下载
+                    查看更新
                   </button>
+                </div>
+              )}
+
+              {releaseNotice && (
+                <div className="update-modal-backdrop" onClick={dismissReleaseNotice}>
+                  <section
+                    className="update-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="release-modal-title"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="update-modal-head">
+                      <div>
+                        <span className="update-modal-kicker">
+                          <Icon name="spark" size={12} /> VERSION UPDATE
+                        </span>
+                        <h2 id="release-modal-title">平台已更新至 v{releaseNotice.version}</h2>
+                        <p>本次版本带来新的平台能力，进入大厅即可使用。</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="update-modal-close"
+                        onClick={dismissReleaseNotice}
+                        aria-label="关闭更新说明"
+                      >
+                        <Icon name="close" size={15} />
+                      </button>
+                    </div>
+                    <div className="update-modal-body">
+                      <div className="update-modal-notes">{releaseNotice.notes}</div>
+                      <div className="update-modal-meta">
+                        <span>当前版本 <b>v{releaseNotice.current || appInfo?.version || '—'}</b></span>
+                        <span>最新版本 <b>v{releaseNotice.version}</b></span>
+                      </div>
+                      <div className="update-modal-actions">
+                        {releaseNotice.hasUpdate ? (
+                          <>
+                            <button type="button" className="btn btn-primary" onClick={downloadRelease}>
+                              <Icon name="download" size={15} /> 去下载
+                            </button>
+                            <button type="button" className="btn btn-ghost" onClick={dismissReleaseNotice}>
+                              稍后
+                            </button>
+                          </>
+                        ) : (
+                          <button type="button" className="btn btn-primary" onClick={dismissReleaseNotice}>
+                            进入大厅
+                          </button>
+                        )}
+                      </div>
+                      <div className="update-modal-foot">版本更新提示每个版本仅展示一次</div>
+                    </div>
+                  </section>
                 </div>
               )}
 
@@ -1118,27 +1226,23 @@ export default function Lobby({
                 <div className="feed-col">
                   <div className="section-head">
                     <h2>平台公告</h2>
-                    <span className="tag">公开</span>
+                    <span className="tag">{platformState.notice ? '管理员发布' : '公开'}</span>
                   </div>
 
                   <ul className="feed-list">
                     <li className="feed-item">
-                      <span className="feed-tag feed-tag--notice">公告</span>
+                      <span className="feed-tag feed-tag--notice">
+                        {platformState.notice ? '公告' : '提示'}
+                      </span>
                       <div>
                         <b>{platformState.notice || '平台已接入真实账号与连服凭证'}</b>
-                        <small>进入游戏后自动完成身份校验</small>
+                        <small>
+                          {platformState.notice
+                            ? '由管理员在大厅维护，重要通知会在这里置顶'
+                            : '进入游戏后自动完成身份校验'}
+                        </small>
                       </div>
                     </li>
-
-                    {updateInfo?.hasUpdate && (
-                      <li className="feed-item">
-                        <span className="feed-tag feed-tag--update">更新</span>
-                        <div>
-                          <b>新版本 v{updateInfo.latest} 已发布</b>
-                          <small>在「设置 → 关于」里检查更新</small>
-                        </div>
-                      </li>
-                    )}
 
                     <li className="feed-item">
                       <span className="feed-tag">提示</span>
@@ -1221,6 +1325,7 @@ export default function Lobby({
             <MemberSidebar
               user={user}
               titles={titles}
+              ranks={combatRanks}
               stats={stats}
               coins={coins}
               staff={staff}
@@ -1239,12 +1344,12 @@ export default function Lobby({
           {backend?.ok ? '平台服务在线' : '平台服务离线'}
         </span>
         {staff && (
-          <span className="status-item">
+          <span className="status-item status-item--db">
             <span className={`dot dot--${backend?.db === 'up' ? 'on' : 'off'}`} /> 数据库
           </span>
         )}
         {staff && (
-          <span className="status-item">
+          <span className="status-item status-item--pending">
             待审 {adminSummary ? adminSummary.assets.pending : '—'}
           </span>
         )}
@@ -1252,7 +1357,7 @@ export default function Lobby({
           <Icon name="server" size={12} /> {onlineServers.length}/{servers.length} 在线
         </span>
         {staff && (
-          <span className="status-item">
+          <span className="status-item status-item--api">
             <Icon name="wifi" size={12} /> {settings?.apiBaseUrl || '—'}
           </span>
         )}

@@ -21,7 +21,7 @@ const { pipeline } = require('stream/promises');
 const { z } = require('zod');
 
 const env = require('../env');
-const { q, one } = require('../db');
+const { q, one, pool } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { requireRole, isAdmin, ROLES } = require('../middleware/roles');
 const { badRequest, notFound, forbidden, conflict } = require('../lib/errors');
@@ -57,7 +57,7 @@ router.post('/admin/update-upload', async (req, res, next) => {
   }
 });
 
-router.use(requireAuth);
+router.use('/admin', requireAuth);
 
 // owner 只能通过「转让所有权」交接，不能直接 PATCH 出来
 const ASSIGNABLE_ROLES = ['user', 'creator', 'ops', 'admin'];
@@ -256,6 +256,85 @@ router.patch('/admin/servers/:serverKey', requireRole(...STAFF_ROLES), async (re
     res.json({ ok: true, data: { server: adminServer(row) } });
   } catch (err) {
     next(err);
+  }
+});
+
+/** 格斗等级配置：管理员自定义名称、颜色和排序 */
+const rankSchema = z.object({
+  level: z.coerce.number().int().min(0).max(6),
+  name: z.string().trim().min(1).max(16),
+  color: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/),
+  sortOrder: z.coerce.number().int().min(0).max(99),
+});
+
+router.get('/admin/ranks', requireRole('admin', 'owner'), async (req, res, next) => {
+  try {
+    const rows = await q(
+      'SELECT level, name, color, sort_order FROM combat_ranks ORDER BY sort_order ASC, level ASC'
+    );
+    res.json({
+      ok: true,
+      data: {
+        ranks: rows.map((row) => ({
+          level: Number(row.level),
+          name: row.name,
+          color: row.color,
+          sortOrder: Number(row.sort_order),
+        })),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/admin/ranks', requireRole('admin', 'owner'), async (req, res, next) => {
+  const conn = await pool.getConnection();
+  try {
+    const ranks = z.array(rankSchema).length(7).parse(req.body?.ranks);
+    const levels = new Set(ranks.map((rank) => rank.level));
+    if (levels.size !== 7 || [...levels].some((level) => level < 0 || level > 6)) {
+      throw badRequest('格斗等级必须完整包含 0-6 七个等级');
+    }
+
+    await conn.beginTransaction();
+    for (const rank of ranks) {
+      await conn.query(
+        'UPDATE combat_ranks SET name = ?, color = ?, sort_order = ? WHERE level = ?',
+        [rank.name, rank.color, rank.sortOrder, rank.level]
+      );
+    }
+    await conn.commit();
+
+    await logAction(req, {
+      action: 'rank.update',
+      targetType: 'settings',
+      detail: { ranks },
+    });
+
+    const rows = await q(
+      'SELECT level, name, color, sort_order FROM combat_ranks ORDER BY sort_order ASC, level ASC'
+    );
+    res.json({
+      ok: true,
+      data: {
+        ranks: rows.map((row) => ({
+          level: Number(row.level),
+          name: row.name,
+          color: row.color,
+          sortOrder: Number(row.sort_order),
+        })),
+      },
+    });
+  } catch (err) {
+    try {
+      await conn.rollback();
+    } catch {
+      /* 忽略回滚失败，保留原始错误 */
+    }
+    next(err);
+  } finally {
+    conn.release();
   }
 });
 

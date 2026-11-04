@@ -9,7 +9,7 @@ const { badRequest, notFound } = require('../lib/errors');
 
 const router = express.Router();
 
-router.use(requireAuth);
+router.use('/favorites', requireAuth);
 
 async function listKeys(userId) {
   const rows = await q(
