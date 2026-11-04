@@ -4,7 +4,7 @@
 
 - 工作流：`.github/workflows/uptime.yml`
 - 频率：每 15 分钟（GitHub Actions schedule，可能延迟）
-- 触发：定时 + 手动 `workflow_dispatch`
+- 触发：定时 + 手动 `workflow_dispatch` + 备份/监控文件变更 push
 - 失败：工作流标红并触发 GitHub 通知；不会修改生产环境
 
 ## 探测项
