@@ -18,7 +18,18 @@ router.get('/members', requireAuth, async (req, res, next) => {
     const rows = await q(
       `SELECT u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.title_id, u.role,
               u.combat_level, p.state, p.server_key, p.updated_at,
-              s.name AS server_name, st.map AS server_map
+              s.name AS server_name, st.map AS server_map,
+              (SELECT rq.mode FROM ranked_queue rq
+                WHERE rq.user_id = u.id AND rq.matched_match_id IS NULL
+                LIMIT 1) AS ranked_queue_mode,
+              (SELECT rm.mode FROM ranked_match_players rmp
+                 JOIN ranked_matches rm ON rm.id = rmp.match_id
+                WHERE rmp.user_id = u.id AND rm.status IN ('waiting', 'live')
+                ORDER BY rm.id DESC LIMIT 1) AS ranked_match_mode,
+              (SELECT rm.status FROM ranked_match_players rmp
+                 JOIN ranked_matches rm ON rm.id = rmp.match_id
+                WHERE rmp.user_id = u.id AND rm.status IN ('waiting', 'live')
+                ORDER BY rm.id DESC LIMIT 1) AS ranked_match_status
          FROM users u
          LEFT JOIN presence p
            ON p.user_id = u.id
@@ -48,6 +59,11 @@ router.get('/members', requireAuth, async (req, res, next) => {
           serverKey: row.server_key || null,
           serverName: row.server_name || null,
           serverMap: row.server_map || null,
+          ranked: row.ranked_queue_mode
+            ? { mode: row.ranked_queue_mode, status: 'queued' }
+            : row.ranked_match_mode
+              ? { mode: row.ranked_match_mode, status: row.ranked_match_status }
+              : null,
           updatedAt: row.updated_at || null,
         })),
       },

@@ -146,6 +146,119 @@ router.get('/admin/overview', requireRole(...STAFF_ROLES), async (req, res, next
   }
 });
 
+const SERVER_KEY_RE = /^[a-z0-9][a-z0-9_-]{1,31}$/;
+
+const serverCreateSchema = z.object({
+  serverKey: z.string().trim().regex(SERVER_KEY_RE, '服务器标识只能用小写字母、数字、_ 或 -'),
+  name: z.string().trim().min(2).max(64),
+  ip: z.string().trim().regex(/^[0-9A-Za-z.-]{3,64}$/, 'IP / 域名格式不正确'),
+  port: z.coerce.number().int().min(1).max(65535),
+  mode: z.string().trim().max(24).default('混战'),
+  sort: z.coerce.number().int().min(-9999).max(9999).default(0),
+  enabled: z.boolean().default(true),
+});
+
+const serverPatchSchema = z
+  .object({
+    name: z.string().trim().min(2).max(64).optional(),
+    ip: z.string().trim().regex(/^[0-9A-Za-z.-]{3,64}$/, 'IP / 域名格式不正确').optional(),
+    port: z.coerce.number().int().min(1).max(65535).optional(),
+    mode: z.string().trim().max(24).optional(),
+    sort: z.coerce.number().int().min(-9999).max(9999).optional(),
+    enabled: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: '至少修改一项' });
+
+function adminServer(row) {
+  return {
+    serverKey: row.server_key,
+    name: row.name,
+    ip: row.ip,
+    port: Number(row.port),
+    mode: row.mode || '混战',
+    sort: Number(row.sort || 0),
+    enabled: Boolean(row.enabled),
+    online: Boolean(Number(row.online || 0)),
+    players: Number(row.players || 0),
+    maxPlayers: Number(row.max_players || 0),
+    map: row.map || null,
+    updatedAt: row.updated_at || null,
+  };
+}
+
+/** 服务器登记：运营可新增/改名/改地址/上下架，大厅和收藏会立即读到 */
+router.get('/admin/servers', requireRole(...STAFF_ROLES), async (req, res, next) => {
+  try {
+    const rows = await q(
+      `SELECT s.*, st.online, st.players, st.max_players, st.map, st.updated_at
+         FROM servers s
+         LEFT JOIN server_status st ON st.server_id = s.id
+        ORDER BY s.sort ASC, s.id ASC`
+    );
+    res.json({ ok: true, data: { servers: rows.map(adminServer) } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/admin/servers', requireRole(...STAFF_ROLES), async (req, res, next) => {
+  try {
+    const body = serverCreateSchema.parse(req.body);
+    const exists = await one('SELECT id FROM servers WHERE server_key = ? LIMIT 1', [body.serverKey]);
+    if (exists) throw conflict('服务器标识已存在');
+
+    await q(
+      `INSERT INTO servers (server_key, name, ip, port, mode, sort, enabled)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [body.serverKey, body.name, body.ip, body.port, body.mode, body.sort, body.enabled ? 1 : 0]
+    );
+    await logAction(req, {
+      action: 'server.add',
+      targetType: 'server',
+      detail: { serverKey: body.serverKey, name: body.name, address: `${body.ip}:${body.port}` },
+    });
+
+    const row = await one(
+      `SELECT s.*, st.online, st.players, st.max_players, st.map, st.updated_at
+         FROM servers s LEFT JOIN server_status st ON st.server_id = s.id
+        WHERE s.server_key = ? LIMIT 1`,
+      [body.serverKey]
+    );
+    res.status(201).json({ ok: true, data: { server: adminServer(row) } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/admin/servers/:serverKey', requireRole(...STAFF_ROLES), async (req, res, next) => {
+  try {
+    const serverKey = String(req.params.serverKey || '');
+    const before = await one('SELECT * FROM servers WHERE server_key = ? LIMIT 1', [serverKey]);
+    if (!before) throw notFound('服务器不存在');
+
+    const patch = serverPatchSchema.parse(req.body);
+    const assignments = Object.keys(patch).map((key) => `${key} = ?`).join(', ');
+    const values = Object.keys(patch).map((key) => (key === 'enabled' ? (patch[key] ? 1 : 0) : patch[key]));
+    await q(`UPDATE servers SET ${assignments} WHERE server_key = ?`, [...values, serverKey]);
+
+    await logAction(req, {
+      action: patch.enabled === false ? 'server.disable' : patch.enabled === true && !before.enabled ? 'server.enable' : 'server.update',
+      targetType: 'server',
+      detail: { serverKey, from: before, to: patch },
+    });
+
+    const row = await one(
+      `SELECT s.*, st.online, st.players, st.max_players, st.map, st.updated_at
+         FROM servers s LEFT JOIN server_status st ON st.server_id = s.id
+        WHERE s.server_key = ? LIMIT 1`,
+      [serverKey]
+    );
+    res.json({ ok: true, data: { server: adminServer(row) } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** 玩家列表 */
 router.get('/admin/users', requireRole(...STAFF_ROLES), async (req, res, next) => {
   try {

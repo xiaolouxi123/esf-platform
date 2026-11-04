@@ -27,6 +27,8 @@ app.use('/api', require('./routes/chat'));
 app.use('/api', require('./routes/titles'));
 app.use('/api', require('./routes/economy'));
 app.use('/api', require('./routes/ranked'));
+app.use('/api', require('./routes/challenges'));
+app.use('/api', require('./routes/favorites'));
 
 // electron-updater 的差量更新会发多段 Range（bytes=a-b,c-d），
 // Express 自带的 static 只支持单段，会回 200 整包导致退化成全量下载。
