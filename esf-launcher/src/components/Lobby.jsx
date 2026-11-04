@@ -10,6 +10,7 @@ import ChatPanel from './ChatPanel';
 import RadarBadge from './RadarBadge';
 import RankedPage from './RankedPage';
 import ChallengePage from './ChallengePage';
+import ChallengeResultModal from './ChallengeResultModal';
 import ServerRoomList from './ServerRoomList';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import { DEFAULT_RANKS, normalizeRanks } from '../lib/ranks';
@@ -56,6 +57,7 @@ export default function Lobby({
   const [favServers, setFavServers] = useState(() => loadFavoriteSet(FAV_SERVERS));
   const [favMaps, setFavMaps] = useState(() => loadFavoriteSet(FAV_MAPS));
   const [combatRanks, setCombatRanks] = useState(DEFAULT_RANKS);
+  const [challengeResult, setChallengeResult] = useState(null);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [releaseNotice, setReleaseNotice] = useState(null);
   const [autoUpdate, setAutoUpdate] = useState(null);
@@ -123,6 +125,36 @@ export default function Lobby({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 异步读取后台等级配置后落地
     loadRanks();
   }, [loadRanks]);
+
+  useEffect(() => {
+    let alive = true;
+    const checkResult = async () => {
+      try {
+        const data = await window.electronAPI.challenges?.state();
+        const result = data?.lastResult;
+        if (!alive || !result?.roomId) return;
+        const seen = localStorage.getItem('esf:seenChallengeResult');
+        if (String(result.roomId) !== seen) {
+          setChallengeResult(result);
+        }
+      } catch {
+        /* 平台或网络不可用时静默 */
+      }
+    };
+    checkResult();
+    const timer = window.setInterval(checkResult, 15000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const dismissChallengeResult = () => {
+    if (challengeResult?.roomId) {
+      localStorage.setItem('esf:seenChallengeResult', String(challengeResult.roomId));
+    }
+    setChallengeResult(null);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -556,6 +588,29 @@ export default function Lobby({
     }
   };
 
+  const spectateServer = async (server) => {
+    if (platformState.maintenance) {
+      toast(platformState.maintenanceText || '平台维护中，请稍后再试', 'error');
+      return;
+    }
+    if (!ensureGameDir() || !server?.serverKey) return;
+    setJoinBusyKey(server.serverKey);
+    try {
+      const result = await window.electronAPI.launch.spectate({
+        serverKey: server.serverKey,
+        ip: server.ip,
+        port: server.port,
+      });
+      toast(`正在以观战模式进入 ${result.address}`, 'ok');
+      window.electronAPI.presence.ping().catch(() => {});
+      setTimeout(() => refreshServers({ silent: true }), 5000);
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setJoinBusyKey('');
+    }
+  };
+
   const pickRandomMap = () => {
     if (maps.length === 0) return;
     const pool = maps.filter((map) => map !== selectedMap);
@@ -816,6 +871,8 @@ export default function Lobby({
               syncedAt={lastSyncAt}
               currentUserId={user?.id}
               onOpenRanked={() => setPage('ranked')}
+              onSpectate={spectateServer}
+              onOpenChallenge={() => setPage('challenges')}
             />
           ) : activePage === 'assets' ? (
             <AssetLibrary toast={toast} settings={settings} />
@@ -1217,6 +1274,9 @@ export default function Lobby({
                     favorites={favServers}
                     onToggleFavorite={toggleServerFav}
                     syncedAt={lastSyncAt}
+                    currentUserId={user?.id}
+                    onOpenChallenge={() => setPage('challenges')}
+                    onSpectate={spectateServer}
                   />
                 )}
               </section>
@@ -1371,6 +1431,15 @@ export default function Lobby({
         </button>
         <span className="status-item">v{appInfo?.version || '0.0.0'}</span>
       </footer>
+
+      <ChallengeResultModal
+        result={challengeResult}
+        onClose={dismissChallengeResult}
+        onOpenChallenges={() => {
+          dismissChallengeResult();
+          setPage('challenges');
+        }}
+      />
 
       {settingsOpen && (
         <SettingsDrawer

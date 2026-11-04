@@ -161,6 +161,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   launch: {
     token: (serverKey) => call('launch:token', { serverKey }),
     join: (payload) => call('launch:join', payload),
+    spectate: (payload) => call('launch:spectate', payload),
     joinCustom: (address) => call('launch:join-custom', { address }),
     local: (map, mode) => call('launch:local', { map, mode }),
     guest: () => call('launch:guest'),

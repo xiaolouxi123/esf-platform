@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-11-05
+
+### Added
+
+- 约战锁服：开赛后服务器灰置，非参赛者无法加入；同服同时只允许一场约战
+- 约战观战：服务器列表新增观战按钮，使用 Half-Life 原生观战通道，不占参赛席位
+- 约战胜利条件：房主可选击杀 / 死亡阈值（3-50），实时同步到 AMXX 比赛规则
+- 约战战绩：AMXX 回传每名玩家击杀 / 死亡，比赛结束平台弹出结果面板
+- 比赛结束全员 5 秒 `quit` 回平台；AMXX 新增约战锁服与 spectators 识别
+- 平台新增 `challenge_configs` / `challenge_results` / `challenge_player_stats` 与 `settle_challenge_match` 存储过程
+
+### Changed
+
+- `launch_tokens` 增加 `purpose`（join / spectate），观战 token 与参赛 token 隔离
+- 服务器列表接口返回 `challenge / lockType / canJoin / canSpectate`
+
 ## [0.4.4] - 2026-11-05
 
 ### Added

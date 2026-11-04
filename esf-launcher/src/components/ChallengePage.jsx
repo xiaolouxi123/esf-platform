@@ -67,14 +67,21 @@ export default function ChallengePage({
   ranks = DEFAULT_RANKS,
   onJoinServer,
 }) {
-  const [state, setState] = useState({ myRoom: null, rooms: [], invites: [] });
+  const [state, setState] = useState({ myRoom: null, rooms: [], invites: [], lastResult: null });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [members, setMembers] = useState([]);
   const [memberQuery, setMemberQuery] = useState('');
   const [membersLoading, setMembersLoading] = useState(false);
-  const [form, setForm] = useState({ mode: '1v1', title: '', map: '', serverKey: '' });
+  const [form, setForm] = useState({
+    mode: '1v1',
+    title: '',
+    map: '',
+    serverKey: '',
+    victoryType: 'kills',
+    victoryLimit: 10,
+  });
 
   const refresh = useCallback(
     async ({ silent = false } = {}) => {
@@ -85,6 +92,7 @@ export default function ChallengePage({
           myRoom: data?.myRoom || null,
           rooms: Array.isArray(data?.rooms) ? data.rooms : [],
           invites: Array.isArray(data?.invites) ? data.invites : [],
+          lastResult: data?.lastResult || null,
         });
       } catch (err) {
         if (!silent) toast(err.message, 'error');
@@ -170,6 +178,8 @@ export default function ChallengePage({
           title: form.title.trim() || undefined,
           map: form.map.trim() || undefined,
           serverKey: form.serverKey || undefined,
+          victoryType: form.victoryType,
+          victoryLimit: Number(form.victoryLimit) || 10,
         }),
       '约战房间已创建，去邀请玩家吧'
     );
@@ -295,6 +305,7 @@ export default function ChallengePage({
                   {isLive ? '进行中' : '等待中'}
                 </span>
                 <span className="tag">{myRoom.mode}</span>
+                <span className="tag">{myRoom.victoryLabel || `击杀 ${myRoom.victoryLimit} 次`}</span>
                 <span className="tag">房间 #{myRoom.id}</span>
                 {myRoom.map && (
                   <span className="tag">
@@ -334,6 +345,24 @@ export default function ChallengePage({
               )}
             </div>
           </div>
+
+          {myRoom.result && (
+            <div className={`challenge-result challenge-result--${myRoom.result.winner}`}>
+              <div className="challenge-result-main">
+                <span className="eyebrow">MATCH RESULT</span>
+                <b>
+                  {myRoom.result.winner === 'a' ? 'A 队' : 'B 队'}获胜 · {myRoom.result.scoreA}:
+                  {myRoom.result.scoreB}
+                </b>
+                <small>
+                  胜利条件：{myRoom.victoryLabel || '击杀达到上限'} · 本场不计排位分
+                </small>
+              </div>
+              <span className="challenge-result-badge">
+                <Icon name="trophy" size={16} /> 已结算
+              </span>
+            </div>
+          )}
 
           <div className="challenge-teams">
             {['a', 'b'].map((teamKey) => {
@@ -486,12 +515,13 @@ export default function ChallengePage({
                 />
               </label>
               <label className="challenge-field">
-                <span>服务器（可选）</span>
+                <span>服务器（开赛后锁定）</span>
                 <select
                   value={form.serverKey}
                   onChange={(event) => setForm((prev) => ({ ...prev, serverKey: event.target.value }))}
+                  required
                 >
-                  <option value="">不指定，进房后再定</option>
+                  <option value="">选择一台服务器</option>
                   {servers.map((server) => (
                     <option key={server.serverKey} value={server.serverKey}>
                       {server.name}
@@ -500,11 +530,36 @@ export default function ChallengePage({
                   ))}
                 </select>
               </label>
+
+              <div className="challenge-victory-field">
+                <span>胜利条件</span>
+                <div className="challenge-victory-row">
+                  <select
+                    value={form.victoryType}
+                    onChange={(event) => setForm((prev) => ({ ...prev, victoryType: event.target.value }))}
+                  >
+                    <option value="kills">击杀数达到</option>
+                    <option value="deaths">死亡数达到</option>
+                  </select>
+                  <input
+                    type="number"
+                    min={3}
+                    max={50}
+                    value={form.victoryLimit}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, victoryLimit: event.target.value }))
+                    }
+                  />
+                  <em>次</em>
+                </div>
+                <small>达到条件立即结束；不结算排位分，双方按总击杀/死亡判定胜负。</small>
+              </div>
+
               <button
                 type="button"
                 className="btn btn-primary challenge-create-btn"
                 onClick={createRoom}
-                disabled={Boolean(busy)}
+                disabled={Boolean(busy) || !form.serverKey}
               >
                 {busy === 'create' ? <span className="spinner" /> : <Icon name="plus" size={15} />}
                 创建约战房间

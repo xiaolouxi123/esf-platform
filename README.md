@@ -37,9 +37,9 @@ esf-platform/
 
 ### AMXX
 
-- `esf_platform_auth`：平台身份校验、Token 消费、在线时长
-- `esf_ranked_lock`：比赛期间只允许参赛玩家进入
-- `test_ranked`：1v1/2v2 自动检测、队伍 HUD、比赛结果回写平台、结束 5 秒自动 quit
+- `esf_platform_auth`：平台身份校验、Token 消费、观战 / 参赛身份、在线时长
+- `esf_ranked_lock`：比赛 / 约战期间锁服，只放行参赛者与持观战 Token 的观众
+- `test_ranked`：1v1/2v2 自动检测、队伍 HUD、排位结算、约战击杀/死亡胜利条件、战绩回写平台、结束 5 秒自动 quit
 
 ## 本地开发
 
@@ -92,6 +92,7 @@ npm test
 AMXX 插件编译示例：
 
 ```bat
+amxxpc.exe ..\..\amxx\esf_platform_auth.sma -i"include" -o"..\plugins\esf_platform_auth.amxx"
 amxxpc.exe ..\..\amxx\esf_ranked_lock.sma -i"include" -o"..\plugins\esf_ranked_lock.amxx"
 amxxpc.exe ..\..\amxx\test_ranked.sma -i"include" -o"..\plugins\test_ranked.amxx"
 ```

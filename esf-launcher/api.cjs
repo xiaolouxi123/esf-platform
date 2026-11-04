@@ -93,8 +93,13 @@ const lookupServer = (settings, token, address) =>
 const serverDetail = (settings, token, params) =>
   request(settings, { path: `/api/servers/detail${queryString(params)}`, token });
 
-const launchToken = (settings, token, serverKey) =>
-  request(settings, { method: 'POST', path: '/api/launch-token', token, body: { serverKey } });
+const launchToken = (settings, token, serverKey, options = {}) =>
+  request(settings, {
+    method: 'POST',
+    path: '/api/launch-token',
+    token,
+    body: { serverKey, purpose: options.purpose || 'join' },
+  });
 
 /* ---------------- 收藏服务器 ---------------- */
 

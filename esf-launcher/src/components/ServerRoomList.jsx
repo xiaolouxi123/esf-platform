@@ -38,6 +38,8 @@ export default function ServerRoomList({
   syncedAt = null,
   currentUserId = null,
   onOpenRanked,
+  onSpectate,
+  onOpenChallenge,
 }) {
   const [openKey, setOpenKey] = useState('');
   const [details, setDetails] = useState({});
@@ -119,15 +121,24 @@ export default function ServerRoomList({
         const favorite = favorites ? favorites.has(key) : false;
         const busy = busyKey === key;
         const ranked = server.ranked || null;
+        const challenge = server.challenge || null;
         const rankedPlayers = ranked
           ? ranked.players || [...(ranked.teams?.a || []), ...(ranked.teams?.b || [])]
           : [];
         const rankedParticipant = rankedPlayers.some(
           (player) => Number(player.id) === Number(currentUserId)
         );
+        const challengeParticipant = Boolean(challenge?.participant);
+        const lockedForMe = Boolean(
+          (ranked && !rankedParticipant) || (challenge && !challengeParticipant)
+        );
+        const roomTone = tone === 'offline' ? 'offline' : challenge ? 'muted' : tone;
 
         return (
-          <div key={key} className={`room room--${tone}${open ? ' is-open' : ''}${ranked ? ' room--ranked' : ''}`}>
+          <div
+            key={key}
+            className={`room room--${roomTone}${open ? ' is-open' : ''}${ranked ? ' room--ranked' : ''}${challenge ? ' room--challenge' : ''}${challenge && !challengeParticipant ? ' room--challenge-locked' : ''}`}
+          >
             <div
               className="room-row"
               role="button"
@@ -148,6 +159,11 @@ export default function ServerRoomList({
                 <b>
                   {server.name}
                   {ranked && <span className="room-ranked-tag">排位 {ranked.mode} · 比赛中</span>}
+                  {challenge && (
+                    <span className="room-challenge-tag">
+                      约战 {challenge.mode} · {challenge.victoryType === 'deaths' ? `死亡 ${challenge.victoryLimit}` : `击杀 ${challenge.victoryLimit}`}
+                    </span>
+                  )}
                 </b>
                 <small>
                   {server.map || '未知地图'} · {server.ip}:{server.port}
@@ -178,11 +194,15 @@ export default function ServerRoomList({
 
                 <button
                   type="button"
-                  className={`btn btn-sm ${ranked ? 'btn-ghost' : server.online ? 'btn-primary' : 'btn-ghost'}`}
-                  disabled={!server.online || busy || (ranked && !rankedParticipant)}
+                  className={`btn btn-sm ${lockedForMe ? 'btn-ghost' : server.online ? 'btn-primary' : 'btn-ghost'}`}
+                  disabled={!server.online || busy || lockedForMe}
                   onClick={stop(() => {
                     if (ranked && !rankedParticipant) {
                       onOpenRanked?.();
+                      return;
+                    }
+                    if (challenge && !challengeParticipant) {
+                      onOpenChallenge?.();
                       return;
                     }
                     onJoin && onJoin(server);
@@ -192,12 +212,26 @@ export default function ServerRoomList({
                     <span className="spinner" />
                   ) : ranked ? (
                     rankedParticipant ? '进入比赛' : '比赛中'
+                  ) : challenge ? (
+                    challengeParticipant ? '进入约战' : '约战中'
                   ) : server.online ? (
                     '加入'
                   ) : (
                     '离线'
                   )}
                 </button>
+
+                {challenge && !challengeParticipant && server.online && onSpectate && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost room-spectate-btn"
+                    disabled={busy}
+                    title="以 Half-Life 原生观战模式进入，不占参赛席位"
+                    onClick={stop(() => onSpectate(server))}
+                  >
+                    <Icon name="eye" size={13} /> 观战
+                  </button>
+                )}
 
                 <Icon name="chevron" size={14} className={`room-chev${open ? ' is-open' : ''}`} />
               </span>

@@ -33,7 +33,9 @@ const createSchema = z.object({
   title: z.string().trim().max(48).optional(),
   mode: z.enum(challenges.MODES),
   map: z.string().trim().max(64).optional(),
-  serverKey: z.string().trim().max(32).optional(),
+  serverKey: z.string().trim().min(1).max(32),
+  victoryType: z.enum(['kills', 'deaths']).default('kills'),
+  victoryLimit: z.coerce.number().int().min(3).max(50).default(10),
 });
 
 router.post('/challenges', async (req, res, next) => {
@@ -122,6 +124,16 @@ router.post('/challenges/:id/start', async (req, res, next) => {
   try {
     const room = await challenges.startRoom(req.user, idOf(req.params.id));
     res.json({ ok: true, data: { room, state: await challenges.getState(req.user.id) } });
+  } catch (err) {
+    fail(err, next);
+  }
+});
+
+router.get('/challenges/:id/result', async (req, res, next) => {
+  try {
+    const result = await challenges.resultOf(idOf(req.params.id));
+    if (!result) throw badRequest('约战结果不存在');
+    res.json({ ok: true, data: { result } });
   } catch (err) {
     fail(err, next);
   }

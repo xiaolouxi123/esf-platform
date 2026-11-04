@@ -90,6 +90,13 @@ async function main() {
     await ensureColumn(
       conn,
       env.db.name,
+      'launch_tokens',
+      'purpose',
+      "ENUM('join','spectate') NOT NULL DEFAULT 'join' COMMENT '连服用途' AFTER server_key"
+    );
+    await ensureColumn(
+      conn,
+      env.db.name,
       'users',
       'avatar',
       "VARCHAR(16) NOT NULL DEFAULT '' COMMENT '头像（emoji 或留空）' AFTER game_name"
@@ -305,6 +312,32 @@ async function main() {
         END IF;
       END
     `);
+    await conn.query('DROP PROCEDURE IF EXISTS settle_challenge_match');
+    await conn.query(`
+      CREATE PROCEDURE settle_challenge_match(
+        IN p_room_id BIGINT UNSIGNED,
+        IN p_winner VARCHAR(1),
+        IN p_score_a INT,
+        IN p_score_b INT,
+        IN p_victory_type VARCHAR(8),
+        IN p_limit INT
+      )
+      BEGIN
+        INSERT INTO challenge_results
+          (room_id, winner, score_a, score_b, victory_type, victory_limit, ended_at)
+        VALUES (p_room_id, p_winner, p_score_a, p_score_b, p_victory_type, p_limit, NOW())
+        ON DUPLICATE KEY UPDATE
+          winner = VALUES(winner),
+          score_a = VALUES(score_a),
+          score_b = VALUES(score_b),
+          victory_type = VALUES(victory_type),
+          victory_limit = VALUES(victory_limit),
+          ended_at = VALUES(ended_at);
+        UPDATE challenge_rooms
+           SET status = 'closed', closed_at = NOW()
+         WHERE id = p_room_id AND status = 'live';
+      END
+    `);
     await conn.query(
       `CREATE TABLE IF NOT EXISTS titles (
          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -355,6 +388,11 @@ async function main() {
       `GRANT SELECT ON ${db}.\`ranked_matches\` TO ?@?`,
       `GRANT SELECT ON ${db}.\`ranked_match_players\` TO ?@?`,
       `GRANT EXECUTE ON PROCEDURE ${db}.settle_ranked_match TO ?@?`,
+      `GRANT SELECT ON ${db}.\`challenge_rooms\` TO ?@?`,
+      `GRANT SELECT ON ${db}.\`challenge_room_players\` TO ?@?`,
+      `GRANT SELECT ON ${db}.\`challenge_configs\` TO ?@?`,
+      `GRANT SELECT, INSERT ON ${db}.\`challenge_player_stats\` TO ?@?`,
+      `GRANT EXECUTE ON PROCEDURE ${db}.settle_challenge_match TO ?@?`,
     ];
     for (const grant of grants) {
       await conn.query(grant, [env.amxx.user, env.amxx.allowedHost]);

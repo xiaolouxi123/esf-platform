@@ -23,7 +23,7 @@
 #include <sqlx>
 
 #define PLUGIN  "ESF Ranked Lock"
-#define VERSION "1.0.0"
+#define VERSION "1.1.0"
 #define AUTHOR  "ESF Platform"
 
 #define TASK_CHECK 3100
@@ -131,11 +131,18 @@ public taskCheckPlayer(taskid) {
            (SELECT COUNT(*) FROM ranked_matches m \
              JOIN ranked_match_players p ON p.match_id = m.id \
              WHERE m.server_key = '%s' AND m.status IN ('waiting','live') \
-               AND p.user_id = t.user_id) AS is_player \
+               AND p.user_id = t.user_id) AS is_player, \
+           (SELECT COUNT(*) FROM challenge_rooms r \
+             WHERE r.server_key = '%s' AND r.status = 'live') AS has_challenge, \
+           (SELECT COUNT(*) FROM challenge_rooms r \
+             JOIN challenge_room_players p ON p.room_id = r.id \
+             WHERE r.server_key = '%s' AND r.status = 'live' \
+               AND p.user_id = t.user_id) AS is_challenge_player, \
+           t.purpose \
          FROM launch_tokens t \
          WHERE t.token = '%s' AND t.server_key = '%s' \
          LIMIT 1",
-        serverKey, serverKey, token, serverKey);
+        serverKey, serverKey, serverKey, serverKey, token, serverKey);
 
     new data[1];
     data[0] = id;
@@ -160,6 +167,21 @@ public OnLockChecked(failstate, Handle:query, error[], errnum, data[], dataSize)
 
     new hasMatch = SQL_ReadResult(query, 0);
     new isPlayer = SQL_ReadResult(query, 1);
+    new hasChallenge = SQL_ReadResult(query, 2);
+    new isChallengePlayer = SQL_ReadResult(query, 3);
+    new purpose[16];
+    SQL_ReadResult(query, 4, purpose, charsmax(purpose));
+
+    if (hasChallenge > 0 && isChallengePlayer == 0) {
+        if (equal(purpose, "spectate")) {
+            set_user_info(id, "_platform_spectator", "1");
+            client_cmd(id, "spectate");
+            client_print(id, print_chat, "[约战] 你正在观战本场约战");
+            return;
+        }
+        rejectPlayer(id, "本服务器正在进行约战，只有参赛玩家和观战者可以进入");
+        return;
+    }
 
     if (hasMatch > 0 && isPlayer == 0) {
         rejectPlayer(id, "本服务器正在进行排位赛，只有本场参赛玩家可以进入");

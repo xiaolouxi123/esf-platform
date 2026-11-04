@@ -118,6 +118,8 @@ export default function ServerHall({
   syncedAt,
   currentUserId,
   onOpenRanked,
+  onSpectate,
+  onOpenChallenge,
 }) {
   const [keyword, setKeyword] = useState('');
   const [filter, setFilter] = useState('all');
@@ -369,6 +371,8 @@ export default function ServerHall({
         syncedAt={syncedAt}
         currentUserId={currentUserId}
         onOpenRanked={onOpenRanked}
+        onSpectate={onSpectate}
+        onOpenChallenge={onOpenChallenge}
       />
 
       <footer className="hall-tip">

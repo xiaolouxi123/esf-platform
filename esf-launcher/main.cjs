@@ -834,6 +834,28 @@ handle('launch:join', async ({ serverKey, ip, port }) => {
   return { address, maskedToken: maskToken(issued.token), switched };
 });
 
+handle('launch:spectate', async ({ serverKey, ip, port }) => {
+  const current = getSession();
+  requireToken();
+  checkGameDir();
+  if (!serverKey) throw new Error('观战需要指定服务器');
+
+  const switched = await stopGameForSwitch();
+  const issued = await apiCall(api.launchToken, getSettings(), requireToken(), serverKey, {
+    purpose: 'spectate',
+  });
+  const username = (current.user && (current.user.gameName || current.user.username)) || 'Player';
+
+  prepareLaunch(issued.token, username);
+
+  const address = `${ip}:${port}`;
+  lastServerKey = serverKey;
+  await spawnGame(core.buildJoinArgs(modName(), address));
+  hideToTrayForGame();
+  log(`👁 观战 ${address}`);
+  return { address, spectator: true, maskedToken: maskToken(issued.token), switched };
+});
+
 // 未登记服务器：直接 connect，不带平台身份（AMXX 不会做身份校验）
 handle('launch:join-custom', async ({ address } = {}) => {
   requireToken();

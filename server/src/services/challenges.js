@@ -15,6 +15,7 @@ const { badRequest, forbidden, notFound, conflict } = require('../lib/errors');
 
 const MODE_SLOTS = { '1v1': 1, '2v2': 2 };
 const MODES = Object.keys(MODE_SLOTS);
+const VICTORY_TYPES = ['kills', 'deaths'];
 const STALE_HOURS = 6;
 
 function publicUser(row) {
@@ -49,15 +50,38 @@ function normalizeMap(map) {
   return value;
 }
 
+function normalizeVictoryType(type) {
+  const value = String(type || 'kills');
+  if (!VICTORY_TYPES.includes(value)) throw badRequest('胜利条件只能是击杀数或死亡数');
+  return value;
+}
+
+function normalizeVictoryLimit(limit) {
+  const value = Number(limit);
+  if (!Number.isInteger(value) || value < 3 || value > 50) {
+    throw badRequest('胜利目标需要在 3-50 之间');
+  }
+  return value;
+}
+
+function victoryLabel(type, limit) {
+  return type === 'deaths' ? `死亡 ${limit} 次` : `击杀 ${limit} 人`;
+}
+
 function roomRow(id) {
   return one(
     `SELECT r.*, u.username AS host_username, u.game_name AS host_game_name,
             u.avatar AS host_avatar, u.avatar_url AS host_avatar_url,
             u.role AS host_role, u.combat_level AS host_combat_level,
-            s.name AS server_name, s.ip AS server_ip, s.port AS server_port
+            s.name AS server_name, s.ip AS server_ip, s.port AS server_port,
+            c.victory_type, c.victory_limit,
+            res.winner AS result_winner, res.score_a AS result_score_a,
+            res.score_b AS result_score_b, res.ended_at AS result_ended_at
        FROM challenge_rooms r
        JOIN users u ON u.id = r.host_id
        LEFT JOIN servers s ON s.server_key = r.server_key
+       LEFT JOIN challenge_configs c ON c.room_id = r.id
+       LEFT JOIN challenge_results res ON res.room_id = r.id
       WHERE r.id = ?
       LIMIT 1`,
     [id]
@@ -68,9 +92,11 @@ async function roomMembers(roomId) {
   const rows = await q(
     `SELECT p.team, p.ready, p.joined_at,
             u.id, u.username, u.game_name, u.avatar, u.avatar_url,
-            u.role, u.combat_level
+            u.role, u.combat_level,
+            COALESCE(st.kills, 0) AS kills, COALESCE(st.deaths, 0) AS deaths
        FROM challenge_room_players p
        JOIN users u ON u.id = p.user_id
+       LEFT JOIN challenge_player_stats st ON st.room_id = p.room_id AND st.user_id = p.user_id
       WHERE p.room_id = ?
       ORDER BY p.joined_at ASC, p.user_id ASC`,
     [roomId]
@@ -80,6 +106,8 @@ async function roomMembers(roomId) {
     team: row.team,
     ready: Boolean(row.ready),
     joinedAt: row.joined_at,
+    kills: Number(row.kills || 0),
+    deaths: Number(row.deaths || 0),
   }));
 }
 
@@ -127,6 +155,17 @@ function roomBase(row) {
     server: serverOf(row),
     status: row.status,
     maxPlayers: Number(row.max_players),
+    victoryType: row.victory_type || 'kills',
+    victoryLimit: Number(row.victory_limit || 10),
+    victoryLabel: victoryLabel(row.victory_type || 'kills', Number(row.victory_limit || 10)),
+    result: row.result_winner
+      ? {
+          winner: row.result_winner,
+          scoreA: Number(row.result_score_a || 0),
+          scoreB: Number(row.result_score_b || 0),
+          endedAt: row.result_ended_at,
+        }
+      : null,
     createdAt: row.created_at,
     startedAt: row.started_at || null,
     closedAt: row.closed_at || null,
@@ -172,11 +211,13 @@ async function listRooms() {
             u.avatar AS host_avatar, u.avatar_url AS host_avatar_url,
             u.role AS host_role, u.combat_level AS host_combat_level,
             s.name AS server_name, s.ip AS server_ip, s.port AS server_port,
+            c.victory_type, c.victory_limit,
             (SELECT COUNT(*) FROM challenge_room_players p WHERE p.room_id = r.id) AS player_count,
             (SELECT COUNT(*) FROM challenge_room_players p WHERE p.room_id = r.id AND p.ready = 1) AS ready_count
        FROM challenge_rooms r
        JOIN users u ON u.id = r.host_id
        LEFT JOIN servers s ON s.server_key = r.server_key
+       LEFT JOIN challenge_configs c ON c.room_id = r.id
       WHERE r.status = 'waiting'
         AND r.updated_at > (NOW() - INTERVAL ? HOUR)
       ORDER BY r.created_at DESC
@@ -246,12 +287,105 @@ async function invitesOf(userId) {
 
 async function getState(userId) {
   const active = await activeRoomOf(userId);
-  const [myRoom, rooms, invites] = await Promise.all([
+  const [myRoom, rooms, invites, lastResult] = await Promise.all([
     active ? getRoom(active.id, userId) : Promise.resolve(null),
     listRooms(),
     invitesOf(userId),
+    latestResultOf(userId),
   ]);
-  return { myRoom, rooms, invites };
+  return { myRoom, rooms, invites, lastResult };
+}
+
+/** 锁服查询：一台服务器同时只能有一个约战 live。 */
+async function activeChallengesByServer() {
+  const rows = await q(
+    `SELECT r.id, r.server_key, r.mode, r.title, r.host_id,
+            c.victory_type, c.victory_limit,
+            (SELECT COUNT(*) FROM challenge_room_players p WHERE p.room_id = r.id) AS players
+       FROM challenge_rooms r
+       LEFT JOIN challenge_configs c ON c.room_id = r.id
+      WHERE r.status = 'live' AND r.server_key IS NOT NULL`
+  );
+  const map = new Map();
+  for (const row of rows) {
+    map.set(row.server_key, {
+      id: Number(row.id),
+      roomId: Number(row.id),
+      serverKey: row.server_key,
+      mode: row.mode,
+      title: row.title,
+      hostId: Number(row.host_id),
+      players: Number(row.players || 0),
+      victoryType: row.victory_type || 'kills',
+      victoryLimit: Number(row.victory_limit || 10),
+    });
+  }
+  return map;
+}
+
+async function challengeAccess(userId, serverKey) {
+  const row = await one(
+    `SELECT r.id, r.mode, r.title, r.status
+       FROM challenge_rooms r
+      WHERE r.server_key = ? AND r.status = 'live'
+      ORDER BY r.id DESC LIMIT 1`,
+    [serverKey]
+  );
+  if (!row) return { active: false, participant: false, room: null };
+  const member = await one(
+    'SELECT team FROM challenge_room_players WHERE room_id = ? AND user_id = ? LIMIT 1',
+    [row.id, userId]
+  );
+  return {
+    active: true,
+    participant: Boolean(member),
+    team: member ? member.team : null,
+    room: { id: Number(row.id), mode: row.mode, title: row.title },
+  };
+}
+
+async function resultOf(roomId) {
+  const row = await one(
+    `SELECT r.id, r.title, r.mode, r.server_key, r.status,
+            res.winner, res.score_a, res.score_b, res.victory_type,
+            res.victory_limit, res.ended_at,
+            s.name AS server_name
+       FROM challenge_rooms r
+       LEFT JOIN challenge_results res ON res.room_id = r.id
+       LEFT JOIN servers s ON s.server_key = r.server_key
+      WHERE r.id = ? LIMIT 1`,
+    [roomId]
+  );
+  if (!row) return null;
+  const members = await roomMembers(roomId);
+  return {
+    roomId: Number(row.id),
+    title: row.title,
+    mode: row.mode,
+    status: row.status,
+    serverKey: row.server_key || null,
+    serverName: row.server_name || null,
+    winner: row.winner || null,
+    scoreA: Number(row.score_a || 0),
+    scoreB: Number(row.score_b || 0),
+    victoryType: row.victory_type || 'kills',
+    victoryLimit: Number(row.victory_limit || 10),
+    endedAt: row.ended_at || null,
+    players: members,
+  };
+}
+
+async function latestResultOf(userId) {
+  const row = await one(
+    `SELECT r.id
+       FROM challenge_rooms r
+       JOIN challenge_room_players p ON p.room_id = r.id
+       JOIN challenge_results res ON res.room_id = r.id
+      WHERE p.user_id = ? AND res.ended_at > (NOW() - INTERVAL 2 HOUR)
+      ORDER BY res.ended_at DESC LIMIT 1`,
+    [userId]
+  );
+  return row ? resultOf(row.id) : null;
 }
 
 async function withTransaction(fn) {
@@ -275,6 +409,10 @@ async function createRoom(user, fields = {}) {
   const title = normalizeTitle(fields.title, `${user.game_name || user.username} 的约战`);
   const map = normalizeMap(fields.map);
   const serverKey = String(fields.serverKey || '').trim() || null;
+  const victoryType = normalizeVictoryType(fields.victoryType);
+  const victoryLimit = normalizeVictoryLimit(fields.victoryLimit);
+
+  if (!serverKey) throw badRequest('请选择一台服务器后再开房');
 
   if (serverKey) {
     const server = await one('SELECT server_key FROM servers WHERE server_key = ? AND enabled = 1 LIMIT 1', [
@@ -302,6 +440,11 @@ async function createRoom(user, fields = {}) {
       `INSERT INTO challenge_room_players (room_id, user_id, team, ready)
        VALUES (?, ?, 'a', 1)`,
       [result.insertId, user.id]
+    );
+    await conn.query(
+      `INSERT INTO challenge_configs (room_id, victory_type, victory_limit)
+       VALUES (?, ?, ?)`,
+      [result.insertId, victoryType, victoryLimit]
     );
     return result.insertId;
   });
@@ -567,13 +710,19 @@ async function setReady(userId, roomId, ready) {
 async function startRoom(user, roomId) {
   await withTransaction(async (conn) => {
     const [rooms] = await conn.query(
-      'SELECT id, host_id, status, max_players FROM challenge_rooms WHERE id = ? LIMIT 1 FOR UPDATE',
+      'SELECT id, host_id, status, max_players, server_key FROM challenge_rooms WHERE id = ? LIMIT 1 FOR UPDATE',
       [roomId]
     );
     const room = rooms[0];
     if (!room) throw notFound('房间不存在');
     if (Number(room.host_id) !== Number(user.id)) throw forbidden('只有房主可以开始约战');
     if (room.status !== 'waiting') throw conflict('房间状态不允许开赛');
+    if (!room.server_key) throw badRequest('请先选择服务器');
+    const [configs] = await conn.query(
+      'SELECT victory_type, victory_limit FROM challenge_configs WHERE room_id = ? LIMIT 1',
+      [roomId]
+    );
+    if (!configs[0]) throw badRequest('房间缺少胜利条件，请重新开房');
 
     const [members] = await conn.query(
       'SELECT user_id, ready FROM challenge_room_players WHERE room_id = ?',
@@ -581,6 +730,14 @@ async function startRoom(user, roomId) {
     );
     if (members.length < Number(room.max_players)) throw badRequest('人还没齐，再等等');
     if (members.some((member) => !member.ready)) throw badRequest('还有玩家没有准备');
+
+    const [busy] = await conn.query(
+      `SELECT id FROM challenge_rooms
+        WHERE server_key = ? AND status = 'live' AND id <> ?
+        LIMIT 1 FOR UPDATE`,
+      [room.server_key, roomId]
+    );
+    if (busy.length > 0) throw conflict('该服务器已有约战正在进行');
 
     await conn.query("UPDATE challenge_rooms SET status = 'live', started_at = NOW() WHERE id = ?", [
       roomId,
@@ -607,4 +764,7 @@ module.exports = {
   respond,
   setReady,
   startRoom,
+  activeChallengesByServer,
+  challengeAccess,
+  resultOf,
 };

@@ -168,6 +168,32 @@ test('约战：建房、邀请、接受、准备、开赛、关闭', async () =>
   assert.equal(started.status, 200, JSON.stringify(started.body));
   assert.equal(started.body.data.room.status, 'live');
 
+  const liveList = await api('GET', '/api/servers', { token: tokens[3] });
+  const liveServer = liveList.body.data.servers.find((item) => item.serverKey === serverKey);
+  assert.ok(liveServer.challenge, '服务器应显示约战锁');
+  assert.equal(liveServer.locked, true);
+  assert.equal(liveServer.canJoin, false);
+  assert.equal(liveServer.canSpectate, true);
+
+  const blockedJoin = await api('POST', '/api/launch-token', {
+    token: tokens[3],
+    body: { serverKey, purpose: 'join' },
+  });
+  assert.equal(blockedJoin.status, 409, JSON.stringify(blockedJoin.body));
+
+  const spectator = await api('POST', '/api/launch-token', {
+    token: tokens[3],
+    body: { serverKey, purpose: 'spectate' },
+  });
+  assert.equal(spectator.status, 200, JSON.stringify(spectator.body));
+  assert.equal(spectator.body.data.purpose, 'spectate');
+
+  const participant = await api('POST', '/api/launch-token', {
+    token: tokens[1],
+    body: { serverKey, purpose: 'join' },
+  });
+  assert.equal(participant.status, 200, JSON.stringify(participant.body));
+
   const closed = await api('POST', `/api/challenges/${roomId}/close`, {
     token: tokens[1],
   });

@@ -185,7 +185,7 @@ public taskVerify(taskid) {
 
     new query[640];
     formatex(query, charsmax(query),
-        "SELECT t.id, u.id, u.game_name, u.role \
+        "SELECT t.id, u.id, u.game_name, u.role, t.purpose \
            FROM launch_tokens t \
            JOIN v_platform_users u ON u.id = t.user_id \
           WHERE t.token = '%s' AND t.server_key = '%s' \
@@ -225,9 +225,11 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
 
     new tokenId = SQL_ReadResult(query, 0);
     new userId  = SQL_ReadResult(query, 1);
-    new name[32], role[16];
+    new name[32], role[16], purpose[16];
     SQL_ReadResult(query, 2, name, charsmax(name));
     SQL_ReadResult(query, 3, role, charsmax(role));
+    SQL_ReadResult(query, 4, purpose, charsmax(purpose));
+    set_user_info(id, "_platform_spectator", equal(purpose, "spectate") ? "1" : "0");
 
     // 可选：强制游戏昵称与平台 game_name 一致（默认关闭，避免彩色名字/改名误伤）
     if (get_pcvar_num(g_pcRequireName)) {

@@ -7,6 +7,7 @@ const { q, one } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { badRequest, notFound } = require('../lib/errors');
 const { activeMatchesByServer } = require('../services/ranked');
+const { activeChallengesByServer, challengeAccess } = require('../services/challenges');
 
 const router = express.Router();
 const QUERY_TIMEOUT_MS = 3000;
@@ -36,21 +37,42 @@ router.get('/servers', requireAuth, async (req, res, next) => {
     );
 
     const activeRanked = await activeMatchesByServer();
-    const servers = rows.map((row) => ({
-      serverKey: row.server_key,
-      name: row.live_name || row.display_name,
-      mode: row.mode || '混战',
-      ip: row.ip,
-      port: Number(row.port),
-      online: Boolean(Number(row.online)),
-      players: Number(row.players),
-      maxPlayers: Number(row.max_players),
-      ping: Number(row.ping_ms),
-      map: row.map || null,
-      updatedAt: row.updated_at,
-      ranked: activeRanked.get(row.server_key) || null,
-      locked: activeRanked.has(row.server_key),
-    }));
+    const activeChallenges = await activeChallengesByServer();
+    const servers = await Promise.all(
+      rows.map(async (row) => {
+        const ranked = activeRanked.get(row.server_key) || null;
+        const challenge = activeChallenges.get(row.server_key) || null;
+        let challengeInfo = null;
+        if (challenge) {
+          const access = await challengeAccess(req.user.id, row.server_key);
+          challengeInfo = {
+            ...challenge,
+            participant: access.participant,
+            team: access.team || null,
+            spectatorAllowed: Boolean(Number(row.online)),
+          };
+        }
+        return {
+          serverKey: row.server_key,
+          name: row.live_name || row.display_name,
+          mode: row.mode || '混战',
+          ip: row.ip,
+          port: Number(row.port),
+          online: Boolean(Number(row.online)),
+          players: Number(row.players),
+          maxPlayers: Number(row.max_players),
+          ping: Number(row.ping_ms),
+          map: row.map || null,
+          updatedAt: row.updated_at,
+          ranked,
+          challenge: challengeInfo,
+          locked: Boolean(ranked || challenge),
+          lockType: ranked ? 'ranked' : challenge ? 'challenge' : null,
+          canJoin: !ranked && !challenge,
+          canSpectate: Boolean(challenge),
+        };
+      })
+    );
 
     res.json({ ok: true, data: { servers } });
   } catch (err) {
