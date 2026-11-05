@@ -115,6 +115,7 @@ amxxpc.exe ..\..\amxx\test_ranked.sma -i"include" -o"..\plugins\test_ranked.amxx
 - 说明、安装、恢复流程见 [deploy/backup/README.md](deploy/backup/README.md)
 - 备份文件包含玩家个人信息，只存放在受限目录/私有存储，不提交仓库
 - 公网 API、官网、更新源和备份心跳由 [uptime.yml](.github/workflows/uptime.yml) 每 15 分钟探测一次，详见 [docs/MONITORING.md](docs/MONITORING.md)
+- 服务器本机登录 MySQL 的步骤、账号边界与排障见 [docs/SERVER_MYSQL_LOGIN.md](docs/SERVER_MYSQL_LOGIN.md)
 
 ## 安全
 
