@@ -123,7 +123,7 @@ public taskCheckPlayer(taskid) {
         return;
     }
 
-    new query[640];
+    new query[1536];
     formatex(query, charsmax(query),
         "SELECT \
            (SELECT COUNT(*) FROM ranked_matches m \
