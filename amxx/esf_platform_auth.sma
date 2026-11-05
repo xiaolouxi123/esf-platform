@@ -229,7 +229,11 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
     SQL_ReadResult(query, 2, name, charsmax(name));
     SQL_ReadResult(query, 3, role, charsmax(role));
     SQL_ReadResult(query, 4, purpose, charsmax(purpose));
-    set_user_info(id, "_platform_spectator", equal(purpose, "spectate") ? "1" : "0");
+    // 仅观战者写入该 userinfo；普通进服不额外占用客户端 info string，
+    // 否则接近上限时会触发 "Info string length exceeded"。
+    if (equal(purpose, "spectate")) {
+        set_user_info(id, "_platform_spectator", "1");
+    }
 
     // 可选：强制游戏昵称与平台 game_name 一致（默认关闭，避免彩色名字/改名误伤）
     if (get_pcvar_num(g_pcRequireName)) {

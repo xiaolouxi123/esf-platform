@@ -123,6 +123,8 @@ public taskCheckPlayer(taskid) {
         return;
     }
 
+    // 完整 SQL 约 1067 字节；缓冲区过小会截断 FROM launch_tokens t，
+    // 导致子查询报 Unknown column 't.user_id'
     new query[1536];
     formatex(query, charsmax(query),
         "SELECT \

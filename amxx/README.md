@@ -49,6 +49,12 @@ battle_quit_enable "1"
 battle_quit_delay "5.0"
 ```
 
+`ranked_sql_host` 必须和 `platform_sql_host` 指向同一个 MySQL（可写 `host:port`，
+例如 `127.0.0.1:3307`）；不要填游戏服自己的公网 IP。两套配置不一致时，
+`test_ranked` / `esf_ranked_lock` 会报 `Unknown MySQL server host` 或
+`[ranked] 数据库连接失败`。部署包里的 `fix-db-config.ps1` 可自动把
+`platform_sql_*` 同步到 `ranked_sql_*`。
+
 数据库账号需要：
 
 - `SELECT` on `v_platform_users`, `launch_tokens`, `ranked_matches`, `ranked_match_players`
@@ -61,6 +67,13 @@ battle_quit_delay "5.0"
 - 2v2：双方各 2 人，开赛后禁止换队
 - 一方队伍全部出局 → 调用 `settle_ranked_match` 更新平台战绩
 - 比赛结束后 5 秒，客户端执行 `quit`，平台托盘自动恢复
+
+## 排障
+
+- `Unknown column 't.user_id' in 'where clause'`：旧版锁服插件的 SQL 缓冲区只有 640，
+  查询被截断后丢失 `FROM launch_tokens t`；使用 r4 及以上（1536 缓冲区）。
+- `Info string length exceeded`：旧版身份插件对普通进服也写 `_platform_spectator=0`；
+  使用 r4 及以上（仅观战者写入）。
 
 ## 注意
 
