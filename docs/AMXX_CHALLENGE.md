@@ -86,6 +86,7 @@ platform_allow_guest "1"
 - 生产 API `/api/challenges`、`/api/servers` 冒烟。
 - AMXX 编译通过。
 - 本地 HLDS 可加载四个插件并连接数据库。
+- `platform_allow_guest` 已编译进 1.1.0 身份插件，源码回归测试 4/4 通过。
 
 待验证：
 
