@@ -379,11 +379,14 @@ async function latestResultOf(userId) {
   const row = await one(
     `SELECT r.id
        FROM challenge_rooms r
-       JOIN challenge_room_players p ON p.room_id = r.id
        JOIN challenge_results res ON res.room_id = r.id
-      WHERE p.user_id = ? AND res.ended_at > (NOW() - INTERVAL 2 HOUR)
+      WHERE res.ended_at > (NOW() - INTERVAL 2 HOUR)
+        AND (
+          EXISTS (SELECT 1 FROM challenge_room_players p WHERE p.room_id = r.id AND p.user_id = ?)
+          OR EXISTS (SELECT 1 FROM challenge_spectators s WHERE s.room_id = r.id AND s.user_id = ?)
+        )
       ORDER BY res.ended_at DESC LIMIT 1`,
-    [userId]
+    [userId, userId]
   );
   return row ? resultOf(row.id) : null;
 }

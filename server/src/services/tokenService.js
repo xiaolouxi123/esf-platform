@@ -36,6 +36,10 @@ async function issueLaunchToken(userId, serverKey, options = {}) {
   if (purpose === 'spectate') {
     if (!challenge.active) throw badRequest('这台服务器当前没有进行中的约战');
     if (challenge.participant) throw badRequest('参赛玩家不能以观战身份进入');
+    await q(
+      'INSERT IGNORE INTO challenge_spectators (room_id, user_id) VALUES (?, ?)',
+      [challenge.room.id, userId]
+    );
   } else if (challenge.active) {
     if (!challenge.participant) {
       throw new ApiError(409, 'CHALLENGE_LOCKED', '该服务器正在进行约战，只有参赛玩家或观战者可以进入');
