@@ -13,12 +13,15 @@
 4. 平台为参赛者签发 `purpose=join` 的启动令牌，为观战者签发
    `purpose=spectate` 的令牌。
 5. AMXX：
-   - `esf_platform_auth` 校验令牌并写入 `_platform_spectator`。
+   - `esf_platform_auth` 校验令牌，写入 `_platform_spectator`，并在
+     `platform_sync_name 1`（默认）时把游戏内昵称改成平台资料的游戏昵称。
    - `esf_ranked_lock` 识别 live challenge：
      - 参赛者放行；
      - `purpose=spectate` 放行并执行 `spectate`；
      - 其他玩家踢出。
-   - `test_ranked` 按房间规则统计击杀/死亡，达到阈值后：
+   - `test_ranked` 进服后先做 2.2/6.2/12.2 秒识别，并每 20 秒重试一次
+     （最多约 10 分钟），避免房间晚于 12 秒开赛时漏识别；识别后按房间规则
+     统计击杀/死亡，达到阈值后：
      - 写 `challenge_player_stats`；
      - 调用 `settle_challenge_match` 写 `challenge_results` 并关闭房间；
      - 5 秒后所有真人 `quit` 回平台。
@@ -50,7 +53,8 @@
 
 ## 游戏服部署
 
-部署包：`esf-challenge-plugins-0.4.5-r9.zip`
+部署包：`esf-challenge-plugins-0.4.5-r10.zip`
+（53,849 字节，SHA256 `86A73E483E08907C2FB9C948E8A97FDCAE1C0D52FEEDD877748BFA72343BB888`）
 
 1. 备份 `addons/amxmodx/configs/plugins.ini` 和 `amxx.cfg`。
 2. 以管理员运行 `install-amxx.bat`；测试期可直接运行 `install-amxx.bat -AllowGuest`。
@@ -60,10 +64,10 @@
 需要四个插件：
 
 ```text
-esf_platform_auth.amxx
-esf_ranked_lock.amxx
-esf_gamemode.amxx
-test_ranked.amxx
+esf_platform_auth.amxx   6610 bytes
+esf_ranked_lock.amxx     4783 bytes
+esf_gamemode.amxx        1238 bytes
+test_ranked.amxx        30046 bytes
 ```
 
 游戏服数据库必须与平台 API 使用同一套 `esf_platform`，或已执行同样的
@@ -81,16 +85,27 @@ platform_allow_guest "1"
 改为 `1`。含非 ASCII 字符的配置不会被自动改写，需手动修改。
 过期/未知 token 在 `platform_allow_guest 1` 时也按 guest 放行，避免旧凭证把玩家挡在门外。
 
+进服自动同步昵称由 `platform_sync_name` 控制，默认 `1`：
+
+```cfg
+platform_sync_name "1"
+```
+
+合法平台玩家验证通过后，游戏内昵称会改成平台资料里的游戏昵称；guest 不做改名。
+关闭时保持客户端原名，只受 `platform_require_name` 约束。
+
 ## 已验证 / 待验证
 
 已验证：
 
-- 前端 lint/build、启动器测试、服务端 59/59。
+- 前端 lint/build、启动器测试 21+39、服务端 74/74。
 - 生产 API `/api/challenges`、`/api/servers` 冒烟。
-- AMXX 编译通过。
+- AMXX 编译通过（auth 6,610；lock 4,783；test_ranked 30,046；gamemode 1,238）。
 - 本地 HLDS 可加载四个插件并连接数据库。
 - `platform_allow_guest` 已编译进 1.1.0 身份插件，源码回归测试 5/5 通过。
-- r9 安装器在临时 AMXX 目录验证：`-AllowGuest` 会补写 `platform_allow_guest "1"`，也会把已有的 `"0"` 改为 `"1"`；无开关时保持 `"0"`。
+- `platform_sync_name` 默认 1，验证通过后自动同步游戏内昵称。
+- `test_ranked` 约战识别在 12.2 秒后每 20 秒重试，最多 30 次；断线会清理重试任务。
+- r10 安装器在临时 AMXX 目录验证：`-AllowGuest` 会补写 `platform_allow_guest "1"`，也会把已有的 `"0"` 改为 `"1"`；无开关时保持 `"0"`；缺少 `platform_sync_name` 时补 `"1"`。
 
 待验证：
 

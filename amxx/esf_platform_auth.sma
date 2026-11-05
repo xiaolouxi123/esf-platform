@@ -41,7 +41,7 @@ enum DbStatus {
 }
 
 new g_pcHost, g_pcUser, g_pcPass, g_pcDb;
-new g_pcServerKey, g_pcEnforce, g_pcFailOpen, g_pcDebug, g_pcRequireName, g_pcAllowGuest;
+new g_pcServerKey, g_pcEnforce, g_pcFailOpen, g_pcDebug, g_pcRequireName, g_pcAllowGuest, g_pcSyncName;
 
 new bool:g_authed[MAX_PLAYERS_ARRAY];
 new g_userId[MAX_PLAYERS_ARRAY];
@@ -59,6 +59,7 @@ public plugin_init() {
     g_pcServerKey = register_cvar("platform_server_key", "");         // 必须和数据库 servers.server_key 一致
     g_pcEnforce   = register_cvar("platform_enforce", "1");           // 1=不通过就踢
     g_pcAllowGuest = register_cvar("platform_allow_guest", "0");       // 1=测试期放行非平台玩家（不进平台会话/统计）
+    g_pcSyncName  = register_cvar("platform_sync_name", "1");         // 1=进服自动把游戏名改成平台 game_name
     g_pcFailOpen  = register_cvar("platform_fail_open", "1");         // 1=数据库挂了放行，避免锁死服务器
     g_pcDebug     = register_cvar("platform_debug", "0");
     g_pcRequireName = register_cvar("platform_require_name", "0");
@@ -268,8 +269,14 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
         set_user_info(id, "_platform_spectator", "1");
     }
 
+    // 进服自动使用平台游戏昵称；平台已限制同名，避免游戏内出现重名玩家。
+    if (get_pcvar_num(g_pcSyncName)) {
+        set_user_info(id, "name", name);
+        log_amx("[Platform] 自动同步游戏昵称 id=%d name=%s", id, name);
+    }
+
     // 可选：强制游戏昵称与平台 game_name 一致（默认关闭，避免彩色名字/改名误伤）
-    if (get_pcvar_num(g_pcRequireName)) {
+    if (!get_pcvar_num(g_pcSyncName) && get_pcvar_num(g_pcRequireName)) {
         new clientName[32];
         get_user_name(id, clientName, charsmax(clientName));
         if (!equal(clientName, name)) {

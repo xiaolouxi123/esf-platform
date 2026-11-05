@@ -31,6 +31,8 @@
 #define TASK_SERVER 1032
 #define TASK_RANKED 4100
 #define TASK_CHALLENGE 4500
+#define TASK_CHALLENGE_RETRY 4600
+#define CHALLENGE_RETRY_LIMIT 30
 #define TASK_QUIT   4300
 #define esf_get_advancedmelee(%1) get_pdata_int(%1, 298)
 
@@ -87,6 +89,7 @@ new bool:g_rankedSettled = false;
 new g_challengeRoomId = 0;
 new g_challengeKnown = 0;
 new g_challengeTeam[33];
+new g_challengeRetry[33];
 new g_challengeUserId[33];
 new g_challengeBaseKills[33];
 new g_challengeBaseDeaths[33];
@@ -120,6 +123,7 @@ public client_putinserver(id)
     g_userCount[id]=0;
     g_rankedTeam[id]=0;
     g_challengeTeam[id]=0;
+    g_challengeRetry[id]=0;
     g_challengeUserId[id]=0;
     g_challengeBaseKills[id]=get_user_frags(id);
     g_challengeBaseDeaths[id]=get_user_deaths(id);
@@ -157,6 +161,23 @@ public client_putinserver(id)
     set_task(2.2, "taskChallengeIdentify", TASK_CHALLENGE + id);
     set_task(6.2, "taskChallengeIdentify", TASK_CHALLENGE + id);
     set_task(12.2, "taskChallengeIdentify", TASK_CHALLENGE + id);
+    // 约战房间可能在进服 12 秒后才开赛；低频重试最多约 10 分钟，避免漏识别。
+    set_task(20.0, "taskChallengeRetry", TASK_CHALLENGE_RETRY + id, _, _, "b");
+}
+
+public taskChallengeRetry(taskid)
+{
+    new id = taskid - TASK_CHALLENGE_RETRY;
+    if (!is_user_connected(id)
+        || g_challengeTeam[id] != 0
+        || g_challengeRetry[id] >= CHALLENGE_RETRY_LIMIT)
+    {
+        remove_task(taskid);
+        return;
+    }
+
+    g_challengeRetry[id]++;
+    taskChallengeIdentify(TASK_CHALLENGE + id);
 }
 
 // 处理玩家修改名字函数
@@ -208,6 +229,8 @@ public client_disconnected(id)
 
     remove_task(id+TASK_LoginCountDown);
     remove_task(id+TASK_ID);
+    remove_task(TASK_CHALLENGE_RETRY + id);
+    g_challengeRetry[id] = 0;
 }
 
 //阻止优化系统发来的消息

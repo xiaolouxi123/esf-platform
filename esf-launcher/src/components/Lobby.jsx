@@ -36,6 +36,7 @@ export default function Lobby({
   onLogout,
   onAvatarChange,
   onAvatarData,
+  onGameNameChange,
 }) {
   const [page, setPage] = useState('lobby');
   const [maps, setMaps] = useState([]);
@@ -1454,6 +1455,7 @@ export default function Lobby({
           toast={toast}
           onAvatarChange={onAvatarChange}
           onAvatarData={onAvatarData}
+          onGameNameChange={onGameNameChange}
         />
       )}
     </div>

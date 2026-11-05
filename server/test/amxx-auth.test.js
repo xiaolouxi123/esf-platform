@@ -35,6 +35,19 @@ test('expired or unknown token also falls back to guest when enabled', () => {
   assert.match(noRows[1], /allowGuestEntry/);
 });
 
+test('platform name sync is enabled by default and uses the verified name', () => {
+  assert.match(
+    source,
+    /register_cvar\("platform_sync_name",\s*"1"\)/,
+    'platform_sync_name 应默认开启',
+  );
+  assert.match(
+    source,
+    /set_user_info\(id,\s*"name",\s*name\)/,
+    '验证通过后应把游戏昵称同步为平台 game_name',
+  );
+});
+
 test('guest entry does not forge a platform session', () => {
   const guest = source.match(/stock allowGuestEntry\([\s\S]*?\n\}/);
   assert.ok(guest, '未找到 allowGuestEntry');

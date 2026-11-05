@@ -112,6 +112,7 @@ export default function RegisterPage({ onRegister, onGoLogin, inviteRequired }) 
                   value={form.username}
                   autoFocus
                   autoComplete="username"
+                  maxLength={20}
                   placeholder="wo_shi_5"
                   onChange={update('username')}
                 />
@@ -124,12 +125,14 @@ export default function RegisterPage({ onRegister, onGoLogin, inviteRequired }) 
                 <input
                   type="text"
                   value={form.gameName}
+                  maxLength={16}
                   placeholder="留空则用账号"
                   onChange={update('gameName')}
                 />
               </div>
             </label>
           </div>
+          <p className="auth-note">账号注册后不可修改；游戏昵称不能与已有玩家重复，每天可修改 1 次。</p>
 
           <div className="field-row">
             <label className="field">

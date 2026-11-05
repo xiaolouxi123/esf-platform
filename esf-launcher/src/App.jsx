@@ -100,8 +100,16 @@ export default function App() {
 
   const handleLogin = async ({ username, password }) => {
     const result = await window.electronAPI.auth.login(username, password);
-    setUser(result.user);
-    showToast(`欢迎回来，${result.user.gameName || result.user.username}`, 'ok');
+    let me = result.user;
+    try {
+      // 登录响应只带基础字段；再拉一次 /me 获取改名冷却等资料元数据。
+      const fresh = await window.electronAPI.auth.me();
+      if (fresh?.user) me = fresh.user;
+    } catch {
+      /* 元数据拿不到时不影响登录 */
+    }
+    setUser(me);
+    showToast(`欢迎回来，${me.gameName || me.username}`, 'ok');
     await checkBackend();
   };
 
@@ -156,6 +164,12 @@ export default function App() {
     }
   };
 
+  const handleGameNameChange = async (gameName) => {
+    const result = await window.electronAPI.auth.updateProfile({ gameName });
+    setUser(result.user);
+    showToast('游戏昵称已更新，进入服务器会自动同步', 'ok');
+  };
+
   if (booting) return <Splash message={bootMessage} />;
 
   return (
@@ -172,6 +186,7 @@ export default function App() {
           onLogout={handleLogout}
           onAvatarChange={handleAvatarChange}
           onAvatarData={handleAvatarData}
+          onGameNameChange={handleGameNameChange}
         />
       ) : (
         <div className="auth-shell">

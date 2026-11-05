@@ -9,6 +9,13 @@ import { isStaff } from '../lib/format';
  */
 const AVATAR_CHOICES = ['🐉', '🔥', '⚡', '🛡️', '🐒', '🥋', '💫', '👑'];
 
+function nextNameChangeLabel(value) {
+  if (!value) return '明天';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '明天';
+  return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+}
+
 function fileToAvatar(file) {
   return new Promise((resolve, reject) => {
     if (!file || !String(file.type).startsWith('image/')) {
@@ -49,11 +56,14 @@ export default function SettingsDrawer({
   onLogout,
   onAvatarChange,
   onAvatarData,
+  onGameNameChange,
   toast,
 }) {
   const [draft, setDraft] = useState(settings || {});
   const [busy, setBusy] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [nameDraft, setNameDraft] = useState(user?.gameName || '');
+  const [savingName, setSavingName] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [autoStatus, setAutoStatus] = useState(null);
   const [checking, setChecking] = useState(false);
@@ -73,6 +83,21 @@ export default function SettingsDrawer({
       toast?.(err.message, 'error');
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const saveGameName = async () => {
+    const next = nameDraft.trim();
+    if (!next || next === user?.gameName) return;
+
+    setSavingName(true);
+    try {
+      await onGameNameChange?.(next);
+      setNameDraft(next);
+    } catch (err) {
+      toast?.(err.message, 'error');
+    } finally {
+      setSavingName(false);
     }
   };
 
@@ -293,6 +318,50 @@ export default function SettingsDrawer({
               ) : null}
             </div>
             <p className="drawer-hint">支持 jpg / png / webp，自动裁成方形，建议用清晰的头像图。</p>
+
+            <div className="profile-name-block">
+              <label className="profile-name-field">
+                <span className="field-label">账号</span>
+                <div className="profile-name-readonly">
+                  <Icon name="user" size={14} />
+                  <b>{user?.username || '—'}</b>
+                  <em>不可修改</em>
+                </div>
+              </label>
+
+              <label className="profile-name-field">
+                <span className="field-label">游戏昵称</span>
+                <div className="profile-name-row">
+                  <input
+                    className="profile-name-input"
+                    type="text"
+                    maxLength={16}
+                    value={nameDraft}
+                    disabled={!user?.canChangeGameName || savingName}
+                    onChange={(event) => setNameDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        saveGameName();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={!user?.canChangeGameName || savingName || !nameDraft.trim() || nameDraft.trim() === user?.gameName}
+                    onClick={saveGameName}
+                  >
+                    {savingName ? <span className="spinner" /> : '保存'}
+                  </button>
+                </div>
+                <small className={`profile-name-hint${user?.canChangeGameName ? '' : ' is-locked'}`}>
+                  {user?.canChangeGameName
+                    ? '每天可修改 1 次，进入服务器会自动同步'
+                    : `今天已修改，${nextNameChangeLabel(user?.nextGameNameChangeAt)} 后可再改`}
+                </small>
+              </label>
+            </div>
 
             <div className="drawer-actions">
               <button type="button" className="btn btn-ghost btn-block" onClick={onLogout}>

@@ -514,8 +514,8 @@ export default function ChallengePage({
                   onChange={(event) => setForm((prev) => ({ ...prev, map: event.target.value }))}
                 />
               </label>
-              <label className="challenge-field">
-                <span>服务器（开赛后锁定）</span>
+              <label className="challenge-field challenge-field--wide">
+                <span>比赛服务器（开赛后自动锁服）</span>
                 <select
                   value={form.serverKey}
                   onChange={(event) => setForm((prev) => ({ ...prev, serverKey: event.target.value }))}
@@ -532,7 +532,15 @@ export default function ChallengePage({
               </label>
 
               <div className="challenge-victory-field">
-                <span>胜利条件</span>
+                <div className="challenge-victory-head">
+                  <span className="challenge-victory-icon">
+                    <Icon name="swords" size={14} />
+                  </span>
+                  <span>
+                    <b>胜利条件</b>
+                    <small>平台创建房间后自动下发到服务器，达到即结束</small>
+                  </span>
+                </div>
                 <div className="challenge-victory-row">
                   <select
                     value={form.victoryType}
@@ -545,6 +553,7 @@ export default function ChallengePage({
                     type="number"
                     min={3}
                     max={50}
+                    inputMode="numeric"
                     value={form.victoryLimit}
                     onChange={(event) =>
                       setForm((prev) => ({ ...prev, victoryLimit: event.target.value }))
@@ -552,7 +561,9 @@ export default function ChallengePage({
                   />
                   <em>次</em>
                 </div>
-                <small>达到条件立即结束；不结算排位分，双方按总击杀/死亡判定胜负。</small>
+                <p className="challenge-victory-hint">
+                  不结算排位分；双方按总击杀 / 死亡判定胜负，结束后 5 秒自动退出游戏。
+                </p>
               </div>
 
               <button

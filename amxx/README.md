@@ -40,18 +40,19 @@ amxxpc.exe $tmp -i"include" -o"..\plugins\esf_platform_auth.amxx"
 
 ```cfg
 // 身份校验
-platform_sql_host "127.0.0.1:3306"
+platform_sql_host "<平台MySQL主机>:<端口>"
 platform_sql_user "esf_amxx"
 platform_sql_pass "CHANGE_ME"
 platform_sql_db "esf_platform"
 platform_server_key "fcx-1v1-1"
 platform_enforce "1"
 platform_allow_guest "0"
+platform_sync_name "1"
 platform_fail_open "1"
 platform_require_name "0"
 
 // 排位锁服 / 比赛结果回写
-ranked_sql_host "127.0.0.1:3306"
+ranked_sql_host "<平台MySQL主机>:<端口>"
 ranked_sql_user "esf_amxx"
 ranked_sql_pass "CHANGE_ME"
 ranked_sql_db "esf_platform"
@@ -72,11 +73,15 @@ battle_quit_delay "5.0"
 数据库账号需要：
 
 - `SELECT` on `v_platform_users`, `launch_tokens`, `ranked_matches`, `ranked_match_players`
+- `SELECT` on `challenge_rooms`, `challenge_room_players`, `challenge_configs`
+- `SELECT, INSERT, UPDATE` on `challenge_player_stats`
 - `SELECT, INSERT, UPDATE` on `play_sessions`
-- `EXECUTE` on `settle_ranked_match`
+- `EXECUTE` on `settle_ranked_match`, `settle_challenge_match`
 
 ## 行为
 
+- 合法平台玩家验证通过后，游戏内昵称自动同步为平台资料里的游戏昵称
+- 约战房间晚于进服 12 秒开赛时，插件每 20 秒重试识别，最多约 10 分钟
 - 比赛期间非参赛玩家进服会被提示并踢出
 - 2v2：双方各 2 人，开赛后禁止换队
 - 一方队伍全部出局 → 调用 `settle_ranked_match` 更新平台战绩
@@ -93,5 +98,6 @@ battle_quit_delay "5.0"
 
 - 本地 listen server 的房主无法被引擎踢出，本地测试请把 `platform_enforce` 设为 `0`
 - 平台推广前如要让非平台玩家进服测试：`platform_allow_guest "1"`。此时无 token/坏 token 只放行进服，不写入平台会话、排位/约战识别或战绩；推广上线后应改回 `0`，否则任何人都能绕过平台身份。
+- `platform_sync_name "1"` 会在平台身份验证通过后，把游戏内昵称自动改成平台资料里的游戏昵称；关闭时保持玩家客户端原名，只受 `platform_require_name` 约束。
 - 机器人没有平台 token，不参与战绩回写
 - 源码中的中文日志建议统一用英文，避免 AMXX 日志按本地代码页读取时乱码

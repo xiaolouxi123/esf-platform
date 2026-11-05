@@ -101,6 +101,13 @@ async function main() {
       'avatar',
       "VARCHAR(16) NOT NULL DEFAULT '' COMMENT '头像（emoji 或留空）' AFTER game_name"
     );
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'users',
+      'game_name_updated_at',
+      "DATETIME NULL COMMENT '游戏昵称最近修改时间（自然日限改一次）' AFTER game_name"
+    );
     // 资源封面（支持动图，原样保存）
     const coverColumns = [
       ['cover_name', 'VARCHAR(255) NULL AFTER sha256'],

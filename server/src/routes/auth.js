@@ -18,7 +18,13 @@ const registerSchema = z.object({
     .trim()
     .regex(/^[A-Za-z0-9_]{3,20}$/, '账号需 3~20 位字母/数字/下划线'),
   password: z.string().min(8, '密码至少 8 位').max(72, '密码最长 72 位'),
-  gameName: z.string().trim().min(1).max(16).optional(),
+  gameName: z
+    .string()
+    .trim()
+    .min(1, '游戏昵称不能为空')
+    .max(16, '游戏昵称最长 16 个字符')
+    .regex(/^[^\x00-\x1f"\\]+$/, '游戏昵称不能包含引号、反斜杠或控制字符')
+    .optional(),
   inviteCode: z.string().trim().max(64).optional(),
 });
 
@@ -67,10 +73,18 @@ router.post('/register', registerLimiter, async (req, res, next) => {
     const exists = await one('SELECT id FROM users WHERE username = ? LIMIT 1', [body.username]);
     if (exists) throw conflict('账号已被注册');
 
+    // 账号是唯一且不可改的；游戏昵称也查重，避免大厅里出现两个同名玩家。
+    const gameName = body.gameName || body.username;
+    const nameTaken = await one(
+      'SELECT id FROM users WHERE game_name = ? OR username = ? LIMIT 1',
+      [gameName, gameName]
+    );
+    if (nameTaken) throw conflict('游戏昵称已被使用，请换一个');
+
     const hash = await bcrypt.hash(body.password, env.bcryptRounds);
     const result = await q(
       'INSERT INTO users (username, password_hash, game_name) VALUES (?, ?, ?)',
-      [body.username, hash, body.gameName || body.username]
+      [body.username, hash, gameName]
     );
 
     const user = await one(

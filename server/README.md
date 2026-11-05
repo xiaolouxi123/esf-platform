@@ -24,7 +24,7 @@ npm start            # http://127.0.0.1:3000
 ```bash
 curl http://127.0.0.1:3000/api/health
 npm run smoke        # 注册→登录→大厅→签发连服 Token 全链路
-npm test             # 24 项接口测试
+npm test             # 74 项接口/AMXX 回归测试
 ```
 
 > 开发库是**项目自己的实例**，数据目录在 `../.devdb/`（已 gitignore）。
@@ -44,7 +44,7 @@ npm test             # 24 项接口测试
 | POST | `/api/auth/logout` | JWT | `token_version + 1`，所有旧 JWT 立即失效 |
 | GET | `/api/me` | JWT | 当前用户（启动器自动登录探针） |
 | GET | `/api/me/stats` | JWT | 进场次数 / 累计时长 / 最近一次（来自 `play_sessions`） |
-| PATCH | `/api/me` | JWT | 改昵称 / 改密码（需旧密码） |
+| PATCH | `/api/me` | JWT | 改游戏昵称（每天 1 次）/ 改密码（需旧密码）；账号名不可改 |
 | POST | `/api/launch-token` | JWT | `{serverKey}` → 32 位 hex Token，TTL 120s |
 | GET | `/api/servers` | JWT | 服务器 + A2S 状态缓存 |
 | GET | `/api/servers/lookup?address=IP:PORT` | JWT | 现场查询任意地址，返回是否已在平台登记 |
@@ -96,7 +96,8 @@ npm run user:role -- list
 ## 账号约定
 
 - `users.username`：登录名，3~20 位字母/数字/下划线（避免大小写与中文带来的歧义）
-- `users.game_name`：游戏内昵称，允许中文（utf8mb4）
+- `users.game_name`：游戏内昵称，允许中文（utf8mb4）；注册时与账号名/其他昵称查重，进入游戏服后由 AMXX 自动同步
+- `users.game_name_updated_at`：最近一次游戏昵称修改时间，用于“每天只能改 1 次”
 - `role`：`user` / `gm` / `admin`；`status`：`active` / `banned`
 - 密码 bcrypt（cost 10），登录失败写 `login_logs`
 
