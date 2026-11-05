@@ -50,7 +50,7 @@
 
 ## 游戏服部署
 
-部署包：`esf-challenge-plugins-0.4.5-r8.zip`
+部署包：`esf-challenge-plugins-0.4.5-r9.zip`
 
 1. 备份 `addons/amxmodx/configs/plugins.ini` 和 `amxx.cfg`。
 2. 以管理员运行 `install-amxx.bat`；测试期可直接运行 `install-amxx.bat -AllowGuest`。
@@ -76,9 +76,10 @@ platform_allow_guest "1"
 ```
 
 该开关只放行进服，不伪造平台身份，也不写平台会话、排位/约战识别或战绩。
-正式推广后必须改回 `0`。r8 安装器会给缺少该配置的 `amxx.cfg` 补上默认 `0` 的行；
+正式推广后必须改回 `0`。r9 安装器会给缺少该配置的 `amxx.cfg` 补上默认 `0` 的行；
 测试期使用 `-AllowGuest` 时，会补写 `1`，或把已有的 `platform_allow_guest "0"`
 改为 `1`。含非 ASCII 字符的配置不会被自动改写，需手动修改。
+过期/未知 token 在 `platform_allow_guest 1` 时也按 guest 放行，避免旧凭证把玩家挡在门外。
 
 ## 已验证 / 待验证
 
@@ -88,8 +89,8 @@ platform_allow_guest "1"
 - 生产 API `/api/challenges`、`/api/servers` 冒烟。
 - AMXX 编译通过。
 - 本地 HLDS 可加载四个插件并连接数据库。
-- `platform_allow_guest` 已编译进 1.1.0 身份插件，源码回归测试 4/4 通过。
-- r8 安装器在临时 AMXX 目录验证：`-AllowGuest` 会补写 `platform_allow_guest "1"`，也会把已有的 `"0"` 改为 `"1"`；无开关时保持 `"0"`。
+- `platform_allow_guest` 已编译进 1.1.0 身份插件，源码回归测试 5/5 通过。
+- r9 安装器在临时 AMXX 目录验证：`-AllowGuest` 会补写 `platform_allow_guest "1"`，也会把已有的 `"0"` 改为 `"1"`；无开关时保持 `"0"`。
 
 待验证：
 

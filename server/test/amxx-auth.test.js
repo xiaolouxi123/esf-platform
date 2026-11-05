@@ -28,6 +28,13 @@ test('guest switch only bypasses token checks when explicitly enabled', () => {
   assert.match(badToken[1], /allowGuestEntry/);
 });
 
+test('expired or unknown token also falls back to guest when enabled', () => {
+  const noRows = source.match(/if \(SQL_NumResults\(query\) == 0\) \{([\s\S]*?)\n    \}/);
+  assert.ok(noRows, '未找到无查询结果分支');
+  assert.match(noRows[1], /get_pcvar_num\(g_pcAllowGuest\)/);
+  assert.match(noRows[1], /allowGuestEntry/);
+});
+
 test('guest entry does not forge a platform session', () => {
   const guest = source.match(/stock allowGuestEntry\([\s\S]*?\n\}/);
   assert.ok(guest, '未找到 allowGuestEntry');

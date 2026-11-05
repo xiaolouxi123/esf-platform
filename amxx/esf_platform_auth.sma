@@ -246,6 +246,12 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
     if (!is_user_connected(id)) return;
 
     if (SQL_NumResults(query) == 0) {
+        // 测试期放行：旧 token / 过期 token 不让玩家卡在门外，
+        // 但同样不写平台会话或战绩。
+        if (get_pcvar_num(g_pcAllowGuest)) {
+            allowGuestEntry(id, "平台凭证无效或已过期");
+            return;
+        }
         rejectPlayer(id, "平台凭证无效、已过期或已被使用，请重新从平台启动");
         return;
     }

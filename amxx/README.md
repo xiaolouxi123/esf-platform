@@ -21,6 +21,19 @@ amxxpc.exe esf_ranked_lock.sma -i"include" -o"..\plugins\esf_ranked_lock.amxx"
 amxxpc.exe test_ranked.sma -i"include" -o"..\plugins\test_ranked.amxx"
 ```
 
+`amxxpc.exe` 1.10 直接编译 UTF-8 中文源码会报
+`error 037: invalid string` / `error 027: invalid character constant`。
+编译前先把源码转成 GBK 临时副本，再让 `amxxpc` 编译该副本：
+
+```powershell
+$src = 'esf_platform_auth.sma'
+$tmp = Join-Path $env:TEMP 'auth-build.sma'
+[IO.File]::WriteAllText($tmp, [IO.File]::ReadAllText($src), [Text.Encoding]::GetEncoding(936))
+amxxpc.exe $tmp -i"include" -o"..\plugins\esf_platform_auth.amxx"
+```
+
+不要为了编译把仓库源码改成 GBK；仓库源码保持 UTF-8。
+
 ## 配置
 
 在 `addons/amxmodx/configs/amxx.cfg`：
