@@ -50,7 +50,7 @@
 
 ## 游戏服部署
 
-部署包：`esf-challenge-plugins-0.4.5.zip`
+部署包：`esf-challenge-plugins-0.4.5-r5.zip`
 
 1. 备份 `addons/amxmodx/configs/plugins.ini` 和 `amxx.cfg`。
 2. 以管理员运行 `install-amxx.bat`。
@@ -68,6 +68,15 @@ test_ranked.amxx
 
 游戏服数据库必须与平台 API 使用同一套 `esf_platform`，或已执行同样的
 `011/012` 迁移与存储过程。
+
+平台推广前如需让非平台玩家进服测试，在 `amxx.cfg` 加：
+
+```cfg
+platform_allow_guest "1"
+```
+
+该开关只放行进服，不伪造平台身份，也不写平台会话、排位/约战识别或战绩。
+正式推广后必须改回 `0`。
 
 ## 已验证 / 待验证
 
