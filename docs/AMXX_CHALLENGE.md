@@ -50,7 +50,7 @@
 
 ## 游戏服部署
 
-部署包：`esf-challenge-plugins-0.4.5-r5.zip`
+部署包：`esf-challenge-plugins-0.4.5-r6.zip`
 
 1. 备份 `addons/amxmodx/configs/plugins.ini` 和 `amxx.cfg`。
 2. 以管理员运行 `install-amxx.bat`。
@@ -76,7 +76,8 @@ platform_allow_guest "1"
 ```
 
 该开关只放行进服，不伪造平台身份，也不写平台会话、排位/约战识别或战绩。
-正式推广后必须改回 `0`。
+正式推广后必须改回 `0`。r6 安装器会给缺少该配置的 `amxx.cfg` 补上默认 `0` 的行，
+已有配置不会被覆盖。
 
 ## 已验证 / 待验证
 
