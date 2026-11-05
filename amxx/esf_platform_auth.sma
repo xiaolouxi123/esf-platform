@@ -48,6 +48,7 @@ new g_userId[MAX_PLAYERS_ARRAY];
 new g_tokenId[MAX_PLAYERS_ARRAY];
 new g_startedAt[MAX_PLAYERS_ARRAY];
 new g_verifyAttempts[MAX_PLAYERS_ARRAY];
+new g_rejectReason[MAX_PLAYERS_ARRAY][64];
 
 public plugin_init() {
     register_plugin(PLUGIN, VERSION, AUTHOR);
@@ -367,7 +368,8 @@ rejectPlayer(id, const reason[]) {
     new name[32], serverKey[34];
     get_user_name(id, name, charsmax(name));
     get_pcvar_string(g_pcServerKey, serverKey, charsmax(serverKey));
-    log_amx("[Platform] reject id=%d server=%s name=%s", id, serverKey, name);
+    copy(g_rejectReason[id], 63, reason);
+    log_amx("[Platform] reject id=%d server=%s name=%s reason=%s", id, serverKey, name, reason);
 
     client_print(id, print_chat, "[平台] %s", reason);
 
@@ -380,8 +382,8 @@ rejectPlayer(id, const reason[]) {
 public taskKick(taskid) {
     new id = taskid - TASK_KICK;
     if (is_user_connected(id)) {
-        log_amx("[Platform] 执行踢出 id=%d", id);
-        server_cmd("kick #%d", get_user_userid(id));
+        log_amx("[Platform] 执行踢出 id=%d reason=%s", id, g_rejectReason[id]);
+        server_cmd("kick #%d ^"%s^"", get_user_userid(id), g_rejectReason[id]);
     }
 }
 

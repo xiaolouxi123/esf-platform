@@ -59,6 +59,8 @@ export default function Lobby({
   const [favMaps, setFavMaps] = useState(() => loadFavoriteSet(FAV_MAPS));
   const [combatRanks, setCombatRanks] = useState(DEFAULT_RANKS);
   const [challengeResult, setChallengeResult] = useState(null);
+  const autoJoinRef = useRef(null);
+  const joinServerRef = useRef(null);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [releaseNotice, setReleaseNotice] = useState(null);
   const [autoUpdate, setAutoUpdate] = useState(null);
@@ -132,18 +134,39 @@ export default function Lobby({
     const checkResult = async () => {
       try {
         const data = await window.electronAPI.challenges?.state();
+        if (!alive) return;
+        const room = data?.myRoom;
+        if (room?.status === 'live' && room.server) {
+          const roomId = String(room.id);
+          if (autoJoinRef.current !== roomId) {
+            autoJoinRef.current = roomId;
+            joinServerRef.current?.(room.server);
+          }
+        } else if (!room) {
+          autoJoinRef.current = null;
+        }
         const result = data?.lastResult;
-        if (!alive || !result?.roomId) return;
+        if (!result?.roomId) return;
         const seen = localStorage.getItem('esf:seenChallengeResult');
         if (String(result.roomId) !== seen) {
-          setChallengeResult(result);
+          // 只对刚结束的比赛强制收游戏，避免启动器翻出 2 小时内的旧结果误杀新进程。
+          const endedAt = result.endedAt ? new Date(result.endedAt).getTime() : 0;
+          const fresh = endedAt > 0 && Date.now() - endedAt < 10 * 60 * 1000;
+          if (fresh) {
+            try {
+              await window.electronAPI.launch.stop();
+            } catch {
+              /* 游戏已退出或进程关闭失败时仍展示结果 */
+            }
+          }
+          if (alive) setChallengeResult(result);
         }
       } catch {
         /* 平台或网络不可用时静默 */
       }
     };
     checkResult();
-    const timer = window.setInterval(checkResult, 15000);
+    const timer = window.setInterval(checkResult, 5000);
     return () => {
       alive = false;
       window.clearInterval(timer);
@@ -588,6 +611,9 @@ export default function Lobby({
       setJoinBusyKey('');
     }
   };
+  useEffect(() => {
+    joinServerRef.current = joinServer;
+  });
 
   const spectateServer = async (server) => {
     if (platformState.maintenance) {

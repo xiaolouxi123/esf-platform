@@ -33,6 +33,7 @@
 #define TASK_CHALLENGE 4500
 #define TASK_CHALLENGE_RETRY 4600
 #define CHALLENGE_RETRY_LIMIT 30
+#define TASK_CHALLENGE_END 4700
 #define TASK_QUIT   4300
 #define esf_get_advancedmelee(%1) get_pdata_int(%1, 298)
 
@@ -219,7 +220,9 @@ public client_disconnected(id)
 
     if(g_iBattle)
     {
-        if(checkChallengeFinish() || checkRankedFinish())
+        // 约战结算必须等异步结果落库；这里不能和排位共用立即 resetAll 的分支。
+        new bool:challengeEnded = checkChallengeFinish();
+        if(!challengeEnded && checkRankedFinish())
         {
             resetAll();
         }
@@ -562,7 +565,18 @@ bool:checkChallengeFinish() {
         g_challengeVictory, g_challengeLimit);
     client_print(0, print_chat, "[约战] 比赛结束，%s队获胜 %d:%d，正在上传战绩...",
         g_challengeWinner[0] == 'a' ? "A" : "B", g_challengeScoreA, g_challengeScoreB);
+
+    // 数据库/存储过程异常时兜底结束，避免玩家永远卡在“正在上传战绩”。
+    set_task(12.0, "taskForceChallengeEnd", TASK_CHALLENGE_END);
     return true;
+}
+
+public taskForceChallengeEnd()
+{
+    if (!g_iBattle || !g_challengeSettled) return;
+    log_amx("[约战] 结算等待超时，强制结束 room=%d", g_challengeRoomId);
+    client_print(0, print_chat, "[约战] 结算超时，已结束本场比赛。");
+    resetAll();
 }
 
 public OnChallengeStatsSaved(failstate, Handle:query, error[], errnum, data[], dataSize) {
@@ -585,6 +599,10 @@ public OnChallengeSettled(failstate, Handle:query, error[], errnum, data[], data
         log_amx("[约战] 结果写入成功 room=%d", g_challengeRoomId);
     }
     SQL_FreeHandle(query);
+
+    // 结果落库后再结束/退出，给平台留出读取 lastResult 的时间。
+    remove_task(TASK_CHALLENGE_END);
+    resetAll();
 }
 
 /** 一方平台队员全部出局时，自动结算 */
@@ -1654,7 +1672,14 @@ public PlayerPreThink(id)
     if(g_BattleState == false ) return FMRES_IGNORED;
 
     // 约战优先：按击杀/死亡阈值结算；排位则按队伍全灭结算
-    if(checkChallengeFinish() || checkRankedFinish())
+    // 约战必须先等异步战绩/结果落库，不能立即 resetAll 排 5 秒 quit，
+    // 否则数据库慢时客户端已经退出，平台拿不到结果。
+    if(checkChallengeFinish())
+    {
+        return FMRES_HANDLED;
+    }
+
+    if(checkRankedFinish())
     {
         resetAll();
         return FMRES_HANDLED;

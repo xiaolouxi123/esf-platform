@@ -165,6 +165,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     joinCustom: (address) => call('launch:join-custom', { address }),
     local: (map, mode) => call('launch:local', { map, mode }),
     guest: () => call('launch:guest'),
+    stop: () => call('launch:stop'),
   },
 
   plugins: {

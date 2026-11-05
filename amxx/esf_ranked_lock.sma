@@ -32,6 +32,7 @@
 
 new Handle:g_db = Empty_Handle;
 new bool:g_checked[MAX_PLAYERS_ARRAY];
+new g_rejectReason[MAX_PLAYERS_ARRAY][64];
 
 new g_pcHost, g_pcUser, g_pcPass, g_pcDb;
 new g_pcServerKey, g_pcLock, g_pcFailOpen;
@@ -194,7 +195,8 @@ rejectPlayer(id, const reason[]) {
     new name[32], ip[16];
     get_user_name(id, name, charsmax(name));
     get_user_ip(id, ip, charsmax(ip), 1);
-    log_amx("[ranked] rejected id=%d name=%s ip=%s", id, name, ip);
+    copy(g_rejectReason[id], 63, reason);
+    log_amx("[ranked] rejected id=%d name=%s ip=%s reason=%s", id, name, ip, reason);
     client_print(id, print_chat, "[排位赛] %s", reason);
 
     // 本地 listen server 的房主无法被 kick，避免刷错误日志
@@ -209,7 +211,8 @@ rejectPlayer(id, const reason[]) {
 public taskKick(taskid) {
     new id = taskid - TASK_KICK;
     if (is_user_connected(id)) {
-        server_cmd("kick #%d", get_user_userid(id));
+        log_amx("[ranked] kick id=%d reason=%s", id, g_rejectReason[id]);
+        server_cmd("kick #%d ^"%s^"", get_user_userid(id), g_rejectReason[id]);
     }
 }
 

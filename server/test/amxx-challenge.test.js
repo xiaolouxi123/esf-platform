@@ -24,3 +24,27 @@ test('challenge identification still loads the room victory rule', () => {
   assert.match(source, /COALESCE\(c\.victory_limit, 10\)/);
   assert.match(source, /r\.status = 'live'/);
 });
+
+test('challenge disconnect path does not quit before the async result', () => {
+  assert.match(
+    source,
+    /new bool:challengeEnded = checkChallengeFinish\(\);\s*if\(!challengeEnded && checkRankedFinish\(\)\)/,
+    '约战断线结算也不能立即 resetAll',
+  );
+});
+
+test('challenge settlement waits for the async result before quitting', () => {
+  // 命中结算后不能立刻 resetAll（会排 5 秒 quit），否则数据库慢时平台拿不到结果。
+  assert.match(
+    source,
+    /if\(checkChallengeFinish\(\)\)\s*\{\s*return FMRES_HANDLED;\s*\}/,
+    '约战结算应立即返回，不能和排位共用 resetAll 分支',
+  );
+  assert.match(source, /set_task\(12\.0, "taskForceChallengeEnd", TASK_CHALLENGE_END\)/);
+  assert.match(source, /public taskForceChallengeEnd\(\)/);
+  assert.match(
+    source,
+    /remove_task\(TASK_CHALLENGE_END\);\s*resetAll\(\);/,
+    '存储过程回调完成后才 resetAll 排 quit',
+  );
+});

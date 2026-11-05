@@ -901,6 +901,18 @@ handle('launch:guest', async () => {
   return { guest: true, switched };
 });
 
+handle('launch:stop', async () => {
+  let killed = false;
+  try {
+    killed = await stopGameForSwitch();
+  } finally {
+    // 约战结果已落库：即便客户端卡住，也强制关游戏并恢复平台窗口。
+    stopGameWatcher();
+    showMainWindow();
+  }
+  return { killed };
+});
+
 // ---- 本地 AMXX 插件 ----
 function findPluginConfig() {
   const mod = getSettings().esfModDir;
