@@ -33,6 +33,7 @@ platform_sql_pass "CHANGE_ME"
 platform_sql_db "esf_platform"
 platform_server_key "fcx-1v1-1"
 platform_enforce "1"
+platform_allow_guest "0"
 platform_fail_open "1"
 platform_require_name "0"
 
@@ -78,5 +79,6 @@ battle_quit_delay "5.0"
 ## 注意
 
 - 本地 listen server 的房主无法被引擎踢出，本地测试请把 `platform_enforce` 设为 `0`
+- 平台推广前如要让非平台玩家进服测试：`platform_allow_guest "1"`。此时无 token/坏 token 只放行进服，不写入平台会话、排位/约战识别或战绩；推广上线后应改回 `0`，否则任何人都能绕过平台身份。
 - 机器人没有平台 token，不参与战绩回写
 - 源码中的中文日志建议统一用英文，避免 AMXX 日志按本地代码页读取时乱码

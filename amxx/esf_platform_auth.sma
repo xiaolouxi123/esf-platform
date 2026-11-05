@@ -22,7 +22,7 @@
 #include <sqlx>
 
 #define PLUGIN  "ESF Platform Auth"
-#define VERSION "1.0.0"
+#define VERSION "1.1.0"
 #define AUTHOR  "ESF Platform"
 
 #define TASK_VERIFY 1000
@@ -41,7 +41,7 @@ enum DbStatus {
 }
 
 new g_pcHost, g_pcUser, g_pcPass, g_pcDb;
-new g_pcServerKey, g_pcEnforce, g_pcFailOpen, g_pcDebug, g_pcRequireName;
+new g_pcServerKey, g_pcEnforce, g_pcFailOpen, g_pcDebug, g_pcRequireName, g_pcAllowGuest;
 
 new bool:g_authed[MAX_PLAYERS_ARRAY];
 new g_userId[MAX_PLAYERS_ARRAY];
@@ -58,6 +58,7 @@ public plugin_init() {
     g_pcDb        = register_cvar("platform_sql_db", "esf_platform");
     g_pcServerKey = register_cvar("platform_server_key", "");         // 必须和数据库 servers.server_key 一致
     g_pcEnforce   = register_cvar("platform_enforce", "1");           // 1=不通过就踢
+    g_pcAllowGuest = register_cvar("platform_allow_guest", "0");       // 1=测试期放行非平台玩家（不进平台会话/统计）
     g_pcFailOpen  = register_cvar("platform_fail_open", "1");         // 1=数据库挂了放行，避免锁死服务器
     g_pcDebug     = register_cvar("platform_debug", "0");
     g_pcRequireName = register_cvar("platform_require_name", "0");
@@ -134,6 +135,24 @@ public client_putinserver(id) {
     set_task(1.0, "taskVerify", TASK_VERIFY + id);
 }
 
+/**
+ * 测试期放行非平台玩家。
+ *
+ * 只做进服放行，不伪造平台身份：
+ *   - 不写 g_userId/g_tokenId，不插入 play_sessions；
+ *   - 不参与排位/约战识别和战绩回写；
+ *   - 默认关闭，必须显式在 amxx.cfg 里设 platform_allow_guest 1。
+ */
+stock allowGuestEntry(id, const reason[]) {
+    new name[32];
+    get_user_name(id, name, charsmax(name));
+    log_amx("[Platform] guest allowed id=%d user=%s reason=%s", id, name, reason);
+
+    set_hudmessage(255, 210, 80, -1.0, 0.35, 0, 0.0, 5.0, 0.1, 0.2, -1);
+    show_hudmessage(id, "测试模式：非平台玩家已放行");
+    client_print(id, print_chat, "[平台] 测试模式：%s，本次允许进入（不计平台战绩）", reason);
+}
+
 public taskVerify(taskid) {
     new id = taskid - TASK_VERIFY;
     if (!is_user_connected(id)) return;
@@ -143,12 +162,20 @@ public taskVerify(taskid) {
     get_user_info(id, "_platform_user", name, charsmax(name));
 
     if (token[0] == 0) {
+        if (get_pcvar_num(g_pcAllowGuest)) {
+            allowGuestEntry(id, "未使用平台启动");
+            return;
+        }
         rejectPlayer(id, "未检测到平台凭证，请从 ESF 平台启动游戏");
         return;
     }
 
     // 关键：先卡格式，再拼 SQL
     if (!isValidToken(token)) {
+        if (get_pcvar_num(g_pcAllowGuest)) {
+            allowGuestEntry(id, "平台凭证无效");
+            return;
+        }
         rejectPlayer(id, "平台凭证格式不正确");
         return;
     }
