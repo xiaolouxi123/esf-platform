@@ -391,13 +391,28 @@ async function main() {
       `GRANT SELECT ON ${db}.\`challenge_rooms\` TO ?@?`,
       `GRANT SELECT ON ${db}.\`challenge_room_players\` TO ?@?`,
       `GRANT SELECT ON ${db}.\`challenge_configs\` TO ?@?`,
-      `GRANT SELECT, INSERT ON ${db}.\`challenge_player_stats\` TO ?@?`,
+      `GRANT SELECT, INSERT, UPDATE ON ${db}.\`challenge_player_stats\` TO ?@?`,
       `GRANT EXECUTE ON PROCEDURE ${db}.settle_challenge_match TO ?@?`,
     ];
-    for (const grant of grants) {
-      await conn.query(grant, [env.amxx.user, env.amxx.allowedHost]);
+    // 游戏服务器可能早于本次迁移创建过 'esf_amxx'@'<公网IP>' 账号；
+    // 只授权 allowedHost 会让这些账号缺新表权限，锁服/约战查询直接报 SELECT denied。
+    const amxxHosts = new Set([env.amxx.allowedHost]);
+    try {
+      const [amxxRows] = await conn.query('SELECT Host FROM mysql.user WHERE User = ?', [
+        env.amxx.user,
+      ]);
+      for (const row of amxxRows) amxxHosts.add(row.Host);
+    } catch (err) {
+      log(`[warn] 无法枚举 ${env.amxx.user} 的已有主机，只授权 ${env.amxx.allowedHost}：${err.message}`);
     }
-    log(`已授予 '${env.amxx.user}' 最小权限（白名单视图 + token 消费 + 在线时长）`);
+    for (const host of amxxHosts) {
+      for (const grant of grants) {
+        await conn.query(grant, [env.amxx.user, host]);
+      }
+    }
+    log(
+      `已授予 '${env.amxx.user}' 最小权限（白名单视图 + token 消费 + 在线时长；主机数 ${amxxHosts.size}）`
+    );
 
     // 4. 汇总
     const [[{ tables }]] = await conn.query(
