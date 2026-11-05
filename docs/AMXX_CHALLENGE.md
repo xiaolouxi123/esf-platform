@@ -88,6 +88,7 @@ platform_allow_guest "1"
 - AMXX 编译通过。
 - 本地 HLDS 可加载四个插件并连接数据库。
 - `platform_allow_guest` 已编译进 1.1.0 身份插件，源码回归测试 4/4 通过。
+- r7 安装器在临时 AMXX 目录验证：`-AllowGuest` 会写入 `platform_allow_guest "1"`，已有配置不会被覆盖。
 
 待验证：
 
