@@ -108,8 +108,12 @@ app.use(
   express.static(env.updateDir, {
     fallthrough: true,
     maxAge: '1h',
-    setHeaders(res) {
+    setHeaders(res, filePath) {
       res.setHeader('Access-Control-Allow-Origin', '*');
+      // latest.yml 必须实时：缓存住会导致客户端看不到新版本（updates 目录走 CDN/反代时尤其明显）
+      if (/latest\.yml$/i.test(filePath)) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
     },
   })
 );

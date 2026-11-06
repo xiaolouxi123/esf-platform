@@ -12,6 +12,7 @@
 ### Fixed
 
 - 后端轮询 A2S 时遇到短包会抛 `ERR_BUFFER_OUT_OF_BOUNDS` 直接崩溃；补上长度校验，并给进程加 `uncaughtException` 兜底（记录后退出，由计划任务自动拉起）
+- `/updates/latest.yml` 现在返回 `Cache-Control: no-cache`，避免经过 CDN/反代时客户端看不到新版本
 
 ## [0.4.7] - 2026-11-06
 
