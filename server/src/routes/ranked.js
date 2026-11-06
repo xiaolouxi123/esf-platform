@@ -93,4 +93,12 @@ router.get('/ranked/leaderboard', requireAuth, async (req, res, next) => {
   }
 });
 
+router.get('/ranked/history', requireAuth, async (req, res, next) => {
+  try {
+    res.json({ ok: true, data: { matches: await ranked.history(req.user.id, req.query.limit) } });
+  } catch (err) {
+    fail(err, next);
+  }
+});
+
 module.exports = router;

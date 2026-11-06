@@ -169,6 +169,42 @@ async function getLastResult(userId) {
   };
 }
 
+/** 最近 N 场排位结果（历史战绩用；结构与 lastResult 一致） */
+async function history(userId, limit = 10) {
+  const size = Math.min(30, Math.max(1, Number(limit) || 10));
+  const rows = await q(
+    `SELECT m.id
+       FROM ranked_match_players p
+       JOIN ranked_matches m ON m.id = p.match_id
+      WHERE p.user_id = ? AND m.status = 'finished'
+      ORDER BY m.finished_at DESC, m.id DESC
+      LIMIT ?`,
+    [userId, size]
+  );
+
+  const out = [];
+  for (const row of rows) {
+    const match = await getMatch(row.id, userId);
+    const me = match?.players?.find((player) => player.id === Number(userId));
+    if (!match || !me || !match.winner) continue;
+    out.push({
+      matchId: match.id,
+      mode: match.mode,
+      winner: match.winner,
+      myTeam: me.team,
+      result: me.team === match.winner ? 'win' : 'loss',
+      ratingBefore: me.rating,
+      ratingAfter: me.ratingAfter,
+      ratingDelta: me.ratingAfter === null ? null : me.ratingAfter - me.rating,
+      finishedAt: match.finishedAt,
+      server: match.server,
+      players: match.players,
+      teams: match.teams,
+    });
+  }
+  return out;
+}
+
 async function getState(userId) {
   const profile = await getProfile(userId);
 
@@ -666,6 +702,7 @@ module.exports = {
   tierOf,
   getProfile,
   getState,
+  history,
   joinQueue,
   leaveQueue,
   cancelMatch,

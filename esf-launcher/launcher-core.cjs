@@ -225,11 +225,18 @@ function formatCommand(exePath, args) {
 
 // ================= 目录识别 =================
 
-/** 在目录里找 hl.exe（Windows 不区分大小写） */
+/** 部分 FCX 引擎改过主程序名（没有 hl.exe，只有 esf.exe / fcx.exe） */
+const GAME_EXE_CANDIDATES = ['hl.exe', 'esf.exe', 'fcx.exe'];
+
+/** 在目录里找游戏主程序（Windows 不区分大小写） */
 function findHlExe(root) {
   try {
-    const hit = fs.readdirSync(root).find((f) => f.toLowerCase() === 'hl.exe');
-    return hit ? path.join(root, hit) : '';
+    const files = fs.readdirSync(root);
+    for (const name of GAME_EXE_CANDIDATES) {
+      const hit = files.find((f) => f.toLowerCase() === name);
+      if (hit) return path.join(root, hit);
+    }
+    return '';
   } catch {
     return '';
   }

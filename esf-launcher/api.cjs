@@ -299,6 +299,8 @@ const rankedFinish = (settings, token, matchId, winner) =>
   request(settings, { method: 'POST', path: '/api/ranked/finish', token, body: { matchId, winner } });
 const rankedLeaderboard = (settings, token, limit) =>
   request(settings, { path: `/api/ranked/leaderboard?limit=${encodeURIComponent(limit || 20)}`, token });
+const rankedHistory = (settings, token, limit) =>
+  request(settings, { path: `/api/ranked/history?limit=${encodeURIComponent(limit || 10)}`, token });
 
 /* ---------------- 约战房间 ---------------- */
 
@@ -401,6 +403,7 @@ module.exports = {
   rankedSpectate,
   rankedFinish,
   rankedLeaderboard,
+  rankedHistory,
   challengeState,
   challengeCreate,
   challengeJoin,

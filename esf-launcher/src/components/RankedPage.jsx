@@ -21,6 +21,17 @@ function tierColor(tier) {
   return TIER_COLOR[tier] || '#c7d0dd';
 }
 
+function formatFinishedAt(value) {
+  const ms = Date.parse(value || '');
+  if (Number.isNaN(ms)) return '';
+  const at = new Date(ms);
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = new Date();
+  const sameDay = at.toDateString() === today.toDateString();
+  const time = `${pad(at.getHours())}:${pad(at.getMinutes())}`;
+  return sameDay ? `今天 ${time}` : `${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${time}`;
+}
+
 const TIER_ORDER = [
   { name: '青铜', min: 0 },
   { name: '白银', min: 1100 },
@@ -235,6 +246,7 @@ export default function RankedPage({ user, toast }) {
   const [mode, setMode] = useState('1v1');
   const [state, setState] = useState({ state: 'loading', profile: null });
   const [leaderboard, setLeaderboard] = useState([]);
+  const [history, setHistory] = useState([]);
   const [betTeam, setBetTeam] = useState('a');
   const [betAmount, setBetAmount] = useState(50);
   const [busy, setBusy] = useState('');
@@ -252,23 +264,29 @@ export default function RankedPage({ user, toast }) {
     if (!lastResult?.matchId) return;
     const key = `${lastResult.matchId}:${lastResult.finishedAt || ''}`;
     if (dismissedResultRef.current === key) return;
-    if (seenResultRef.current !== key) {
-      seenResultRef.current = key;
+    // 已看过的结果不再弹窗（之前每次进排位页都会重新弹）
+    if (seenResultRef.current === key) return;
+
+    seenResultRef.current = key;
+    try {
+      localStorage.setItem('esf:seenRankedResult', key);
+    } catch {
+      /* 存储不可用时忽略 */
+    }
+
+    const finishedAt = Date.parse(lastResult.finishedAt || '');
+    if (Number.isNaN(finishedAt)) return;
+    const age = Date.now() - finishedAt;
+    // 最近 10 分钟内的结果顺手把游戏收掉，避免赛后还停在服务器里
+    if (age < 10 * 60 * 1000) {
       try {
-        localStorage.setItem('esf:seenRankedResult', key);
+        await window.electronAPI?.launch?.stop?.();
       } catch {
-        /* 存储不可用时忽略 */
-      }
-      const finishedAt = Date.parse(lastResult.finishedAt || '');
-      if (!Number.isNaN(finishedAt) && Date.now() - finishedAt < 10 * 60 * 1000) {
-        try {
-          await window.electronAPI?.launch?.stop?.();
-        } catch {
-          /* 游戏可能已经退出 */
-        }
+        /* 游戏可能已经退出 */
       }
     }
-    setResult(lastResult);
+    // 只有新鲜结果才自动弹结算；更早的战绩从「我的战绩」里点开
+    if (age < 60 * 60 * 1000) setResult(lastResult);
   }, []);
 
   const loadState = useCallback(async () => {
@@ -291,22 +309,41 @@ export default function RankedPage({ user, toast }) {
     }
   }, []);
 
+  const loadHistory = useCallback(async () => {
+    try {
+      const data = await window.electronAPI.ranked.history(10);
+      setHistory(data.matches || []);
+    } catch {
+      /* 战绩可稍后重试 */
+    }
+  }, []);
+
   useEffect(() => {
     let alive = true;
     loadState();
     loadLeaderboard();
+    loadHistory();
     const stateTimer = setInterval(() => {
       if (alive) loadState();
     }, 2500);
     const boardTimer = setInterval(() => {
       if (alive) loadLeaderboard();
     }, 12000);
+    const historyTimer = setInterval(() => {
+      if (alive) loadHistory();
+    }, 30000);
     return () => {
       alive = false;
       clearInterval(stateTimer);
       clearInterval(boardTimer);
+      clearInterval(historyTimer);
     };
-  }, [loadState, loadLeaderboard]);
+  }, [loadState, loadLeaderboard, loadHistory]);
+
+  // 结算面板出现/关闭后刷新一次战绩
+  useEffect(() => {
+    if (result) loadHistory();
+  }, [result, loadHistory]);
 
   const launchMatch = useCallback(
     async (match) => {
@@ -567,6 +604,42 @@ export default function RankedPage({ user, toast }) {
             <RankFlow />
           </>
         )}
+
+        <div className="rank-history is-mobile">
+          <header>
+            <h3>
+              <Icon name="clock" size={15} /> 我的战绩
+            </h3>
+            <span>{history.length ? `最近 ${history.length} 场` : '近 10 场'}</span>
+          </header>
+          {history.length === 0 ? (
+            <p className="rank-board-empty">还没有排位记录，先匹配一场。</p>
+          ) : (
+            history.slice(0, 5).map((row) => (
+              <button
+                type="button"
+                className="rank-history-row"
+                key={`${row.matchId}:${row.finishedAt || ''}`}
+                onClick={() => setResult({ ...row, fromHistory: true })}
+                title="查看结算详情"
+              >
+                <span className={`rank-history-tag${row.result === 'win' ? ' is-win' : ' is-loss'}`}>
+                  {row.result === 'win' ? '胜' : '负'}
+                </span>
+                <span className="rank-history-meta">
+                  <b>
+                    {row.mode} · {row.server?.name || '排位赛'}
+                  </b>
+                  <small>
+                    {formatFinishedAt(row.finishedAt)}
+                    {Number.isFinite(row.ratingDelta) ? ` · ${row.ratingDelta > 0 ? '+' : ''}${row.ratingDelta}` : ''}
+                  </small>
+                </span>
+                <em>{Number.isFinite(row.ratingAfter) ? row.ratingAfter : '—'}</em>
+              </button>
+            ))
+          )}
+        </div>
       </div>
 
       <aside className="ranked-side">
@@ -592,6 +665,42 @@ export default function RankedPage({ user, toast }) {
                 </span>
                 <em>{row.winRate}%</em>
               </div>
+            ))
+          )}
+        </div>
+
+        <div className="rank-history">
+          <header>
+            <h3>
+              <Icon name="clock" size={15} /> 我的战绩
+            </h3>
+            <span>{history.length ? `最近 ${history.length} 场` : '近 10 场'}</span>
+          </header>
+          {history.length === 0 ? (
+            <p className="rank-board-empty">还没有排位记录，先匹配一场。</p>
+          ) : (
+            history.map((row) => (
+              <button
+                type="button"
+                className="rank-history-row"
+                key={`${row.matchId}:${row.finishedAt || ''}`}
+                onClick={() => setResult({ ...row, fromHistory: true })}
+                title="查看结算详情"
+              >
+                <span className={`rank-history-tag${row.result === 'win' ? ' is-win' : ' is-loss'}`}>
+                  {row.result === 'win' ? '胜' : '负'}
+                </span>
+                <span className="rank-history-meta">
+                  <b>
+                    {row.mode} · {row.server?.name || '排位赛'}
+                  </b>
+                  <small>
+                    {formatFinishedAt(row.finishedAt)}
+                    {Number.isFinite(row.ratingDelta) ? ` · ${row.ratingDelta > 0 ? '+' : ''}${row.ratingDelta}` : ''}
+                  </small>
+                </span>
+                <em>{Number.isFinite(row.ratingAfter) ? row.ratingAfter : '—'}</em>
+              </button>
             ))
           )}
         </div>

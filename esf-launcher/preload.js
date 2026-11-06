@@ -62,6 +62,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     spectate: (matchId) => call('ranked:spectate', { matchId }),
     finish: (matchId, winner) => call('ranked:finish', { matchId, winner }),
     leaderboard: (limit) => call('ranked:leaderboard', { limit }),
+    history: (limit) => call('ranked:history', { limit }),
   },
 
   chat: {

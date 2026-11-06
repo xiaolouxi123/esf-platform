@@ -148,6 +148,8 @@ function serverOf(row) {
 function roomBase(row) {
   return {
     id: Number(row.id),
+    displayNo: row.day_seq ? Number(row.day_seq) : Number(row.id),
+    dayDate: row.day_date || null,
     title: row.title,
     mode: row.mode,
     map: row.map || null,
@@ -434,11 +436,27 @@ async function createRoom(user, fields = {}) {
     );
     if (active.length > 0) throw conflict('你已经在约战房间中，先退出当前房间');
 
-    const [result] = await conn.query(
-      `INSERT INTO challenge_rooms (host_id, title, mode, map, server_key, max_players)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [user.id, title, mode, map, serverKey, maxPlayers]
-    );
+    // 房号按自然日重置：锁住当天最后一条，取 next = max + 1
+    // 并发下靠 (day_date, day_seq) 唯一键兜底，撞号后重试取号
+    let result = null;
+    for (let attempt = 0; attempt < 3 && !result; attempt += 1) {
+      const [seqRows] = await conn.query(
+        `SELECT day_seq FROM challenge_rooms
+          WHERE day_date = CURDATE() AND day_seq IS NOT NULL
+          ORDER BY day_seq DESC LIMIT 1 FOR UPDATE`
+      );
+      const daySeq = seqRows.length > 0 ? Number(seqRows[0].day_seq) + 1 : 1;
+      try {
+        const [inserted] = await conn.query(
+          `INSERT INTO challenge_rooms (host_id, day_date, day_seq, title, mode, map, server_key, max_players)
+           VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?)`,
+          [user.id, daySeq, title, mode, map, serverKey, maxPlayers]
+        );
+        result = inserted;
+      } catch (err) {
+        if (err.code !== 'ER_DUP_ENTRY' || attempt === 2) throw err;
+      }
+    }
     await conn.query(
       `INSERT INTO challenge_room_players (room_id, user_id, team, ready)
        VALUES (?, ?, 'a', 1)`,

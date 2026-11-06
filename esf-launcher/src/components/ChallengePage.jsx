@@ -216,7 +216,7 @@ export default function ChallengePage({
     );
 
   const copyRoom = async () => {
-    const text = `【ESF 约战】${myRoom.title} · ${myRoom.mode} · 房间 #${myRoom.id}${
+    const text = `【ESF 约战】${myRoom.title} · ${myRoom.mode} · 房间 #${myRoom.displayNo ?? myRoom.id}${
       myRoom.map ? ` · 地图 ${myRoom.map}` : ''
     }${myRoom.server ? ` · ${myRoom.server.name}` : ''}`;
     try {
@@ -306,7 +306,7 @@ export default function ChallengePage({
                 </span>
                 <span className="tag">{myRoom.mode}</span>
                 <span className="tag">{myRoom.victoryLabel || `击杀 ${myRoom.victoryLimit} 次`}</span>
-                <span className="tag">房间 #{myRoom.id}</span>
+                <span className="tag">房间 #{myRoom.displayNo ?? myRoom.id}</span>
                 {myRoom.map && (
                   <span className="tag">
                     <Icon name="map" size={11} /> {myRoom.map}

@@ -134,6 +134,56 @@ async function main() {
       "UPDATE servers SET mode = '新手' WHERE server_key = 'fcx-1v1-2' AND mode = '混战'"
     );
 
+    // 约战房号按自然日重置：day_date + day_seq（唯一键防并发撞号）
+    const addedDayDate = await ensureColumn(
+      conn,
+      env.db.name,
+      'challenge_rooms',
+      'day_date',
+      'DATE NULL COMMENT "开房日期（房号按天重置）" AFTER id'
+    );
+    const addedDaySeq = await ensureColumn(
+      conn,
+      env.db.name,
+      'challenge_rooms',
+      'day_seq',
+      'INT UNSIGNED NULL COMMENT "当天的第几号房" AFTER day_date'
+    );
+    if (addedDayDate || addedDaySeq) {
+      const [rooms] = await conn.query(
+        'SELECT id, created_at FROM challenge_rooms ORDER BY created_at ASC, id ASC'
+      );
+      const dayOf = (value) => {
+        const at = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(at.getTime())) return null;
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+      };
+      const counters = new Map();
+      for (const room of rooms) {
+        const day = dayOf(room.created_at) || dayOf(new Date()) || '1970-01-01';
+        const next = (counters.get(day) || 0) + 1;
+        counters.set(day, next);
+        await conn.query(
+          'UPDATE challenge_rooms SET day_date = ?, day_seq = ? WHERE id = ?',
+          [day, next, room.id]
+        );
+      }
+      log(`已回填约战房号 day_date/day_seq（${rooms.length} 个房间）`);
+    }
+    const [daySeqIndex] = await conn.query(
+      `SELECT 1 FROM information_schema.statistics
+        WHERE table_schema = ? AND table_name = 'challenge_rooms'
+          AND index_name = 'uniq_challenge_day_seq' LIMIT 1`,
+      [env.db.name]
+    );
+    if (daySeqIndex.length === 0) {
+      await conn.query(
+        'ALTER TABLE challenge_rooms ADD UNIQUE KEY uniq_challenge_day_seq (day_date, day_seq)'
+      );
+      log('已加索引: challenge_rooms.uniq_challenge_day_seq');
+    }
+
     // 头衔与自定义头像
     await ensureColumn(conn, env.db.name, 'users', 'avatar_url', 'MEDIUMTEXT NULL');
     await ensureColumn(conn, env.db.name, 'users', 'title_id', 'INT NULL AFTER role');

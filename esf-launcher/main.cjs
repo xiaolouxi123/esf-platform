@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell, Tray, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const zlib = require('zlib');
 const crypto = require('crypto');
 const { spawn, spawnSync } = require('child_process');
 
@@ -139,10 +140,39 @@ function setupAutoUpdater() {
   });
 }
 
+/**
+ * 差量下载用 current.blockmap 描述旧安装包；如果它和 installer.exe 不是同一个版本，
+ * 更新器会拼出坏文件、sha512 校验失败，然后中途退回全量下载（用户看到进度倒退）。
+ * 这里做一次轻量一致性校验：blockmap 覆盖的总字节数必须等于 installer.exe 的大小。
+ */
+function sanitizeUpdaterCache() {
+  try {
+    const dir = path.join(app.getPath('localAppData'), `${app.getName()}-updater`);
+    const blockMapPath = path.join(dir, 'current.blockmap');
+    const installerPath = path.join(dir, 'installer.exe');
+    if (!fs.existsSync(blockMapPath) || !fs.existsSync(installerPath)) return;
+
+    const plain = zlib.gunzipSync(fs.readFileSync(blockMapPath)).toString('utf8');
+    const data = JSON.parse(plain);
+    const file = Array.isArray(data.files) ? data.files[0] : null;
+    const total = Array.isArray(file?.sizes)
+      ? file.sizes.reduce((sum, size) => sum + Number(size || 0), 0)
+      : 0;
+    const actual = fs.statSync(installerPath).size;
+    if (total > 0 && total !== actual) {
+      fs.rmSync(blockMapPath, { force: true });
+      updateLog('WARN', `更新缓存错位已清理: blockmap=${total} installer=${actual}`);
+    }
+  } catch (err) {
+    updateLog('WARN', '更新缓存校验跳过:', err.message);
+  }
+}
+
 async function autoCheckOnce() {
   const feed = await resolveFeedUrl();
   if (!feed) return null;
 
+  sanitizeUpdaterCache();
   autoUpdater.setFeedURL({ provider: 'generic', url: feed });
   sendUpdate({ status: 'checking', feed });
   try {
@@ -374,7 +404,9 @@ async function apiCall(fn, ...args) {
 function checkGameDir() {
   const current = getSettings();
   if (!current.hlPath || !current.esfModDir) throw new Error('请先在设置里选择游戏目录');
-  if (!fs.existsSync(current.hlPath)) throw new Error(`找不到 hl.exe：${current.hlPath}`);
+  if (!fs.existsSync(current.hlPath)) {
+    throw new Error(`找不到游戏主程序（hl.exe / esf.exe）：${current.hlPath}`);
+  }
   if (!fs.existsSync(current.esfModDir)) throw new Error(`找不到模组目录：${current.esfModDir}`);
   if (!modName()) throw new Error('模组目录不合法');
 }
@@ -412,13 +444,13 @@ function spawnGame(args) {
     }
 
     child.once('spawn', () => {
-      log(`✅ 已拉起 hl.exe (pid=${child.pid})`);
+      log(`✅ 已拉起游戏主程序 (pid=${child.pid})`);
       child.unref();
       resolve(child.pid);
     });
 
     child.once('error', (err) => {
-      log('❌ 启动 hl.exe 失败:', err.message);
+      log('❌ 启动游戏主程序失败:', err.message);
       reject(new Error(`游戏启动失败：${err.message}`));
     });
   });
@@ -494,7 +526,7 @@ handle('settings:update', async (patch) => {
 
 handle('dialog:pick-game-dir', async () => {
   const result = await dialog.showOpenDialog({
-    title: '请选择包含 hl.exe 的半条命根目录',
+    title: '请选择包含 hl.exe / esf.exe 的半条命根目录',
     properties: ['openDirectory'],
   });
   if (result.canceled || result.filePaths.length === 0) {
@@ -503,11 +535,14 @@ handle('dialog:pick-game-dir', async () => {
 
   const { hlPath, modDir } = core.resolveGameFiles(result.filePaths[0]);
   if (!hlPath || !modDir) {
-    throw new api.ApiError('选择的目录无效，找不到 hl.exe 或 esf 模组文件夹', 'INVALID_GAME_DIR');
+    throw new api.ApiError(
+      '选择的目录无效，找不到游戏主程序（hl.exe / esf.exe）或 esf 模组文件夹',
+      'INVALID_GAME_DIR'
+    );
   }
 
   settings = store.saveSettings({ hlPath, esfModDir: modDir });
-  log('⚙️ 已更新游戏目录:', `hl.exe=${hlPath}`, `mod=${modDir}`);
+  log('⚙️ 已更新游戏目录:', `${path.basename(hlPath)}=${hlPath}`, `mod=${modDir}`);
   return { hlPath, modDir };
 });
 
@@ -667,6 +702,9 @@ handle('ranked:finish', async ({ matchId, winner } = {}) =>
 );
 handle('ranked:leaderboard', async ({ limit } = {}) =>
   apiCall(api.rankedLeaderboard, getSettings(), requireToken(), limit)
+);
+handle('ranked:history', async ({ limit } = {}) =>
+  apiCall(api.rankedHistory, getSettings(), requireToken(), limit)
 );
 
 handle('challenges:state', async () =>
