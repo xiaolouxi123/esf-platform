@@ -908,7 +908,7 @@ public taskForceChallengeEnd()
     if (!g_iBattle && !g_challengeActive) return;
     log_amx("[ESF-SETTLE] room=%d attempt=0 code=SETTLE_TIMEOUT force_exit", g_challengeRoomId);
     client_print(0, print_chat, "[约战] 结算超时，已结束本场比赛。");
-    resetAll();
+    for(new i=1;i<=get_maxplayers();i++) if(is_user_connected(i) && !is_user_bot(i)) client_cmd(i,"disconnect"); resetAll();
 }
 
 public OnChallengeStatsSaved(failstate, Handle:query, error[], errnum, data[], dataSize) {
@@ -923,7 +923,7 @@ public OnChallengeStatsSaved(failstate, Handle:query, error[], errnum, data[], d
             set_task(retryDelay, "taskRetryChallengeStats", TASK_CHALLENGE_STATS);
             return;
         }
-        log_amx("[ESF-SETTLE] room=%d attempt=4 code=STATS_FAILED err=%s", g_challengeRoomId, error);
+        log_amx("[ESF-SETTLE] room=%d attempts=4 code=STATS_FAILED err=%s", g_challengeRoomId, error);
     } else {
         log_amx("[ESF-SETTLE] stats_saved room=%d", g_challengeRoomId);
         remove_task(TASK_CHALLENGE_STATS);

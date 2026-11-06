@@ -130,8 +130,8 @@ platform_sync_name "1"
 ### 包与校验
 
 - 包名：`esf-challenge-plugins-0.4.6-r14.zip`
-- 大小：41,251 字节
-- SHA256：`af296847ff18820a703ac7c389bc2cb5e82a2d889b4d6a822287b3104ca2cb6b`
+- 大小：41,332 字节
+- SHA256：`c2d1db3a5c84b8a0b24e1ebda06ebf480d194a9c0abd762d5349bd86d7169026`
 - 外层校验文件：`esf-challenge-plugins-0.4.6-r14.zip.sha256`
 
 四个插件（由 `amxxpc` 1.10.0.5392 以 `-d1` 编译，保证同源可复现）：
@@ -141,7 +141,7 @@ platform_sync_name "1"
 | `esf_platform_auth.amxx` | 5,277 | `7485885cef48cfc6b14a10a9a5b6dfe0809f0d69293bfe74f7192227a08a640e` |
 | `esf_ranked_lock.amxx` | 3,918 | `49e764586cb0267081ae97688d31c665ad7fb0c61f7b157488b2807ea406ec75` |
 | `esf_gamemode.amxx` | 620 | `c878f71d86cb8286348fcd4bfc62b23ecdc4c874158471c36f649efccdee6a2c` |
-| `test_ranked.amxx` | 22,547 | `bc3d521de52bc5b7e3b38701faa6533a184fc52a8ed18e28562b7aa1cf9b399d` |
+| `test_ranked.amxx` | 22,619 | `14ad77da11a7909a93f9adeeef6c8cbe76c0bd9c1963de766f04f1998aa4042b` |
 
 `-d1` 是刻意的：amxxpc 1.10 默认 `-d2` 在同源重复编译极小插件时会写出不稳定的调试字符串，
 导致二进制不可复现；r13 的哈希因此不能由当前源码重编复现。包内 `SHA256SUMS.txt` 另含
@@ -230,8 +230,8 @@ TC-1..TC-6 为真人用例，当前 **BLOCKED（未执行）**；服务器启动
 | TC-1 1v1 | 两个平台账号从启动器进入同一 live 1v1 房；打满阈值 | 单条 DHUD channel 4、两行、规则 `FIRST TO <limit> KILLS|DEATHS`；比分只随约战计数；结束后 `challenge_results` 落库、双方回平台 |
 | TC-2 2v2 | 四名平台账号进入 live 2v2；先到 2 人时观察 8 秒兜底 | 满员走 `start_full`；不足走 `start_partial known/expected`；HUD 两行含 2+2 昵称；2v2 结算门槛为 known≥2 且每队≥1 |
 | TC-3 观战 | 用 `purpose=spectate` token 进入 live 房 | 放行并执行 `spectate`，写 `_platform_spectator=1`；不显示参赛 HUD、不计入 stats/known/quorum、不能换队 |
-| TC-4 中途退出 | 比赛中一方全部退出，20 秒内一人返回；再重复一次让其超时 | 20 秒内返回取消弃权；超时按当前比分结算，日志 `forfeit_arm/forfeit_go`，平局判 a |
+| TC-4 中途退出 | 比赛中一方全部退出，20 秒内一人返回；再重复一次让其超时 | 20 秒内返回取消弃权；某队空则另一队胜、全离线按当前比分（平局判 a），日志 `forfeit_arm/forfeit_go` |
 | TC-5 改名 | 比赛中客户端改名 | 立即还原为 `g_challengeName`，聊天“比赛中禁止改名”，日志 `code=RENAME_BLOCKED` |
 | TC-6 无 token 访客 | 比赛 live 时无 token 进服；另用 127.0.0.1 本地房主复测 | 无 token 被 `CHALLENGE_LOCKED` 踢出；本地房主只记 `local_bypass=1`，不踢 |
 
-补充：PRD 另有 TC-7（结算失败/超时），建议与本表同批执行；超时路径已对齐 `code=SETTLE_TIMEOUT room=<id> force_exit` 日志与 5 秒 `disconnect`（`docs/AMXX_PLUGIN_DESIGN.md` 第 4.5 节）。
+补充：PRD 另有 TC-7（结算失败/超时），建议与本表同批执行；超时路径已对齐 `code=SETTLE_TIMEOUT room=<id> force_exit` 日志并在 25 秒处直接 `disconnect`（不再叠加 5 秒；`docs/AMXX_PLUGIN_DESIGN.md` 第 4.5 节）。

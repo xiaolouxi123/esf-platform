@@ -157,7 +157,7 @@ Select-String -Path server\scripts\migrate.js -Pattern 'settle_challenge_match' 
 ```
 
 插件不创建/不启动房间；它只观察 `status='live'`。房间在插件识别前关闭时，识别查询返回 0 行，
-插件保持 IDLE（`amxx/test_ranked.sma:99`）。
+插件保持 IDLE（识别查询 0 行即返回：`amxx/test_ranked.sma:526`）。
 
 ### 4.2 识别
 
@@ -195,11 +195,11 @@ Select-String -Path server\scripts\migrate.js -Pattern 'settle_challenge_match' 
    （`:914-930`）。stats 成功写 `stats_saved`。
 3. settle 失败同样固定 2.0s、最多 3 次；最终失败写 `code=SETTLE_FAILED` 并返回，不立即 reset
    （`:945-961`）；末次失败会先 `remove_task` 再重挂 12 秒兜底，不与回调竞态。
-4. 成功写 `settled`，移除兜底任务并 `resetAll`（`:965-970`）；reset 后对真人执行 `disconnect`
-   （`:2839-2855`），约战不受 `battle_quit_enable` 影响。
-5. 看门狗/重挂的 `taskForceChallengeEnd` 写 `code=SETTLE_TIMEOUT room=<id> force_exit`、聊天提示并 `resetAll`（`:905-911`）。
-   超时后仍由 `resetAll` 排 `battle_quit_delay`（默认 5 秒）`disconnect` 回平台；`force_exit` 是日志终态标记，
-   与 R7-3 的“强制退出”语义一致（`:2856-2862`）。
+4. 成功写 `settled`，移除兜底任务并 `resetAll`（`:965-970`）；reset 后由 `taskQuitToPlatform` 对真人执行 `disconnect`
+   （`:2832-2847`），约战不受 `battle_quit_enable` 影响。
+5. 看门狗/重挂的 `taskForceChallengeEnd` 写 `code=SETTLE_TIMEOUT room=<id> force_exit`、聊天提示，先对真人 `client_cmd("disconnect")` 再 `resetAll`（`:905-911`）。
+   因此 TIMEOUT 路径在 25s 处直接断开、不叠加 `battle_quit_delay`（默认 5 秒）；`force_exit` 是日志终态标记，
+   与 R7-3 的“强制退出”语义一致（`:911`）。
 
 ## 5. HUD
 
@@ -482,10 +482,10 @@ Get-FileHash dist\esf-challenge-plugins-0.4.6-r14.zip -Algorithm SHA256
 | R4 昵称同步 | R4-1..R4-3、R4-4 | `game_name` 31 字节、空回退 username、UTF-8 安全 | 平台+插件 | 插件已修复待复审（`amxx/esf_platform_auth.sma:294-317`）；平台唯一性见 `server/src/routes/me.js:113-143` |
 | R5 比赛改名 | R5-1..R5-4 | `client_infochanged` 还原、聊天提示、日志 | 插件 | 已修复待复审：`amxx/test_ranked.sma:210-236`（`code=RENAME_BLOCKED rename_blocked id=`） |
 | R6 错误码 | R6-1..R6-5 | 封闭码、`"<CODE>: <中文>"`、窗口/超时、token 前 6 位、127 例外 | 插件 | 已修复待复审：auth `esf_platform_auth.sma:441`、`:463`（`verify_timeout=1`）、`:237`（`token_prefix`）；lock `esf_ranked_lock.sma:123-129`（`:125` 容灾日志）、`174/197/220`、`:265-281` |
-| R7 结算 | R7-1、R7-4..R7-6 | stats→CALL、2.0s×3、失败继续、≤25s | 插件+DB | 已修复待复审：`amxx/test_ranked.sma:905-967`（25s 看门狗 + 末次失败重挂 12s、SETTLE_RETRY/SETTLED、UPSERT 幂等） |
+| R7 结算 | R7-1、R7-4..R7-6 | stats→CALL、2.0s×3、失败继续、≤25s | 插件+DB | 已修复待复审：`amxx/test_ranked.sma:905-971`（25s 看门狗 + 末次失败重挂 12s、SETTLE_RETRY/SETTLED、UPSERT 幂等） |
 | R7 重试日志 | R7-2 | 日志 `SETTLE_RETRY attempt=<n>` | 插件 | 已修复待复审：`amxx/test_ranked.sma:952` |
-| R7 超时语义 | R7-3 | `SETTLE_FAILED attempts=4`、`SETTLE_TIMEOUT force_exit` 断开 | 插件 | 已修复待复审：`:718`（25s 看门狗）、`:957-958`（失败后 remove+重挂 12s）、`:909`（TIMEOUT force_exit） |
-| R8 开赛/弃权 | R8-1..R8-7 | mode→slots、满员+8s partial、20s 宽限、队空判另一队、tie→a、legacy 隔离 | 插件 | 已修复待复审：识别/开赛 `:483-601`、quorum `:646-666`、弃权 `:728-860`（断线比分保留）、legacy 隔离 `:2076` |
+| R7 超时语义 | R7-3 | `STATS_FAILED/SETTLE_FAILED attempts=4`、`SETTLE_TIMEOUT force_exit` 断开 | 插件 | 已修复待复审：`:718`（25s 看门狗）、`:957-961`（失败后 remove+重挂 12s）、`:909-911`（TIMEOUT 直接断开） |
+| R8 开赛/弃权 | R8-1..R8-7 | mode→slots、满员+8s partial、20s 宽限、队空判另一队、tie→a、legacy 隔离 | 插件 | 已修复待复审：识别/开赛 `:483-666`、quorum `:780-800`、弃权 `:728-856`（断线比分保留）、legacy 隔离 `:2076` |
 | R9 结构化日志 | R9-1..R9-5 | 前缀、room/attempt/code、无凭据 | 插件 | 已修复待复审：`[ESF-REJECT]`（auth `:441`）、`[ESF-LOCK]`（lock `:265`）、`[ESF-SETTLE] room=… attempt=… code=…`（test_ranked `:909`、`:921`、`:926`、`:952`、`:957`、`:965`） |
 | R10 锁服/观战 | R10-1..R10-6 | 无 token guest、spectate 标记、2v2 门槛、1536 缓冲 | 插件 | 已修复待复审：guest 双表 `esf_ranked_lock.sma:177-220`；观战读取/跳过 `test_ranked.sma:132`、`:489`、`:641`、`:802-813`；quorum `:780-798` |
 | R11 构建/发布 | R11-1..R11-6 | 4 插件 0 error、版本、7 文件包、SHA、无源码/凭据 | 构建 | 静态通过（见第 9 章与 `docs/AMXX_CHALLENGE.md`） |

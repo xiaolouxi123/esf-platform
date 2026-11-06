@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -84,7 +84,7 @@ test('challenge diagnostic logs carry PRD fields', () => {
   assert.match(source, /\[ESF-CHALLENGE\] code=RENAME_BLOCKED rename_blocked id=%d/);
   assert.match(source, /\[ESF-CHALLENGE\] identified room=%d mode=%s slots=%d team=%s known=%d expected=%d/);
   assert.match(source, /\[ESF-SETTLE\] room=%d attempt=%d code=SETTLE_RETRY err=%s/);
-  assert.match(source, /\[ESF-SETTLE\] room=%d attempt=4 code=STATS_FAILED err=%s/);
+  assert.match(source, /\[ESF-SETTLE\] room=%d attempts=4 code=STATS_FAILED err=%s/);
   assert.match(source, /\[ESF-SETTLE\] room=%d attempts=4 code=SETTLE_FAILED err=%s/);
   assert.match(source, /\[ESF-SETTLE\] room=%d attempt=0 code=SETTLE_TIMEOUT force_exit/);
 });
@@ -178,7 +178,9 @@ test('challenge settlement waits for the async result before quitting', () => {
     '约战结算应立即返回，不能和排位共用 resetAll 分支',
   );
   assert.match(source, /set_task\(12\.0, "taskForceChallengeEnd", TASK_CHALLENGE_END\)/);
+  assert.match(source, /set_task\(25\.0, "taskForceChallengeEnd", TASK_CHALLENGE_END\)/, '结算看门狗必须为 25 秒');
   assert.match(source, /public taskForceChallengeEnd\(\)/);
+  assert.match(source, /public taskForceChallengeEnd\(\)[\s\S]{0,400}client_cmd\(i,"disconnect"\)/, 'TIMEOUT 必须直接断开，不再叠加 quit delay');
   assert.match(
     source,
     /remove_task\(TASK_CHALLENGE_END\);\s*resetAll\(\);/,
