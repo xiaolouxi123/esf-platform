@@ -626,16 +626,19 @@ export default function RankedPage({ user, toast }) {
                 <span className={`rank-history-tag${row.result === 'win' ? ' is-win' : ' is-loss'}`}>
                   {row.result === 'win' ? '胜' : '负'}
                 </span>
-                <span className="rank-history-meta">
+                <span className="rank-history-main">
                   <b>
-                    {row.mode} · {row.server?.name || '排位赛'}
+                    {row.mode}
+                    {row.server?.name ? ` · ${row.server.name}` : ''}
                   </b>
-                  <small>
-                    {formatFinishedAt(row.finishedAt)}
-                    {Number.isFinite(row.ratingDelta) ? ` · ${row.ratingDelta > 0 ? '+' : ''}${row.ratingDelta}` : ''}
-                  </small>
+                  <small>{formatFinishedAt(row.finishedAt)}</small>
                 </span>
-                <em>{Number.isFinite(row.ratingAfter) ? row.ratingAfter : '—'}</em>
+                <span className="rank-history-rate">
+                  <b className={Number.isFinite(row.ratingDelta) && row.ratingDelta >= 0 ? 'is-up' : 'is-down'}>
+                    {Number.isFinite(row.ratingDelta) ? `${row.ratingDelta > 0 ? '+' : ''}${row.ratingDelta}` : '—'}
+                  </b>
+                  <small>{Number.isFinite(row.ratingAfter) ? row.ratingAfter : '—'}</small>
+                </span>
               </button>
             ))
           )}
@@ -690,16 +693,19 @@ export default function RankedPage({ user, toast }) {
                 <span className={`rank-history-tag${row.result === 'win' ? ' is-win' : ' is-loss'}`}>
                   {row.result === 'win' ? '胜' : '负'}
                 </span>
-                <span className="rank-history-meta">
+                <span className="rank-history-main">
                   <b>
-                    {row.mode} · {row.server?.name || '排位赛'}
+                    {row.mode}
+                    {row.server?.name ? ` · ${row.server.name}` : ''}
                   </b>
-                  <small>
-                    {formatFinishedAt(row.finishedAt)}
-                    {Number.isFinite(row.ratingDelta) ? ` · ${row.ratingDelta > 0 ? '+' : ''}${row.ratingDelta}` : ''}
-                  </small>
+                  <small>{formatFinishedAt(row.finishedAt)}</small>
                 </span>
-                <em>{Number.isFinite(row.ratingAfter) ? row.ratingAfter : '—'}</em>
+                <span className="rank-history-rate">
+                  <b className={Number.isFinite(row.ratingDelta) && row.ratingDelta >= 0 ? 'is-up' : 'is-down'}>
+                    {Number.isFinite(row.ratingDelta) ? `${row.ratingDelta > 0 ? '+' : ''}${row.ratingDelta}` : '—'}
+                  </b>
+                  <small>{Number.isFinite(row.ratingAfter) ? row.ratingAfter : '—'}</small>
+                </span>
               </button>
             ))
           )}

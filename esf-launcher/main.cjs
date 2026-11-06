@@ -147,7 +147,8 @@ function setupAutoUpdater() {
  */
 function sanitizeUpdaterCache() {
   try {
-    const dir = path.join(app.getPath('localAppData'), `${app.getName()}-updater`);
+    const localAppData = process.env.LOCALAPPDATA || path.join(app.getPath('appData'), '..', 'Local');
+    const dir = path.join(localAppData, `${app.getName()}-updater`);
     const blockMapPath = path.join(dir, 'current.blockmap');
     const installerPath = path.join(dir, 'installer.exe');
     if (!fs.existsSync(blockMapPath) || !fs.existsSync(installerPath)) return;
