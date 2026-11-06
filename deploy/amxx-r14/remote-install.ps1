@@ -53,6 +53,7 @@ param(
     [switch]$RegisterTask,
     [switch]$UnregisterTask,
     [string]$TaskTime = '05:30',
+    [int]$RestartTimeoutSec = 120,
     [switch]$Quiet
 )
 
@@ -291,7 +292,7 @@ foreach ($inst in $changed) {
 }
 Start-Sleep -Seconds 3
 foreach ($inst in $changed) {
-    $deadline = (Get-Date).AddSeconds(120)
+    $deadline = (Get-Date).AddSeconds($RestartTimeoutSec)
     $up = $false
     while ((Get-Date) -lt $deadline) {
         if ($inst.Port -gt 0) {
@@ -304,9 +305,10 @@ foreach ($inst in $changed) {
         Start-Sleep -Seconds 4
     }
     if ($up) { Write-Log "server back: $($inst.AmxxDir) port=$($inst.Port)" 'OK' }
-    else { Write-Log "server not back within 120s: $($inst.AmxxDir). Restart it from HLSM." 'ERR' }
+    else { Write-Log "server not back within $RestartTimeoutSec s: $($inst.AmxxDir). Restart it from HLSM." 'ERR' }
 }
 Write-Log 'done'
+
 
 
 
