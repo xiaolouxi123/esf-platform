@@ -176,7 +176,7 @@ Select-String -Path server\scripts\migrate.js -Pattern 'settle_challenge_match' 
 
 - 2v2：A/B 各至少 1 人且 `known >= 2`；
 - 1v1：`known >= 1`；
-- 不满足则转 `armChallengeQuorum()` 进入 20 秒宽限（`:655-659`）；满足则写 `start_partial known=%d expected=%d` 并开赛（`:646-666`）。
+- 不满足则转 `armChallengeQuorum()` 进入 20 秒宽限（`:657-661`）；满足则写 `start_partial known=%d expected=%d` 并开赛（`:646-666`）。
 
 开赛后 `g_iBattle=true`，`autoPlayerStart` 对挑战房直接返回（`:2849-2852`），legacy 自动凑人不会提前开赛。
 
@@ -184,8 +184,8 @@ Select-String -Path server\scripts\migrate.js -Pattern 'settle_challenge_match' 
 
 一方在线参赛者归零时进入 20 秒宽限（`armChallengeForfeit` `:728-735`），日志
 `forfeit_arm reason=%s team=%d grace=20`。宽限结束仍为空：某队为空时判另一队胜、全员离线按当前比分（平局判 a），统一走 `settleChallengeForfeit`（`:815-855`）；
-期间该队有人重新识别则 `challengeCancelForfeitIfBack` 取消（`:764-780`）。
-平局固定判 A（`tie_forfeit` `:838`/`:845`），与平台阈值平局规则一致。
+期间该队有人重新识别则 `challengeCancelForfeitIfBack` 取消（`:762-777`）。
+平局规则分两类：弃权/超时平局固定判 A（`tie_forfeit` `:838`/`:845`）；达阈值平局按平台既有规则判 B（`:891`/`:896`）。
 
 ### 4.5 结算
 
@@ -315,11 +315,11 @@ Select-String -Path amxx\test_ranked.sma -Pattern 'register_cvar\("BattleLimt"'
 
 两个拒绝入口都把踢人原因固定为 `"<CODE>: <中文短句>"`：
 
-- 身份：`amxx/esf_platform_auth.sma:439` 组 `"%s: %s"`，日志 `[ESF-REJECT] code=… id=… name=… ip=… server=…`
+- 身份：`amxx/esf_platform_auth.sma:440` 组 `"%s: %s"`，日志 `[ESF-REJECT] code=… id=… name=… ip=… server=…`
   （`amxx/esf_platform_auth.sma:441`），延迟 1.5s 踢（`amxx/esf_platform_auth.sma:455`）。
-- 锁服：`amxx/esf_ranked_lock.sma:262` 组同样格式，日志带 `name=`/`ip=`（`amxx/esf_ranked_lock.sma:265`），延迟 1.0s 踢（`amxx/esf_ranked_lock.sma:281`）。
+- 锁服：`amxx/esf_ranked_lock.sma:264` 组同样格式，日志带 `name=`/`ip=`（`amxx/esf_ranked_lock.sma:265`），延迟 1.0s 踢（`amxx/esf_ranked_lock.sma:281`）。
 
-`127.0.0.1`/`::1` 在锁服路径只记 `local_bypass=1`，不踢（`amxx/esf_ranked_lock.sma:267-271`）；身份路径通过
+`127.0.0.1`/`::1` 在锁服路径只记 `local_bypass=1`，不踢（`amxx/esf_ranked_lock.sma:269-273`）；身份路径通过
 `platform_enforce=0` 或容灾放行处理本地 listen server。
 
 ### 7.3 容灾与边界
@@ -475,7 +475,7 @@ Get-FileHash dist\esf-challenge-plugins-0.4.6-r14.zip -Algorithm SHA256
 |---|---|---|---|---|
 | R1 HUD | R1-1..R1-5 | `Select-String` channel 4/x=-1.0/两行/比分来源/观战跳过；静态检查 | 插件 | 已修复待复审：单条 DHUD `amxx/test_ranked.sma:2882-2926`（channel 4、x=-1.0、取 `g_challengeKills/Deaths`、跳过观战者） |
 | R1 HUD 刷新 | R1-6 | 击杀后 ≤1s 刷新 | 插件 | 已修复待复审：1s 定时 `amxx/test_ranked.sma:3059`；运行时录屏 BLOCKED |
-| R2 自动加入/识别 | R2-1、R2-3、R2-5 | 启动器 5s 轮询、token join、识别查询 | 平台+插件 | 插件已修复待复审（`:483-518`）；平台侧 `esf-launcher/src/components/Lobby.jsx:132-174` 待集成 |
+| R2 自动加入/识别 | R2-1、R2-3 | 启动器 5s 轮询、token join、识别查询 | 平台+插件 | 插件已修复待复审（`:483-518`）；平台侧 `esf-launcher/src/components/Lobby.jsx:132-174` 待集成 |
 | R2 识别日志 | R2-2 | 日志 `identified room=… mode=… slots=… team=…` | 插件 | 已修复待复审：`amxx/test_ranked.sma:576-578` |
 | R2 重试窗口 | R2-4 | 启动器 `autoJoinRef` 先置位再 join | 平台 | 平台侧（`esf-launcher/src/components/Lobby.jsx:141-143`） |
 | R3 胜利条件 | R3-1..R3-5 | `victory_limit` 团队累计、3–50 回退 10、kills 高胜/deaths 低胜 | 插件 | 已修复待复审：`amxx/test_ranked.sma:570`（夹取）、`:826-849`（弃权判胜）、`:874-899`（达阈值判胜） |
