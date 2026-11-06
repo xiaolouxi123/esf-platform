@@ -541,7 +541,7 @@ r14 四插件均初始化、`[test_ranked] 平台库已初始化 (127.0.0.1:3307
 
 | 偏差 | 证据 | 影响 | 处理建议 |
 |---|---|---|---|
-| 本轮已修（2026-11-07 06:31，team-fix） | `amxx/test_ranked.sma:235`、`:576`、`:909`、`:926`、`:952`、`:957`、`:3059`；auth `:441`、`:463`；lock `:265` | 改名日志 `rename_blocked id=`、identified 带 `slots=`、SETTLE 统一 `room attempt code`、失败重挂 12s、`verify_timeout=1`、`[ESF-LOCK]` | 已通过 33/33 静态测试与 98/98 全量 server 测试；等待独立复审与 G6b |
+| 本轮已修（2026-11-07 06:31，team-fix） | `amxx/test_ranked.sma:235`、`:576`、`:909`、`:926`、`:952`、`:957`、`:3059`；auth `:441`、`:463`；lock `:265` | 改名日志 `rename_blocked id=`、identified 带 `slots=`、SETTLE 统一 `room attempt code`、失败重挂 12s、`verify_timeout=1`、`[ESF-LOCK]` | 已通过 34/34 静态测试与 99/99 全量 server 测试；等待独立复审与 G6b |
 | 过程无参数校验 | `server/scripts/migrate.js:324` | 非法 winner/limit 可写库 | 平台侧/迁移加校验，插件侧已钳制 limit |
 
 ### 11.5 风险清单

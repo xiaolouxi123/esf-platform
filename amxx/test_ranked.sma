@@ -906,7 +906,7 @@ public taskForceChallengeEnd()
 {
     if (!g_challengeSettled) return;
     if (!g_iBattle && !g_challengeActive) return;
-    log_amx("[ESF-SETTLE] room=%d attempt=0 code=SETTLE_TIMEOUT force_exit", g_challengeRoomId);
+    log_amx("[ESF-SETTLE] room=%d attempts=0 code=SETTLE_TIMEOUT force_exit", g_challengeRoomId);
     client_print(0, print_chat, "[约战] 结算超时，已结束本场比赛。");
     for(new i=1;i<=get_maxplayers();i++) if(is_user_connected(i) && !is_user_bot(i)) client_cmd(i,"disconnect"); resetAll();
 }

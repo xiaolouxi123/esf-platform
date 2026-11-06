@@ -102,7 +102,8 @@ platform_sync_name "1"
 
 已验证：
 
-- 前端 lint/build、启动器测试 21+39+6、服务端 81/81。
+- 前端 lint/build、启动器测试 21+39+6、服务端 81/81（r13 基线）。
+- r14：四插件 0 error/0 warning；定向 34/34、全量 99/99；G1–G4 通过；G6a 起服实测（非门禁，G6b BLOCKED）。
 - 生产 API `/api/challenges`、`/api/servers` 冒烟。
 - AMXX 编译通过（auth 6,966；lock 5,392；test_ranked 30,531；gamemode 1,238）。
 - 本地 HLDS 可加载四个插件并连接数据库。
@@ -130,8 +131,8 @@ platform_sync_name "1"
 ### 包与校验
 
 - 包名：`esf-challenge-plugins-0.4.6-r14.zip`
-- 大小：41,332 字节
-- SHA256：`c2d1db3a5c84b8a0b24e1ebda06ebf480d194a9c0abd762d5349bd86d7169026`
+- 大小：41,316 字节
+- SHA256：`866f1d7ea0db910f8681309e47bd6bac67f8f4dd44059c3072ab5224a21a7510`
 - 外层校验文件：`esf-challenge-plugins-0.4.6-r14.zip.sha256`
 
 四个插件（由 `amxxpc` 1.10.0.5392 以 `-d1` 编译，保证同源可复现）：
@@ -141,7 +142,7 @@ platform_sync_name "1"
 | `esf_platform_auth.amxx` | 5,277 | `7485885cef48cfc6b14a10a9a5b6dfe0809f0d69293bfe74f7192227a08a640e` |
 | `esf_ranked_lock.amxx` | 3,918 | `49e764586cb0267081ae97688d31c665ad7fb0c61f7b157488b2807ea406ec75` |
 | `esf_gamemode.amxx` | 620 | `c878f71d86cb8286348fcd4bfc62b23ecdc4c874158471c36f649efccdee6a2c` |
-| `test_ranked.amxx` | 22,619 | `14ad77da11a7909a93f9adeeef6c8cbe76c0bd9c1963de766f04f1998aa4042b` |
+| `test_ranked.amxx` | 22,617 | `69e003c941b62e8960e9d594bee7ea8938c945a859790cf39d4d814f1732f71d` |
 
 `-d1` 是刻意的：amxxpc 1.10 默认 `-d2` 在同源重复编译极小插件时会写出不稳定的调试字符串，
 导致二进制不可复现；r13 的哈希因此不能由当前源码重编复现。包内 `SHA256SUMS.txt` 另含

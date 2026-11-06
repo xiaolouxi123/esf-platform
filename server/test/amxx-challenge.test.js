@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -86,7 +86,7 @@ test('challenge diagnostic logs carry PRD fields', () => {
   assert.match(source, /\[ESF-SETTLE\] room=%d attempt=%d code=SETTLE_RETRY err=%s/);
   assert.match(source, /\[ESF-SETTLE\] room=%d attempts=4 code=STATS_FAILED err=%s/);
   assert.match(source, /\[ESF-SETTLE\] room=%d attempts=4 code=SETTLE_FAILED err=%s/);
-  assert.match(source, /\[ESF-SETTLE\] room=%d attempt=0 code=SETTLE_TIMEOUT force_exit/);
+  assert.match(source, /\[ESF-SETTLE\] room=%d attempts=0 code=SETTLE_TIMEOUT force_exit/);
 });
 
 test('challenge forfeit uses a 20s grace and settlement retries are wired', () => {
@@ -95,7 +95,7 @@ test('challenge forfeit uses a 20s grace and settlement retries are wired', () =
   assert.match(source, /set_task\(20\.0, "taskChallengeForfeit"/);
   assert.match(source, /\[ESF-CHALLENGE\] forfeit_arm reason=%s/);
   assert.match(source, /\[ESF-CHALLENGE\] forfeit reason=%s winner=%s/);
-  assert.match(source, /\[ESF-SETTLE\] room=%d attempt=0 code=SETTLE_TIMEOUT force_exit/);
+  assert.match(source, /\[ESF-SETTLE\] room=%d attempts=0 code=SETTLE_TIMEOUT force_exit/);
   assert.match(source, /new Float:retryDelay = 2\.0;/);
   assert.match(source, /taskRetryChallengeStats/);
   assert.match(source, /taskRetryChallengeSettle/);
