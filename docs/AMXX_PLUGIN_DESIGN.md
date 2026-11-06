@@ -17,7 +17,7 @@ r14 覆盖四件事：平台身份校验、排位/约战准入锁、约战比赛
 |---|---|---|---|
 | 身份 | `amxx/esf_platform_auth.sma` | 1.2.0（`amxx/esf_platform_auth.sma:25`） | `taskVerify`（`amxx/esf_platform_auth.sma:164`）、`OnTokenChecked`（`:246`） |
 | 锁服 | `amxx/esf_ranked_lock.sma` | 1.2.0（`amxx/esf_ranked_lock.sma:26`） | `taskCheckPlayer`（`:100`）、`OnLockChecked`（`:212`） |
-| 约战/排位 | `amxx/test_ranked.sma` | 1.2.0-r14（`amxx/test_ranked.sma:2900`） | `taskChallengeIdentify`（`:464`）、`beginChallengeSettlement`（`:624`）、`showIconDisplay`（`:2791`） |
+| 约战/排位 | `amxx/test_ranked.sma` | 1.2.0-r14（`amxx/test_ranked.sma:2991`） | `taskChallengeIdentify`（`:483`）、`beginChallengeSettlement`（`:668`）、`showIconDisplay`（`:2882`） |
 | 模式 | `amxx/esf_gamemode.sma` | 1.0.0（`amxx/esf_gamemode.sma:15`） | `applyMode`（`:25`） |
 
 范围边界：
@@ -114,8 +114,8 @@ Select-String -Path amxx\*.sma -Pattern '\[ESF-(REJECT|CHALLENGE|SETTLE)\]'
 （`amxx/esf_platform_auth.sma:329-335`），因此同一 token 不能再次用于 join，但观战授权在窗口内可用。
 
 约战识别按 `token + server_key + purpose='join' + r.status='live'` 读取房间、队伍、规则与模式：
-`amxx/test_ranked.sma:478-487`。`r.mode` 决定 `slots`（2v2=2，否则 1）与 `expected=slots*2`
-（`amxx/test_ranked.sma:522-523`）；`victory_limit` 在 3–50 外回退 10（`:544`）。
+`amxx/test_ranked.sma:505-517`。`r.mode` 决定 `slots`（2v2=2，否则 1）与 `expected=slots*2`
+（`amxx/test_ranked.sma:548-549`）；`victory_limit` 在 3–50 外回退 10（`:570`）。
 
 锁服查询分两条：有 token 的玩家查排位/约战归属（`amxx/esf_ranked_lock.sma:134-153`），
 无 token guest 只查“本服是否有 live/waiting 比赛”（`amxx/esf_ranked_lock.sma:178-184`）。
@@ -126,9 +126,9 @@ Select-String -Path amxx\*.sma -Pattern '\[ESF-(REJECT|CHALLENGE|SETTLE)\]'
 结算顺序固定为“先个人统计，后结果过程”：
 
 1. `INSERT INTO challenge_player_stats (...) VALUES ... ON DUPLICATE KEY UPDATE ...`
-   （`amxx/test_ranked.sma:662-663`），主键 `(room_id,user_id)` 保证重试幂等。
+   （`amxx/test_ranked.sma:705-708`），主键 `(room_id,user_id)` 保证重试幂等。
 2. `CALL settle_challenge_match(room_id, winner, score_a, score_b, victory_type, limit)`
-   （`amxx/test_ranked.sma:635-638`）。
+   （`amxx/test_ranked.sma:678-681`）。
 3. 过程写 `challenge_results`（`ON DUPLICATE KEY UPDATE`）并把 `challenge_rooms.status` 从 `live` 置 `closed`
    （`server/scripts/migrate.js:324` 起）。
 
@@ -265,7 +265,7 @@ Select-String -Path amxx\test_ranked.sma -Pattern 'get_user_frags' -Context 1,1
 | `ranked_lock` | `1` | 是否启用锁服 | 生产 `1`；回滚时可 `0` |
 | `ranked_fail_open` | `1` | DB 失败时容灾放行 | 迁移期 `1` |
 
-### 6.3 约战/排位主逻辑（`amxx/test_ranked.sma:2918-2927`）
+### 6.3 约战/排位主逻辑（`amxx/test_ranked.sma:3009-3018`）
 
 | cvar | 默认 | 作用 | 迁移期建议 |
 |---|---|---|---|
@@ -475,7 +475,7 @@ Get-FileHash dist\esf-challenge-plugins-0.4.6-r14.zip -Algorithm SHA256
 |---|---|---|---|---|
 | R1 HUD | R1-1..R1-5 | `Select-String` channel 4/x=-1.0/两行/比分来源/观战跳过；静态检查 | 插件 | 已修复待复审：单条 DHUD `amxx/test_ranked.sma:2882-2926`（channel 4、x=-1.0、取 `g_challengeKills/Deaths`、跳过观战者） |
 | R1 HUD 刷新 | R1-6 | 击杀后 ≤1s 刷新 | 插件 | 已修复待复审：1s 定时 `amxx/test_ranked.sma:3059`；运行时录屏 BLOCKED |
-| R2 自动加入/识别 | R2-1、R2-3、R2-5 | 启动器 5s 轮询、token join、识别查询 | 平台+插件 | 插件已修复待复审（`:483-601`）；平台侧 `esf-launcher/src/components/Lobby.jsx:132-174` 待集成 |
+| R2 自动加入/识别 | R2-1、R2-3、R2-5 | 启动器 5s 轮询、token join、识别查询 | 平台+插件 | 插件已修复待复审（`:483-518`）；平台侧 `esf-launcher/src/components/Lobby.jsx:132-174` 待集成 |
 | R2 识别日志 | R2-2 | 日志 `identified room=… mode=… slots=… team=…` | 插件 | 已修复待复审：`amxx/test_ranked.sma:576-578` |
 | R2 重试窗口 | R2-4 | 启动器 `autoJoinRef` 先置位再 join | 平台 | 平台侧（`esf-launcher/src/components/Lobby.jsx:141-143`） |
 | R3 胜利条件 | R3-1..R3-5 | `victory_limit` 团队累计、3–50 回退 10、kills 高胜/deaths 低胜 | 插件 | 已修复待复审：`amxx/test_ranked.sma:570`（夹取）、`:826-849`（弃权判胜）、`:874-899`（达阈值判胜） |
