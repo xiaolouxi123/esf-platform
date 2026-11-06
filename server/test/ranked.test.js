@@ -144,4 +144,10 @@ test('竞猜扣币，全员准备后开赛，结算按奖池派彩', async () =>
 
   const profile = await api('GET', '/api/ranked/state', { token: tokens[0] });
   assert.ok(profile.body.data.profile.rating > 1000);
+  assert.equal(profile.body.data.state, 'idle');
+  const last = profile.body.data.lastResult;
+  assert.equal(last.matchId, matchId);
+  assert.equal(last.winner, 'a');
+  assert.equal(last.result, last.myTeam === 'a' ? 'win' : 'loss');
+  assert.equal(last.ratingDelta, last.myTeam === 'a' ? 25 : -20);
 });

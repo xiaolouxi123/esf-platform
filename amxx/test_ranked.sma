@@ -34,6 +34,7 @@
 #define TASK_CHALLENGE_RETRY 4600
 #define CHALLENGE_RETRY_LIMIT 30
 #define TASK_CHALLENGE_END 4700
+#define TASK_RANKED_END 4800
 #define TASK_QUIT   4300
 #define esf_get_advancedmelee(%1) get_pdata_int(%1, 298)
 
@@ -640,7 +641,16 @@ bool:checkRankedFinish() {
 
     g_rankedSettled = true;
     g_rankedMatchId = 0;
+    set_task(12.0, "taskForceRankedEnd", TASK_RANKED_END);
     return true;
+}
+
+/** 排位结算等待超时兜底：即使数据库慢，也要回平台/结束本局 */
+public taskForceRankedEnd() {
+    if (g_iBattle && g_rankedSettled) {
+        log_amx("[Ranked] settlement timeout, force ending match");
+        resetAll();
+    }
 }
 
 public OnRankedSettled(failstate, Handle:query, error[], errnum, data[], dataSize) {
@@ -650,6 +660,10 @@ public OnRankedSettled(failstate, Handle:query, error[], errnum, data[], dataSiz
         log_amx("[排位] 结算写入成功");
     }
     SQL_FreeHandle(query);
+
+    // 给平台留出读取 lastResult 的时间，再结束本局；平台收到结果后会关闭游戏。
+    remove_task(TASK_RANKED_END);
+    resetAll();
 }
 
 //检测玩家名字注册状态函数,添加sql查询语句
@@ -1687,7 +1701,7 @@ public PlayerPreThink(id)
 
     if(checkRankedFinish())
     {
-        resetAll();
+        // 等 OnRankedSettled 落库后再 resetAll，避免平台还来不及读结果。
         return FMRES_HANDLED;
     }
 
@@ -2426,9 +2440,9 @@ public taskQuitToPlatform()
     for(new i = 1; i <= get_maxplayers(); i++)
     {
         if(is_user_connected(i) && !Is_Bot(i))
-            client_cmd(i, "quit");
+            client_cmd(i, "disconnect");
     }
-    log_amx("[Ranked] quit game after match end");
+    log_amx("[Ranked] disconnect game after match end");
 }
 
 autoPlayerStart()

@@ -137,6 +137,38 @@ async function getMatch(matchId, userId) {
   };
 }
 
+async function getLastResult(userId) {
+  const row = await one(
+    `SELECT m.id
+       FROM ranked_match_players p
+       JOIN ranked_matches m ON m.id = p.match_id
+      WHERE p.user_id = ? AND m.status = 'finished'
+      ORDER BY m.finished_at DESC, m.id DESC
+      LIMIT 1`,
+    [userId]
+  );
+  if (!row) return null;
+
+  const match = await getMatch(row.id, userId);
+  const me = match?.players?.find((player) => player.id === Number(userId));
+  if (!match || !me || !match.winner) return null;
+
+  return {
+    matchId: match.id,
+    mode: match.mode,
+    winner: match.winner,
+    myTeam: me.team,
+    result: me.team === match.winner ? 'win' : 'loss',
+    ratingBefore: me.rating,
+    ratingAfter: me.ratingAfter,
+    ratingDelta: me.ratingAfter === null ? null : me.ratingAfter - me.rating,
+    finishedAt: match.finishedAt,
+    server: match.server,
+    players: match.players,
+    teams: match.teams,
+  };
+}
+
 async function getState(userId) {
   const profile = await getProfile(userId);
 
@@ -180,7 +212,7 @@ async function getState(userId) {
     };
   }
 
-  return { state: 'idle', profile };
+  return { state: 'idle', profile, lastResult: await getLastResult(userId) };
 }
 
 function pickGroup(entries, size, tolerance = 200) {

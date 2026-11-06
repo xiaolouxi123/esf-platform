@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar';
 import Icon from './Icon';
+import RankedResultModal from './RankedResultModal';
 
 const MODE_META = {
   '1v1': { label: '1v1', sub: '单排模式', desc: '单人匹配，纯个人实力', slots: 1 },
@@ -238,19 +239,48 @@ export default function RankedPage({ user, toast }) {
   const [betAmount, setBetAmount] = useState(50);
   const [busy, setBusy] = useState('');
   const [countdown, setCountdown] = useState(null);
+  const [result, setResult] = useState(null);
   const launchRef = useRef(null);
   const matchRef = useRef(null);
+  const seenResultRef = useRef(
+    typeof localStorage === 'undefined' ? '' : localStorage.getItem('esf:seenRankedResult') || ''
+  );
+  const dismissedResultRef = useRef('');
   matchRef.current = state.match;
+
+  const consumeResult = useCallback(async (lastResult) => {
+    if (!lastResult?.matchId) return;
+    const key = `${lastResult.matchId}:${lastResult.finishedAt || ''}`;
+    if (dismissedResultRef.current === key) return;
+    if (seenResultRef.current !== key) {
+      seenResultRef.current = key;
+      try {
+        localStorage.setItem('esf:seenRankedResult', key);
+      } catch {
+        /* 存储不可用时忽略 */
+      }
+      const finishedAt = Date.parse(lastResult.finishedAt || '');
+      if (!Number.isNaN(finishedAt) && Date.now() - finishedAt < 10 * 60 * 1000) {
+        try {
+          await window.electronAPI?.launch?.stop?.();
+        } catch {
+          /* 游戏可能已经退出 */
+        }
+      }
+    }
+    setResult(lastResult);
+  }, []);
 
   const loadState = useCallback(async () => {
     try {
       const data = await window.electronAPI.ranked.state();
       setState(data);
       if (data?.match?.mode) setMode(data.match.mode);
+      await consumeResult(data?.lastResult);
     } catch (err) {
       setState((prev) => ({ ...prev, state: prev.state === 'loading' ? 'error' : prev.state, error: err.message }));
     }
-  }, []);
+  }, [consumeResult]);
 
   const loadLeaderboard = useCallback(async () => {
     try {
@@ -581,6 +611,14 @@ export default function RankedPage({ user, toast }) {
           <p>正在连接 {match?.server?.name} · 平台会自动收进托盘</p>
         </div>
       )}
+
+      <RankedResultModal
+        result={result}
+        onClose={() => {
+          if (result) dismissedResultRef.current = `${result.matchId}:${result.finishedAt || ''}`;
+          setResult(null);
+        }}
+      />
     </div>
   );
 }

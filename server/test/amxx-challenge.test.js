@@ -7,6 +7,10 @@ const path = require('node:path');
 
 const sourcePath = path.join(__dirname, '..', '..', 'amxx', 'test_ranked.sma');
 const source = fs.readFileSync(sourcePath, 'utf8');
+const lockSource = fs.readFileSync(
+  path.join(__dirname, '..', '..', 'amxx', 'esf_ranked_lock.sma'),
+  'utf8'
+);
 
 test('challenge identification retries after a late room start', () => {
   assert.match(source, /#define TASK_CHALLENGE_RETRY\s+4600/);
@@ -74,4 +78,28 @@ test('challenge settlement waits for the async result before quitting', () => {
     /remove_task\(TASK_CHALLENGE_END\);\s*resetAll\(\);/,
     '存储过程回调完成后才 resetAll 排 quit',
   );
+});
+
+test('ranked settlement waits for the async result before quitting', () => {
+  assert.match(
+    source,
+    /if\(checkRankedFinish\(\)\)\s*\{\s*\/\/[^\n]*\n\s*return FMRES_HANDLED;/,
+    '排位结算后不能立即 resetAll；应由 OnRankedSettled 落库后再结束',
+  );
+  assert.match(source, /#define TASK_RANKED_END\s+4800/);
+  assert.match(source, /set_task\(12\.0, "taskForceRankedEnd", TASK_RANKED_END\)/);
+  assert.match(source, /public taskForceRankedEnd\(\)/);
+  assert.match(
+    source,
+    /remove_task\(TASK_RANKED_END\);\s*resetAll\(\);/,
+    '排位存储过程回调完成后才 resetAll',
+  );
+  assert.match(source, /client_cmd\(i, "disconnect"\)/);
+  assert.doesNotMatch(source, /client_cmd\(i, "quit"\)/, 'GoldSrc 客户端会拒绝服务器发 quit');
+});
+
+test('ranked guests are rejected while a ranked match is active', () => {
+  assert.match(lockSource, /checkGuestLock\(id\)/);
+  assert.match(lockSource, /public OnGuestLockChecked/);
+  assert.match(lockSource, /只有本场参赛平台玩家可以进入/);
 });

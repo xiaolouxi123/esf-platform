@@ -105,7 +105,11 @@ public taskCheckPlayer(taskid) {
 
     new token[40];
     get_user_info(id, "_platform_token", token, charsmax(token));
-    if (!isValidToken(token)) return; // 身份插件负责处理无 token 的情况
+    if (!isValidToken(token)) {
+        // 无平台 token 的 guest 在排位赛期间也必须拒绝，否则排位永远无法结算。
+        checkGuestLock(id);
+        return;
+    }
 
     new serverKey[34];
     get_pcvar_string(g_pcServerKey, serverKey, charsmax(serverKey));
@@ -150,6 +154,42 @@ public taskCheckPlayer(taskid) {
     new data[1];
     data[0] = id;
     SQL_ThreadQuery(g_db, "OnLockChecked", query, data, 1);
+}
+
+/** 无平台 token 的 guest：排位赛期间不允许进入，避免比赛无法结算。 */
+checkGuestLock(id) {
+    new serverKey[34];
+    get_pcvar_string(g_pcServerKey, serverKey, charsmax(serverKey));
+    if (serverKey[0] == 0) return;
+    sanitizeKey(serverKey);
+
+    if (!ensureDatabase()) {
+        if (!get_pcvar_num(g_pcFailOpen)) rejectPlayer(id, "排位赛校验服务不可用，请稍后再试");
+        return;
+    }
+
+    new query[256];
+    formatex(query, charsmax(query),
+        "SELECT COUNT(*) FROM ranked_matches \
+         WHERE server_key = '%s' AND status IN ('waiting','live')",
+        serverKey);
+
+    new data[1];
+    data[0] = id;
+    SQL_ThreadQuery(g_db, "OnGuestLockChecked", query, data, 1);
+}
+
+public OnGuestLockChecked(failstate, Handle:query, error[], errnum, data[], dataSize) {
+    new id = data[0];
+    if (failstate != TQUERY_SUCCESS) {
+        log_amx("[ranked] guest 校验失败 id=%d err=%s", id, error);
+        if (!get_pcvar_num(g_pcFailOpen)) rejectPlayer(id, "排位赛校验服务异常，请稍后再试");
+        return;
+    }
+    if (!is_user_connected(id)) return;
+    if (SQL_ReadResult(query, 0) > 0) {
+        rejectPlayer(id, "排位赛进行中，只有本场参赛平台玩家可以进入");
+    }
 }
 
 public OnLockChecked(failstate, Handle:query, error[], errnum, data[], dataSize) {

@@ -7178,6 +7178,13 @@ select:focus {
 .result-player-stat { color:var(--dim); font-variant-numeric:tabular-nums; }
 .result-empty { color:var(--dim); font-size:11px; padding:8px 0; }
 .challenge-result-note { color:var(--dim); font-size:11px; margin:14px 0 0; }
+.ranked-result-modal .update-modal-kicker { color:var(--accent); }
+.ranked-result-delta { display:flex; align-items:center; gap:12px; margin:14px 0 0; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:rgba(255,255,255,.025); }
+.ranked-result-delta span { color:var(--dim); font-size:11px; }
+.ranked-result-delta b { display:flex; align-items:center; gap:8px; font-size:20px; font-variant-numeric:tabular-nums; }
+.ranked-result-delta em { margin-left:auto; font-style:normal; font-size:20px; font-weight:800; }
+.ranked-result-delta.is-win em { color:#7ee0a8; }
+.ranked-result-delta.is-loss em { color:#ff8c7a; }
 @media (max-width:680px) {
   .challenge-result-teams { grid-template-columns:1fr; }
   .challenge-result-score { font-size:38px; }
