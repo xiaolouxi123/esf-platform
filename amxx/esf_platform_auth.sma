@@ -22,12 +22,17 @@
 #include <sqlx>
 
 #define PLUGIN  "ESF Platform Auth"
-#define VERSION "1.1.0"
+#define VERSION "1.2.0"
 #define AUTHOR  "ESF Platform"
 
 #define TASK_VERIFY 1000
 #define TASK_KICK   2000
 #define MAX_PLAYERS_ARRAY 33
+
+// HL/AMXX 的 userinfo name 字段上限 31 字节（不含结尾 NUL）。
+#define NAME_MAX_BYTES   31
+// token 是凭证，日志里最多出现前 6 个字符。
+#define TOKEN_LOG_PREFIX 6
 
 new Handle:g_db = Empty_Handle;
 new bool:g_dbReady = false;
@@ -49,6 +54,7 @@ new g_tokenId[MAX_PLAYERS_ARRAY];
 new g_startedAt[MAX_PLAYERS_ARRAY];
 new g_verifyAttempts[MAX_PLAYERS_ARRAY];
 new g_rejectReason[MAX_PLAYERS_ARRAY][64];
+new g_kickReason[MAX_PLAYERS_ARRAY][128];
 
 public plugin_init() {
     register_plugin(PLUGIN, VERSION, AUTHOR);
@@ -168,7 +174,7 @@ public taskVerify(taskid) {
             allowGuestEntry(id, "未使用平台启动");
             return;
         }
-        rejectPlayer(id, "未检测到平台凭证，请从 ESF 平台启动游戏");
+        rejectPlayer(id, "未检测到平台凭证，请从 ESF 平台启动游戏", "PLATFORM_TOKEN_MISSING");
         return;
     }
 
@@ -178,7 +184,7 @@ public taskVerify(taskid) {
             allowGuestEntry(id, "平台凭证无效");
             return;
         }
-        rejectPlayer(id, "平台凭证格式不正确");
+        rejectPlayer(id, "平台凭证格式不正确", "PLATFORM_TOKEN_INVALID");
         return;
     }
 
@@ -195,11 +201,11 @@ public taskVerify(taskid) {
             return;
         }
         log_amx("[Platform] 拒绝 id=%d：平台未配置，不能放行", id);
-        rejectPlayer(id, "平台身份校验未配置，请联系管理员");
+        rejectPlayer(id, "平台身份校验未配置，请联系管理员", "PLATFORM_DB_UNAVAILABLE");
         return;
     }
     if (dbStatus == DbUnavailable) {
-        handlePlatformDown(id, "数据库连接失败");
+        handlePlatformDown(id, "数据库连接失败", "PLATFORM_DB_UNAVAILABLE");
         return;
     }
 
@@ -208,17 +214,18 @@ public taskVerify(taskid) {
     if (serverKey[0] == 0) {
         // 配了数据库却没配服务器标识，同样属于配置错误，不能放行
         log_amx("[Platform] 拒绝 id=%d：platform_server_key 未配置", id);
-        rejectPlayer(id, "平台配置不完整，请联系管理员");
+        rejectPlayer(id, "平台配置不完整，请联系管理员", "PLATFORM_DB_UNAVAILABLE");
         return;
     }
 
-    new query[640];
+    // 账号状态放到应用层判定：SQL 仍然只认 active，但把「账号被停用」
+    // 和「token 过期/已用」区分成两个可对账的错误码。
+    new query[704];
     formatex(query, charsmax(query),
-        "SELECT t.id, u.id, u.game_name, u.role, t.purpose \
+        "SELECT t.id, u.id, u.game_name, u.role, t.purpose, u.status, u.username \
            FROM launch_tokens t \
            JOIN v_platform_users u ON u.id = t.user_id \
           WHERE t.token = '%s' AND t.server_key = '%s' \
-            AND u.status = 'active' \
             AND ( (t.used_at IS NULL AND t.expires_at > NOW()) \
                   OR t.authorized_until > NOW() ) \
           LIMIT 1",
@@ -226,8 +233,8 @@ public taskVerify(taskid) {
 
     if (get_pcvar_num(g_pcDebug)) {
         new prefix[8];
-        formatex(prefix, charsmax(prefix), "%.6s", token);
-        log_amx("[Platform] 校验中 id=%d user=%s token=%s…", id, name, prefix);
+        tokenPrefix(token, prefix, charsmax(prefix));
+        log_amx("[Platform] 校验中 id=%d user=%s token_prefix=%s…", id, name, prefix);
     }
 
     new data[2];
@@ -241,7 +248,7 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
 
     if (failstate != TQUERY_SUCCESS) {
         log_amx("[Platform] 查询失败 failstate=%d err=%s", failstate, error);
-        handlePlatformDown(id, "平台数据库暂时不可用");
+        handlePlatformDown(id, "平台数据库暂时不可用", "PLATFORM_DB_UNAVAILABLE");
         return;
     }
 
@@ -254,16 +261,30 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
             allowGuestEntry(id, "平台凭证无效或已过期");
             return;
         }
-        rejectPlayer(id, "平台凭证无效、已过期或已被使用，请重新从平台启动");
+        rejectPlayer(id, "平台凭证无效、已过期或已被使用，请重新从平台启动", "PLATFORM_TOKEN_EXPIRED");
         return;
     }
 
     new tokenId = SQL_ReadResult(query, 0);
     new userId  = SQL_ReadResult(query, 1);
-    new name[32], role[16], purpose[16];
-    SQL_ReadResult(query, 2, name, charsmax(name));
+    new gameName[128], role[16], purpose[16], status[16], username[128];
+    SQL_ReadResult(query, 2, gameName, charsmax(gameName));
     SQL_ReadResult(query, 3, role, charsmax(role));
     SQL_ReadResult(query, 4, purpose, charsmax(purpose));
+    SQL_ReadResult(query, 5, status, charsmax(status));
+    SQL_ReadResult(query, 6, username, charsmax(username));
+
+    // 账号被停用：SQL 不再用 status 过滤（否则和"token 过期"无法区分），
+    // 改为这里判定。放行/拒绝结果不变，只是错误码和文案更准确。
+    if (!equal(status, "active")) {
+        if (get_pcvar_num(g_pcAllowGuest)) {
+            allowGuestEntry(id, "平台账号状态异常");
+            return;
+        }
+        rejectPlayer(id, "平台账号已被停用，请联系管理员", "PLATFORM_ACCOUNT_INACTIVE");
+        return;
+    }
+
     // 仅观战者写入该 userinfo；普通进服不额外占用客户端 info string，
     // 否则接近上限时会触发 "Info string length exceeded"。
     if (equal(purpose, "spectate")) {
@@ -271,17 +292,27 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
     }
 
     // 进服自动使用平台游戏昵称；平台已限制同名，避免游戏内出现重名玩家。
-    if (get_pcvar_num(g_pcSyncName)) {
-        set_user_info(id, "name", name);
-        log_amx("[Platform] 自动同步游戏昵称 id=%d name=%s", id, name);
+    // 空 game_name 回退 username；HL 的 name 字段上限 31 字节，
+    // 截断必须落在 UTF-8 字符边界上，否则客户端会显示半个汉字。
+    new displayName[128], safeName[32];
+    if (gameName[0] == 0) {
+        copy(displayName, charsmax(displayName), username);
+    } else {
+        copy(displayName, charsmax(displayName), gameName);
+    }
+    utf8SafeCopy(safeName, charsmax(safeName), displayName, NAME_MAX_BYTES);
+
+    if (get_pcvar_num(g_pcSyncName) && safeName[0] != 0) {
+        set_user_info(id, "name", safeName);
+        log_amx("[Platform] 自动同步游戏昵称 id=%d name=%s", id, safeName);
     }
 
     // 可选：强制游戏昵称与平台 game_name 一致（默认关闭，避免彩色名字/改名误伤）
     if (!get_pcvar_num(g_pcSyncName) && get_pcvar_num(g_pcRequireName)) {
         new clientName[32];
         get_user_name(id, clientName, charsmax(clientName));
-        if (!equal(clientName, name)) {
-            rejectPlayer(id, "游戏昵称必须与平台昵称一致，请改名后重新进入");
+        if (!equal(clientName, safeName)) {
+            rejectPlayer(id, "游戏昵称必须与平台昵称一致，请改名后重新进入", "PLATFORM_NAME_MISMATCH");
             return;
         }
     }
@@ -312,11 +343,11 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
          VALUES (%d, '%s', %d, NOW())", userId, serverKey, tokenId);
     SQL_ThreadQuery(g_db, "OnAuxQuery", session);
 
-    log_amx("[Platform] 验证通过 id=%d user=%s role=%s", id, name, role);
+    log_amx("[Platform] 验证通过 id=%d user=%s role=%s", id, safeName, role);
 
     set_hudmessage(0, 255, 128, -1.0, 0.35, 0, 0.0, 5.0, 0.1, 0.2, -1);
-    show_hudmessage(id, "平台验证成功^n欢迎你，%s", name);
-    client_print(id, print_chat, "[平台] 身份验证成功：%s", name);
+    show_hudmessage(id, "平台验证成功^n欢迎你，%s", safeName);
+    client_print(id, print_chat, "[平台] 身份验证成功：%s", safeName);
 }
 
 public OnAuxQuery(failstate, Handle:query, error[], errnum, data[], dataSize) {
@@ -364,12 +395,51 @@ bool:isValidToken(const token[]) {
     return true;
 }
 
-rejectPlayer(id, const reason[]) {
-    new name[32], serverKey[34];
+/**
+ * 只取 token 的日志前缀（默认 6 字符）。
+ *
+ * token 是凭证，完整值绝不能进日志：一条日志就会把它泄给所有能读
+ * amxx 日志的人。这里手工按字符拷贝，不依赖 format 的精度语法。
+ */
+stock tokenPrefix(const token[], out[], outLen) {
+    new len = strlen(token);
+    if (len > TOKEN_LOG_PREFIX) len = TOKEN_LOG_PREFIX;
+    if (len > outLen - 1) len = outLen - 1;
+    for (new i = 0; i < len; i++) out[i] = token[i];
+    out[len] = 0;
+}
+
+/**
+ * UTF-8 字节安全拷贝：最多复制 maxBytes 字节，且绝不切断多字节字符。
+ *
+ * 中文昵称在 utf8mb4 下一个汉字 3 字节，按 31 字节硬截会切出半个字符，
+ * 客户端显示成乱码/问号。切点落在 10xxxxxx（续字节）上时回退到该字符
+ * 的首字节，把整个字符一起丢掉。
+ */
+stock utf8SafeCopy(dest[], destLen, const src[], maxBytes) {
+    new len = strlen(src);
+    new cut = (len < maxBytes) ? len : maxBytes;
+    if (cut > destLen - 1) cut = destLen - 1;
+    while (cut > 0 && (src[cut] & 0xC0) == 0x80) cut--;
+    for (new i = 0; i < cut; i++) dest[i] = src[i];
+    dest[cut] = 0;
+}
+
+/**
+ * 统一拒绝入口。
+ *
+ * code 是给平台/日志对账用的稳定错误码，reason 是给玩家看的中文短句；
+ * 踢人原因固定为 "<CODE>: <短句>"，服务端控制台与平台侧日志才能对上。
+ */
+rejectPlayer(id, const reason[], const code[] = "PLATFORM_TOKEN_INVALID") {
+    new name[32], serverKey[34], ip[16];
     get_user_name(id, name, charsmax(name));
+    get_user_ip(id, ip, charsmax(ip), 1);
     get_pcvar_string(g_pcServerKey, serverKey, charsmax(serverKey));
     copy(g_rejectReason[id], 63, reason);
-    log_amx("[Platform] reject id=%d server=%s name=%s reason=%s", id, serverKey, name, reason);
+    formatex(g_kickReason[id], 127, "%s: %s", code, reason);
+    log_amx("[ESF-REJECT] code=%s id=%d name=%s ip=%s reason=%s server=%s",
+        code, id, name, ip, reason, serverKey);
 
     client_print(id, print_chat, "[平台] %s", reason);
 
@@ -382,18 +452,17 @@ rejectPlayer(id, const reason[]) {
 public taskKick(taskid) {
     new id = taskid - TASK_KICK;
     if (is_user_connected(id)) {
-        log_amx("[Platform] 执行踢出 id=%d reason=%s", id, g_rejectReason[id]);
-        server_cmd("kick #%d ^"%s^"", get_user_userid(id), g_rejectReason[id]);
+        log_amx("[ESF-REJECT] kick id=%d reason=%s", id, g_kickReason[id]);
+        server_cmd("kick #%d ^"%s^"", get_user_userid(id), g_kickReason[id]);
     }
 }
 
-handlePlatformDown(id, const reason[]) {
-    #pragma unused reason
+handlePlatformDown(id, const reason[], const code[] = "PLATFORM_DB_UNAVAILABLE") {
     if (get_pcvar_num(g_pcFailOpen)) {
         g_authed[id] = true;
-        log_amx("[Platform] 容灾放行 id=%d", id);
+        log_amx("[Platform] verify_timeout=1 id=%d code=%s reason=%s", id, code, reason);
         client_print(id, print_chat, "[平台] 验证服务暂时不可用，本次已按容灾策略放行");
     } else {
-        rejectPlayer(id, "平台验证服务不可用，请稍后再试");
+        rejectPlayer(id, "平台验证服务不可用，请稍后再试", code);
     }
 }
