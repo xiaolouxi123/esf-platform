@@ -94,6 +94,8 @@ new g_challengeRetry[33];
 new g_challengeUserId[33];
 new g_challengeBaseKills[33];
 new g_challengeBaseDeaths[33];
+new g_challengeKills[33];
+new g_challengeDeaths[33];
 new g_challengeLimit = 10;
 new g_challengeVictory[16];
 new g_challengeWinner[2];
@@ -126,6 +128,8 @@ public client_putinserver(id)
     g_challengeTeam[id]=0;
     g_challengeRetry[id]=0;
     g_challengeUserId[id]=0;
+    g_challengeKills[id]=0;
+    g_challengeDeaths[id]=0;
     g_challengeBaseKills[id]=get_user_frags(id);
     g_challengeBaseDeaths[id]=get_user_deaths(id);
 
@@ -454,6 +458,8 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
         for (new i = 1; i <= get_maxplayers(); i++) {
             g_challengeTeam[i] = 0;
             g_challengeUserId[i] = 0;
+            g_challengeKills[i] = 0;
+            g_challengeDeaths[i] = 0;
         }
     }
 
@@ -465,6 +471,8 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
     g_challengeUserId[id] = SQL_ReadResult(query, 4);
 
     g_challengeTeam[id] = (team[0] == 'a') ? 1 : 2;
+    g_challengeKills[id] = 0;
+    g_challengeDeaths[id] = 0;
     g_challengeBaseKills[id] = get_user_frags(id);
     g_challengeBaseDeaths[id] = get_user_deaths(id);
     g_challengeKnown++;
@@ -484,16 +492,16 @@ bool:checkChallengeFinish() {
         return false;
     }
 
-    new need = (g_autoTeamSize > 0) ? g_autoTeamSize * 2 : 2;
+    // 1v1 只要识别到任意一名参赛者即可结算；2v2 至少识别到一支完整队伍（2 人）。
+    // 不能要求房间内所有人都识别成功，否则某个 token 失效时比赛永远不会结算。
+    new need = (g_autoTeamSize > 1) ? g_autoTeamSize : 1;
     if (g_challengeKnown < need) return false;
 
     new scoreA = 0, scoreB = 0;
     for (new i = 1; i <= get_maxplayers(); i++) {
         if (!is_user_connected(i) || g_challengeTeam[i] == 0) continue;
-        new kills = get_user_frags(i) - g_challengeBaseKills[i];
-        new deaths = get_user_deaths(i) - g_challengeBaseDeaths[i];
-        if (kills < 0) kills = 0;
-        if (deaths < 0) deaths = 0;
+        new kills = g_challengeKills[i];
+        new deaths = g_challengeDeaths[i];
         new amount = equal(g_challengeVictory, "deaths") ? deaths : kills;
         if (g_challengeTeam[i] == 1) {
             scoreA += amount;
@@ -534,10 +542,8 @@ bool:checkChallengeFinish() {
     new teamChar[2];
     for (new i = 1; i <= get_maxplayers(); i++) {
         if (!is_user_connected(i) || g_challengeTeam[i] == 0) continue;
-        new kills = get_user_frags(i) - g_challengeBaseKills[i];
-        new deaths = get_user_deaths(i) - g_challengeBaseDeaths[i];
-        if (kills < 0) kills = 0;
-        if (deaths < 0) deaths = 0;
+        new kills = g_challengeKills[i];
+        new deaths = g_challengeDeaths[i];
         teamChar[0] = (g_challengeTeam[i] == 1) ? 'a' : 'b';
         teamChar[1] = 0;
         if (count > 0) {
@@ -1771,6 +1777,17 @@ public event_deathmsg()
     new attack=read_data(1);
     new victim=read_data(2);
 
+    // 约战独立计数器：部分 ESF 模式不会把击杀写入引擎 frags，不能依赖 get_user_frags。
+    if(g_challengeActive && !g_challengeSettled)
+    {
+        if(victim > 0 && victim <= get_maxplayers() && g_challengeTeam[victim] != 0)
+            g_challengeDeaths[victim]++;
+        if(attack > 0 && attack != victim && attack <= get_maxplayers() && g_challengeTeam[attack] != 0)
+            g_challengeKills[attack]++;
+        if(g_challengeKnown > 0)
+            checkChallengeFinish();
+    }
+
     // g_iWarrior[victim]=false;
 
     if(g_iWarrior[victim] && g_iBattle)return;
@@ -2359,6 +2376,7 @@ resetAll()
     if(BattleFlag==0)return;
 
     new bool:wasBattle = g_iBattle;
+    new bool:wasChallenge = g_challengeActive;
 
     GoodIndex=0;
     EvilIndex=0;
@@ -2381,6 +2399,8 @@ resetAll()
         g_challengeUserId[i] = 0;
         g_challengeBaseKills[i] = 0;
         g_challengeBaseDeaths[i] = 0;
+        g_challengeKills[i] = 0;
+        g_challengeDeaths[i] = 0;
     }
 
     g_iBattle     = false;
@@ -2394,8 +2414,8 @@ resetAll()
 
     client_print(0,print_chat,"比赛结束!");
 
-    // 比赛结束后可选自动退出游戏，客户端退出后平台托盘会自动恢复
-    if(wasBattle && get_pcvar_num(g_pcQuitEnable))
+    // 约战结束必须回平台；排位仍尊重 battle_quit_enable 开关。
+    if(wasBattle && (get_pcvar_num(g_pcQuitEnable) || wasChallenge))
     {
         set_task(get_pcvar_float(g_pcQuitDelay), "taskQuitToPlatform", TASK_QUIT);
     }

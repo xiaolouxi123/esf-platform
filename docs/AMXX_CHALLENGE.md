@@ -54,8 +54,7 @@
 
 ## 游戏服部署
 
-部署包：`esf-challenge-plugins-0.4.6-r11.zip`
-（54,780 字节，SHA256 `5F3B4CDC5D50FCC18F7D3D4DDC81AA020F9239862E5A201C1982664122DF89B8`）
+部署包：`esf-challenge-plugins-0.4.6-r12.zip`（54,991 字节，SHA256 `901A29FB76E4E0CC2B9F07EB62D1CFA42E64B99D040DDC3FD0C2A227C7788A5F`）
 
 1. 备份 `addons/amxmodx/configs/plugins.ini` 和 `amxx.cfg`。
 2. 以管理员运行 `install-amxx.bat`；测试期可直接运行 `install-amxx.bat -AllowGuest`。
@@ -68,7 +67,7 @@
 esf_platform_auth.amxx   6966 bytes
 esf_ranked_lock.amxx     5027 bytes
 esf_gamemode.amxx        1238 bytes
-test_ranked.amxx        30249 bytes
+test_ranked.amxx        30443 bytes
 ```
 
 游戏服数据库必须与平台 API 使用同一套 `esf_platform`，或已执行同样的
@@ -99,16 +98,17 @@ platform_sync_name "1"
 
 已验证：
 
-- 前端 lint/build、启动器测试 21+39+6、服务端 76/76。
+- 前端 lint/build、启动器测试 21+39+6、服务端 79/79。
 - 生产 API `/api/challenges`、`/api/servers` 冒烟。
-- AMXX 编译通过（auth 6,966；lock 5,027；test_ranked 30,249；gamemode 1,238）。
+- AMXX 编译通过（auth 6,966；lock 5,027；test_ranked 30,443；gamemode 1,238）。
 - 本地 HLDS 可加载四个插件并连接数据库。
 - `platform_allow_guest` 已编译进 1.1.0 身份插件，源码回归测试 5/5 通过。
 - `platform_sync_name` 默认 1，验证通过后自动同步游戏内昵称。
 - `test_ranked` 约战识别在 12.2 秒后每 20 秒重试，最多 30 次；断线会清理重试任务。
-- 约战 live 后启动器自动进入服务器；新结果落库后平台强制结束卡住的 `hl.exe` 并弹结果窗口；结算等待落库，12 秒兜底。
+- 约战击杀/死亡使用独立 `DeathMsg` 计数器，不依赖引擎 `get_user_frags`；1v1 只要识别到一名参赛者即可结算，避免某个 token 失效导致永不结算。
+- 约战结算完成后强制回平台（不受 `battle_quit_enable` 影响）；新结果落库后平台强制结束卡住的 `hl.exe` 并弹结果窗口；结算等待落库，12 秒兜底。
 - 身份/锁服插件踢人时写入具体 `reason` 日志，并把原因传给客户端。
-- r11 安装器在临时 AMXX 目录验证：`-AllowGuest` 会补写 `platform_allow_guest "1"`，也会把已有的 `"0"` 改为 `"1"`；无开关时保持 `"0"`；缺少 `platform_sync_name` 时补 `"1"`。
+- r11/r12 安装器在临时 AMXX 目录验证：`-AllowGuest` 会补写 `platform_allow_guest "1"`，也会把已有的 `"0"` 改为 `"1"`；无开关时保持 `"0"`；缺少 `platform_sync_name` 时补 `"1"`。
 
 待验证：
 
