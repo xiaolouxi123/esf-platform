@@ -131,8 +131,8 @@ platform_sync_name "1"
 ### 包与校验
 
 - 包名：`esf-challenge-plugins-0.4.6-r14.zip`
-- 大小：41,316 字节
-- SHA256：`866f1d7ea0db910f8681309e47bd6bac67f8f4dd44059c3072ab5224a21a7510`
+- 大小：41,392 字节
+- SHA256：`d4ef8670e702e663b86d1da14f046d23af2bedc076cf168d2942c19f55156be4`
 - 外层校验文件：`esf-challenge-plugins-0.4.6-r14.zip.sha256`
 
 四个插件（由 `amxxpc` 1.10.0.5392 以 `-d1` 编译，保证同源可复现）：
@@ -142,7 +142,7 @@ platform_sync_name "1"
 | `esf_platform_auth.amxx` | 5,277 | `7485885cef48cfc6b14a10a9a5b6dfe0809f0d69293bfe74f7192227a08a640e` |
 | `esf_ranked_lock.amxx` | 3,918 | `49e764586cb0267081ae97688d31c665ad7fb0c61f7b157488b2807ea406ec75` |
 | `esf_gamemode.amxx` | 620 | `c878f71d86cb8286348fcd4bfc62b23ecdc4c874158471c36f649efccdee6a2c` |
-| `test_ranked.amxx` | 22,617 | `69e003c941b62e8960e9d594bee7ea8938c945a859790cf39d4d814f1732f71d` |
+| `test_ranked.amxx` | 22,678 | `80a1f8f1dd1b6a66d84def1c5408688e3fe07df0cd05c0b64cf25409d3a2ed34` |
 
 `-d1` 是刻意的：amxxpc 1.10 默认 `-d2` 在同源重复编译极小插件时会写出不稳定的调试字符串，
 导致二进制不可复现；r13 的哈希因此不能由当前源码重编复现。包内 `SHA256SUMS.txt` 另含
@@ -220,9 +220,9 @@ Get-FileHash .\r14\*.amxx -Algorithm SHA256
    并删除 `plugins` 下 4 个 `.amxx`。
 5. 重启后 `amxx plugins` 不应再加载 r14。
 
-### 手工验收（G6 TC-1..TC-6）
+### 手工验收（G6 TC-1..TC-7）
 
-TC-1..TC-6 为真人用例，当前 **BLOCKED（未执行）**；服务器启动与四插件加载已实测（G6a，见
+TC-1..TC-7 为真人用例，当前 **BLOCKED（未执行）**；服务器启动与四插件加载已实测（G6a，见
 `evidence/g6-hlds-boot.txt`，2026-11-07 06:35）。执行时记录房间 id、`server_key`、
 参与者 user_id、`amxx.log` 的 `[ESF-*]` 行、`challenge_results` 行与客户端是否回平台。
 

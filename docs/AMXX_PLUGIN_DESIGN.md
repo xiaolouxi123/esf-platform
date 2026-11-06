@@ -490,7 +490,7 @@ Get-FileHash dist\esf-challenge-plugins-0.4.6-r14.zip -Algorithm SHA256
 | R10 锁服/观战 | R10-1..R10-6 | 无 token guest、spectate 标记、2v2 门槛、1536 缓冲 | 插件 | 已修复待复审：guest 双表 `esf_ranked_lock.sma:177-220`；观战读取/跳过 `test_ranked.sma:132`、`:489`、`:641`、`:802-813`；quorum `:780-798` |
 | R11 构建/发布 | R11-1..R11-6 | 4 插件 0 error、版本、7 文件包、SHA、无源码/凭据 | 构建 | 静态通过（见第 9 章与 `docs/AMXX_CHALLENGE.md`） |
 | G6 服务器启动 | G6a | HLDS 加载 4 插件、DB 初始化、无插件错误 | 人工+运维 | 附加实测（非门禁）：2026-11-07 06:35 hlds.exe 起服并加载四插件，见 `evidence/g6-hlds-boot.txt`；该证据非 verifier 生成，不能计为门禁 PASS |
-| G6 真人验收 | G6b TC-1..TC-6 | 1v1/2v2/观战/中途退出/改名/guest | 人工+运维 | **BLOCKED**（本机无可用 HL 客户端，需 114 或用户端） |
+| G6 真人验收 | G6b TC-1..TC-7 | 1v1/2v2/观战/中途退出/改名/guest/结算失败 | 人工+运维 | **BLOCKED**（本机无可用 HL 客户端，需 114 或用户端） |
 
 静态验证命令：
 
@@ -532,7 +532,7 @@ r14 四插件均初始化、`[test_ranked] 平台库已初始化 (127.0.0.1:3307
 无插件报错；记录见 `evidence/g6-hlds-boot.txt`。注意 `ape_foreshadow` 地图会触发
 `Hunk_Alloc: failed on 65640 bytes`（环境内存限制，非插件缺陷），换小图即可。
 
-**G6b 仍 BLOCKED**：TC-1..TC-6（1v1、2v2、观战、中途退出、改名、无 token guest）需要真实 HL 客户端
+**G6b 仍 BLOCKED**：TC-1..TC-7（1v1、2v2、观战、中途退出、改名、无 token guest、结算失败）需要真实 HL 客户端
 与 2/4 个平台账号；本机 `hl.exe` 崩 `hw.dll 0xC000001D`，无法完成真人链路。执行时至少记录：
 房间 id、`server_key`、四名玩家 user_id、`amxx.log` 的 `[ESF-*]` 行、`challenge_results` 行、
 客户端是否回平台。未执行前 r14 只能称“候选包”。

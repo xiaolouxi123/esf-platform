@@ -2398,7 +2398,7 @@ public One()
 stock KickPlayer(Index, const code[] = "LEGACY_ABUSE")
 {
     if(!is_user_connected(Index))return ;
-
+    log_amx("[ESF-CHALLENGE] kick code=%s id=%d reason=legacy_abuse", code, Index);
     // 踢人原因统一带错误码，便于平台/日志定位；默认沿用 legacy 滥用码。
     server_cmd("kick #%d ^"%s: 违反服务器规则^"", get_user_userid(Index), code);
 }

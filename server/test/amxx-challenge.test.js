@@ -82,6 +82,7 @@ test('challenge HUD uses one centered DHUD channel and platform counters', () =>
 
 test('challenge diagnostic logs carry PRD fields', () => {
   assert.match(source, /\[ESF-CHALLENGE\] code=RENAME_BLOCKED rename_blocked id=%d/);
+  assert.match(source, /\[ESF-CHALLENGE\] kick code=%s id=%d reason=legacy_abuse/);
   assert.match(source, /\[ESF-CHALLENGE\] identified room=%d mode=%s slots=%d team=%s known=%d expected=%d/);
   assert.match(source, /\[ESF-SETTLE\] room=%d attempt=%d code=SETTLE_RETRY err=%s/);
   assert.match(source, /\[ESF-SETTLE\] room=%d attempts=4 code=STATS_FAILED err=%s/);
