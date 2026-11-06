@@ -5,6 +5,23 @@ const env = require('./env');
 const { ping, close } = require('./db');
 const { startPoller, stopPoller } = require('./services/serverPoller');
 
+// A2S 查询库收到短包会越界读取，先打补丁再启动轮询。
+require('./lib/query-guard').install();
+
+/**
+ * 进程级兜底：底层库（例如 A2S 查询）可能在事件回调里抛出越界读取这类异常。
+ * 记录下来并以非零码退出，交给计划任务「失败后自动重启」把进程拉起来，
+ * 避免进程带着损坏状态继续运行或直接消失。
+ */
+process.on('uncaughtException', (err) => {
+  console.error('[fatal] uncaughtException:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('[fatal] unhandledRejection:', err);
+});
+
 async function main() {
   const dbUp = await ping();
 

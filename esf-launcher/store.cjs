@@ -12,10 +12,13 @@ const fs = require('fs');
 const path = require('path');
 const { app, safeStorage } = require('electron');
 
+// 0.4.7 及更早版本的默认后端地址。0.4.8 起平台迁到 119.29.82.217。
+const LEGACY_DEFAULT_API_BASE_URL = 'http://119.91.99.176:3000';
+
 const DEFAULT_SETTINGS = {
   hlPath: '',
   esfModDir: '',
-  apiBaseUrl: 'http://119.91.99.176:3000',
+  apiBaseUrl: 'http://119.29.82.217:3000',
   localServerKey: 'fcx-1v1-1',
   updateFeedUrl: '',
 };
@@ -63,6 +66,18 @@ function migrateLegacyConfig(settings) {
   return settings;
 }
 
+/**
+ * 平台机房迁移：老版本把默认后端写进了 settings.json，
+ * 升级到 0.4.8 后仍会指向 119.91.99.176。只改「还是旧默认值」的情况，
+ * 玩家手动填过的地址原样保留。
+ */
+function migrateApiBaseUrl(settings) {
+  if (String(settings.apiBaseUrl || '').trim() === LEGACY_DEFAULT_API_BASE_URL) {
+    settings.apiBaseUrl = DEFAULT_SETTINGS.apiBaseUrl;
+  }
+  return settings;
+}
+
 function loadSettings() {
   let raw = {};
   try {
@@ -73,7 +88,7 @@ function loadSettings() {
     raw = {};
   }
 
-  const settings = migrateLegacyConfig(normalizeSettings(raw));
+  const settings = migrateApiBaseUrl(migrateLegacyConfig(normalizeSettings(raw)));
   try {
     saveSettings(settings);
   } catch {
