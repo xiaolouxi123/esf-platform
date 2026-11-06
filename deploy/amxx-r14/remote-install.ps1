@@ -44,7 +44,7 @@
 param(
     [string]$AmxModxDir = '',
     [string[]]$ServerRoot = @(),
-    [string]$PackageUrl = 'https://cdn.jsdelivr.net/gh/xiaolouxi123/esf-platform@dist-amxx-r14/deploy/amxx-r14/esf-challenge-plugins-0.4.6-r14.zip',
+    [string]$PackageUrl = 'https://raw.githubusercontent.com/xiaolouxi123/esf-platform/dist-amxx-r14/deploy/amxx-r14/esf-challenge-plugins-0.4.6-r14.zip',
     [string]$PackageSha256 = 'd4ef8670e702e663b86d1da14f046d23af2bedc076cf168d2942c19f55156be4',
     [string]$PackagePath = '',
     [switch]$DryRun,
@@ -308,6 +308,7 @@ foreach ($inst in $changed) {
     else { Write-Log "server not back within $RestartTimeoutSec s: $($inst.AmxxDir). Restart it from HLSM." 'ERR' }
 }
 Write-Log 'done'
+
 
 
 
