@@ -236,17 +236,51 @@ function requireOwner() {
   return role;
 }
 
+/** 已知的游戏进程名：整合包常见壳是 hl.exe，真正跑起来的可能是 no_hl.exe 等 */
+const GAME_IMAGE_NAMES = ['hl.exe', 'no_hl.exe', 'esf.exe', 'fcx.exe'];
+/** 启动时从壳进程的子进程里学到的真实游戏进程名 */
+const learnedGameNames = new Set();
+/** 启动器自己拉起的进程（壳 + 可能是真游戏），关闭时优先精确杀 */
+const spawnedGamePids = new Set();
+
 /** 游戏进程是否在跑（在线状态用它区分"大厅"和"游戏中"） */
-/** 游戏进程名：默认 hl.exe，也兼容整合包改名的 exe */
+/** 游戏进程名：内置常见名 + 壳进程的子进程 + 设置里选的主程序名 */
 function gameProcessNames() {
-  const names = new Set(['hl.exe']);
+  const names = new Set(GAME_IMAGE_NAMES);
+  for (const name of learnedGameNames) names.add(name);
   try {
     const exe = path.basename(getSettings().hlPath || '').toLowerCase();
     if (exe) names.add(exe);
   } catch {
-    /* settings 未初始化时只认 hl.exe */
+    /* settings 未初始化时只认内置名单 */
   }
   return names;
+}
+
+/**
+ * 壳进程（hl.exe）会丢弃参数再拉起真正的游戏进程（如 no_hl.exe）。
+ * 启动几秒后查一次子进程，把真实进程名记下来，后续 isGameRunning / 关闭才能命中。
+ */
+function learnGameProcesses(parentPid) {
+  try {
+    const script = `Get-CimInstance Win32_Process -Filter "ParentProcessId=${Number(parentPid)}" | Select-Object -ExpandProperty Name`;
+    const result = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 8000,
+    });
+    let learned = false;
+    for (const line of String(result.stdout || '').split(/\r?\n/)) {
+      const name = line.trim().toLowerCase();
+      if (!name.endsWith('.exe')) continue;
+      if (learnedGameNames.has(name)) continue;
+      learnedGameNames.add(name);
+      learned = true;
+    }
+    if (learned) log('🧩 识别到游戏进程名:', [...learnedGameNames].join(', '));
+  } catch {
+    /* 查不到就继续用内置名单 */
+  }
 }
 
 function listGameProcesses() {
@@ -276,14 +310,24 @@ function isGameRunning() {
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** 关游戏/切服前先结束 hl.exe（或整合包改名的客户端） */
+/** 关游戏/切服前先结束 hl.exe / no_hl.exe（或整合包改名的客户端） */
 async function stopGameForSwitch() {
   const processes = listGameProcesses();
-  if (processes.length === 0) return false;
-
-  for (const process of processes) {
+  const pids = new Set(processes.map((process) => process.pid));
+  // 启动器自己拉起的进程（含已退出但句柄还在的壳）也一并清掉
+  for (const pid of spawnedGamePids) {
     try {
-      spawnSync('taskkill', ['/PID', String(process.pid), '/F', '/T'], {
+      process.kill(pid, 0);
+      pids.add(pid);
+    } catch {
+      spawnedGamePids.delete(pid);
+    }
+  }
+  if (pids.size === 0 && !isGameRunning()) return false;
+
+  for (const pid of pids) {
+    try {
+      spawnSync('taskkill', ['/PID', String(pid), '/F', '/T'], {
         windowsHide: true,
         timeout: 5000,
       });
@@ -301,7 +345,10 @@ async function stopGameForSwitch() {
 
   for (let i = 0; i < 25; i++) {
     await wait(200);
-    if (!isGameRunning()) return true;
+    if (!isGameRunning()) {
+      spawnedGamePids.clear();
+      return true;
+    }
   }
 
   throw new api.ApiError(
@@ -446,6 +493,12 @@ function spawnGame(args) {
 
     child.once('spawn', () => {
       log(`✅ 已拉起游戏主程序 (pid=${child.pid})`);
+      spawnedGamePids.add(child.pid);
+      // 壳进程通常几秒内拉起真正的游戏进程，认一次名字并持续复用
+      for (const delay of [4000, 12000]) {
+        const timer = setTimeout(() => learnGameProcesses(child.pid), delay);
+        if (typeof timer.unref === 'function') timer.unref();
+      }
       child.unref();
       resolve(child.pid);
     });
