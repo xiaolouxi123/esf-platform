@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
@@ -36,6 +36,7 @@ export default function MemberSidebar({
   const [editingStatus, setEditingStatus] = useState(false);
   const [statusDraft, setStatusDraft] = useState('');
   const [statusSaving, setStatusSaving] = useState(false);
+  const cancelStatusRef = useRef(false);
 
   const reloadMembers = async () => {
     try {
@@ -52,6 +53,11 @@ export default function MemberSidebar({
   const selfStatus = String(selfMember?.statusText || '');
 
   const saveStatus = async () => {
+    if (cancelStatusRef.current) {
+      cancelStatusRef.current = false;
+      setEditingStatus(false);
+      return;
+    }
     if (statusSaving) return;
     setStatusSaving(true);
     try {
@@ -67,7 +73,18 @@ export default function MemberSidebar({
     }
   };
 
-  /** 成员行第二行：优先自定义状态，其次按对局/服务器自动推导 */
+  const beginStatusEdit = () => {
+    setStatusDraft(selfStatus);
+    cancelStatusRef.current = false;
+    setEditingStatus(true);
+  };
+
+  const cancelStatusEdit = () => {
+    cancelStatusRef.current = true;
+    setEditingStatus(false);
+  };
+
+  /** 成员行状态：优先自定义状态，其次按对局/服务器自动推导 */
   const activityOf = (member) => {
     if (!member.online) return '离线';
     if (member.statusText) return member.statusText;
@@ -252,53 +269,51 @@ export default function MemberSidebar({
         </span>
       </header>
 
-      <button type="button" className="member-self" onClick={onOpenSettings} title="账号与设置">
+      <div className="member-self">
         <Avatar user={user} size="sm" />
-        <span className="member-self-meta">
-          <b>{user?.gameName || user?.username}</b>
+        <div className="member-self-meta">
+          <div className="member-self-top">
+            <b>{user?.gameName || user?.username}</b>
+            {editingStatus ? (
+              <input
+                className="member-self-status-input"
+                type="text"
+                value={statusDraft}
+                maxLength={48}
+                autoFocus
+                placeholder="在做什么？最多 48 字"
+                onChange={(event) => setStatusDraft(event.target.value)}
+                onBlur={() => saveStatus()}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    saveStatus();
+                  }
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    cancelStatusEdit();
+                  }
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                className={`member-self-status${selfStatus ? '' : ' is-empty'}`}
+                title="点击设置我的状态"
+                onClick={beginStatusEdit}
+              >
+                {statusSaving ? '保存中…' : selfStatus || activityOf(selfMember || { online: true })}
+              </button>
+            )}
+          </div>
           <small style={{ color: selfTitle?.color }}>
             {selfTitle ? selfTitle.name : roleLabel(user?.role)}
             {stats ? ` · ${stats.sessions} 场` : ''} · 金币 {coins}
           </small>
-        </span>
-        <Icon name="settings" size={14} />
-      </button>
-
-      <div className="member-status-edit">
-        {editingStatus ? (
-          <>
-            <input
-              type="text"
-              value={statusDraft}
-              maxLength={48}
-              autoFocus
-              placeholder="正在做什么？（最多 48 字）"
-              onChange={(event) => setStatusDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') saveStatus();
-                if (event.key === 'Escape') setEditingStatus(false);
-              }}
-            />
-            <button type="button" onClick={saveStatus} disabled={statusSaving}>
-              {statusSaving ? '…' : '保存'}
-            </button>
-            <button type="button" className="is-ghost" onClick={() => setEditingStatus(false)}>
-              取消
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              setStatusDraft(selfStatus);
-              setEditingStatus(true);
-            }}
-          >
-            <Icon name="spark" size={12} />
-            <span>{selfStatus || '设置我的状态'}</span>
-            <em>编辑</em>
-          </button>
-        )}
+        </div>
+        <button type="button" className="member-self-gear" title="账号与设置" onClick={onOpenSettings}>
+          <Icon name="settings" size={14} />
+        </button>
       </div>
 
       {staff ? (
@@ -345,11 +360,16 @@ export default function MemberSidebar({
                 >
                   <Avatar user={member} size="xs" />
                   <span className="member-row-meta">
-                    <b style={{ color: metaOf(member).color }}>
-                      {member.gameName}
-                      {member.id === user?.id ? ' · 我' : ''}
-                    </b>
-                    <small>
+                    <span className="member-row-top">
+                      <b style={{ color: metaOf(member).color }}>
+                        {member.gameName}
+                        {member.id === user?.id ? ' · 我' : ''}
+                      </b>
+                      <span className={`member-status-inline${member.online ? '' : ' is-offline'}`}>
+                        {activityOf(member)}
+                      </span>
+                    </span>
+                    <span className="member-row-sub">
                       <span className="member-level">{roleLabel(member.role)}</span>
                       {Number(member.combatLevel) >= 0 && (() => {
                         const rank = rankOf(member);
@@ -373,13 +393,8 @@ export default function MemberSidebar({
                             : member.ranked.status === 'waiting'
                               ? '待准备'
                               : '比赛中'}
-                          {' · '}
-                          {member.ranked.mode}
                         </span>
                       )}
-                    </small>
-                    <span className={`member-status${member.online ? '' : ' is-offline'}`}>
-                      {activityOf(member)}
                     </span>
                   </span>
                   <span

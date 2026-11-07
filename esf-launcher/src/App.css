@@ -4703,7 +4703,6 @@ select:focus {
 .presence-dot.is-offline { background: #5b6274; box-shadow: none; }
 .member-level {
   display: inline-block;
-  margin-right: 5px;
   padding: 0 4px;
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -4751,20 +4750,58 @@ select:focus {
 .member-self {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   width: 100%;
-  padding: 8px;
-  border: 1px solid var(--line);
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 138, 31, 0.22);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  background: linear-gradient(180deg, rgba(255, 138, 31, 0.1), rgba(255, 138, 31, 0.03));
   color: var(--text);
   text-align: left;
+}
+.member-self-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.member-self-top { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.member-self-top b { font-size: 12.5px; white-space: nowrap; }
+.member-self-status {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+  border-bottom: 1px dashed transparent;
+}
+.member-self-status:hover { color: #ffc48c; border-bottom-color: rgba(255, 138, 31, 0.5); }
+.member-self-status.is-empty { color: var(--dim); }
+.member-self-status-input {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 4px;
+  border: 1px solid rgba(255, 138, 31, 0.5);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font-size: 11px;
+  outline: none;
+}
+.member-self-meta small { display: block; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.member-self-gear {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
   cursor: pointer;
 }
-.member-self:hover { background: rgba(255, 255, 255, 0.06); border-color: var(--line-strong); }
-.member-self-meta { flex: 1; min-width: 0; }
-.member-self-meta b { display: block; font-size: 12.5px; }
-.member-self-meta small { display: block; margin-top: 2px; font-size: 10.5px; }
+.member-self-gear:hover { color: var(--text); border-color: var(--line-strong); }
 
 .member-admin-link {
   display: flex;
@@ -4821,9 +4858,20 @@ select:focus {
 .member-row:hover { background: rgba(255, 255, 255, 0.035); }
 .member-row.is-self { background: rgba(255, 138, 31, 0.07); }
 .member-row.is-offline { opacity: 0.5; }
-.member-row-meta { flex: 1; min-width: 0; }
-.member-row-meta b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.member-row-meta small { display: block; margin-top: 1px; font-size: 10px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.member-row-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.member-row-top { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.member-row-top b { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; max-width: 52%; }
+.member-status-inline {
+  flex: 1;
+  min-width: 0;
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.member-status-inline.is-offline { color: var(--dim); }
+.member-row-sub { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
 .member-dot { width: 6px; height: 6px; border-radius: 50%; background: #3ddc97; flex: none; }
 .member-dot.is-ingame { background: #3fd0ff; }
 .member-dot.is-offline { background: #5b6274; }
@@ -7075,7 +7123,6 @@ select:focus {
   align-items: center;
   justify-content: center;
   min-width: 22px;
-  margin-left: 5px;
   padding: 0 6px;
   border: 1px solid transparent;
   border-radius: 5px;
@@ -7302,82 +7349,4 @@ select:focus {
 .switch.is-on i {
   left: 20px;
   background: #1a0e04;
-}
-
-.member-status-edit {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 0 12px 10px;
-}
-
-.member-status-edit > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: 6px 9px;
-  font-size: 11px;
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px dashed var(--line);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.member-status-edit > button span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.member-status-edit > button em {
-  font-style: normal;
-  font-size: 10px;
-  color: var(--accent);
-}
-
-.member-status-edit input {
-  flex: 1;
-  min-width: 120px;
-  height: 30px;
-  padding: 0 9px;
-  font-size: 11.5px;
-  color: var(--text);
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.member-status-edit > button:not(:first-child),
-.member-status-edit button.is-ghost {
-  height: 30px;
-  padding: 0 10px;
-  font-size: 11px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 138, 31, 0.45);
-  background: rgba(255, 138, 31, 0.16);
-  color: #ffd9b3;
-  cursor: pointer;
-}
-
-.member-status-edit button.is-ghost {
-  border-color: var(--line);
-  background: transparent;
-  color: var(--muted);
-}
-
-.member-status {
-  display: block;
-  margin-top: 2px;
-  font-size: 10.5px;
-  color: #93a0b6;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.member-status.is-offline {
-  color: #5d6779;
 }

@@ -15,8 +15,8 @@
 后端：Node/Express + MySQL 8
 游戏端：AMXX 1.10，当前 r13
 生产平台：119.91.99.176（API :3000，MySQL 本机）
-游戏服：114.132.84.150（HLDS 27015/27016）
-新目标机：119.29.82.217（计划集中 API/MySQL/下载反代）
+游戏服：114.132.84.150（HLDS 27015/27016）账号:administrator 密码:Qq2957212447-
+新目标机：119.29.82.217（计划集中 API/MySQL/下载反代）账号:administrator 密码:Qq2957212447-
 官网：https://esfcn.cn/ 与 https://xiaolouxi123.github.io/esf-platform/
 GitHub：https://github.com/xiaolouxi123/esf-platform
 ```
