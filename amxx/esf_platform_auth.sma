@@ -123,7 +123,7 @@ DbStatus:ensureDatabase() {
     // 中文昵称必须 utf8mb4，否则读出来是乱码
     SQL_SetCharset(g_db, "utf8mb4");
     g_dbReady = true;
-    log_amx("[Platform] database connected (%s)", host);
+    log_amx("[Platform] database connected (%s) build 0.45", host);
     return DbReady;
 }
 
