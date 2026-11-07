@@ -397,23 +397,23 @@ public RankedInit() {
     get_pcvar_string(g_pcRankedDb, db, charsmax(db));
 
     if (host[0] == 0) {
-        log_amx("[排位] ranked_sql_host 未配置，胜负不会自动回写");
+        log_amx("[Ranked] ranked_sql_host not configured; results will not be written back");
         return;
     }
 
     g_rankedTuple = SQL_MakeDbTuple(host, user, pass, db, 5);
     if (g_rankedTuple == Empty_Handle) {
-        log_amx("[排位] SQL_MakeDbTuple 失败");
+        log_amx("[Ranked] SQL_MakeDbTuple failed");
         return;
     }
 
     SQL_ThreadQuery(g_rankedTuple, "OnRankedPing", "SELECT 1");
-    log_amx("[排位] 平台库已初始化 (%s)", host);
+    log_amx("[Ranked] platform db initialized (%s)", host);
 }
 
 public OnRankedPing(failstate, Handle:query, error[], errnum, data[], dataSize) {
     if (failstate != TQUERY_SUCCESS) {
-        log_amx("[排位] 平台库连接失败: %s", error);
+        log_amx("[Ranked] platform db connection failed: %s", error);
     }
     SQL_FreeHandle(query);
 }
@@ -452,7 +452,7 @@ public taskRankedIdentify(taskid) {
 public OnRankedIdentify(failstate, Handle:query, error[], errnum, data[], dataSize) {
     new id = data[0];
     if (failstate != TQUERY_SUCCESS) {
-        log_amx("[排位] 身份查询失败 id=%d err=%s", id, error);
+        log_amx("[Ranked] identity query failed id=%d err=%s", id, error);
         return;
     }
     if (SQL_NumResults(query) == 0) return;
@@ -1021,9 +1021,9 @@ public taskForceRankedEnd() {
 
 public OnRankedSettled(failstate, Handle:query, error[], errnum, data[], dataSize) {
     if (failstate != TQUERY_SUCCESS) {
-        log_amx("[排位] 结算写入失败: %s", error);
+        log_amx("[Ranked] result write failed: %s", error);
     } else {
-        log_amx("[排位] 结算写入成功");
+        log_amx("[Ranked] result written");
     }
     SQL_FreeHandle(query);
 
@@ -1054,8 +1054,8 @@ public CheckPlayerRegistration(id)
     data[0] = id;
     copy(data[1],64,name);
 
-    server_print("[ Debug ] 查询玩家名字:%s",name);
-    server_print("[ Debug ] 查询玩家名字:%s",data);
+    server_print("[ Debug ] query player name:%s",name);
+    server_print("[ Debug ] query player name:%s",data);
 
     //执行异步查询,并指定回调函数onPlayerRegistrationCheck进行处理结果
     SQL_ThreadQuery(g_sqlTuple,"onPlayerRegistrationCheck",query,data,sizeof(data));
@@ -1079,8 +1079,8 @@ public onPlayerRegistrationCheck(FailState,Handle:query,error[],errNum,data[],da
     // 检查数据库是否正常运行/未连接/查询失败
     if(FailState != TQUERY_SUCCESS)
     {
-        server_print("[ MySql ] 查询失败:%s 错误码(%d)",error,errNum);
-        log_amx("时间:%s -- 插件[ fcx_battle.amxx] -> [ MySql ] 查询失败:%s 错误码(%d)",time,error,errNum);
+        server_print("[ MySql ] query failed:%s code(%d)",error,errNum);
+        log_amx("time:%s -- plugin[ fcx_battle.amxx] -> [ MySql ] query failed:%s code(%d)",time,error,errNum);
     }
 
     //检查函数传来的query命令中的数据是否存在 -> 已经存在的情况
@@ -1097,7 +1097,7 @@ public onPlayerRegistrationCheck(FailState,Handle:query,error[],errNum,data[],da
             g_PlayerStats[id][PS_IS_LOGGED] = true;
 
             client_print(id, print_chat, "[系统] 玩家%s ,自动登录成功(Ip验证通过)",name);
-            server_print("[ MySql ] 玩家 %s 自动登录成功(Ip验证通过)", name);
+            server_print("[ MySql ] player %s auto login ok (IP verified)", name);
 
         }
         else
@@ -1109,7 +1109,7 @@ public onPlayerRegistrationCheck(FailState,Handle:query,error[],errNum,data[],da
             // debug_ChangeName(id,"Un-Login");
 
             client_print(0, print_chat, "[ MySql ] 该名称'%s'已经注册过,请登录账号!!!忘记账号密码请联系管理员!", name);
-            server_print("[ MySql ] 玩家 %s 尝试使用已注册的名字登录", name);
+            server_print("[ MySql ] player %s tried to use a registered name", name);
         }
     }
     else
@@ -1122,7 +1122,7 @@ public onPlayerRegistrationCheck(FailState,Handle:query,error[],errNum,data[],da
         // debug_ChangeName(id,"Un-Enroll");
 
         client_print(0, print_chat, "[ MySql ] 该名称'%s'尚未注册,请注册账号!!!", name);
-        server_print("[ MySql ] 玩家 %s 的名字尚未注册", name);
+        server_print("[ MySql ] player %s name not registered", name);
     }
 
     SQL_FreeHandle(query);
@@ -1148,13 +1148,13 @@ public HandleInsertNewPlayerData(FailState, Handle:query, error[], errNum, data[
     
     if (FailState != TQUERY_SUCCESS)
     {
-        log_amx("时间:%s -- [ MySql ] 异常 - 插入数据失败:%s 错误码(%d)", time, error, errNum);
+        log_amx("time:%s -- [ MySql ] error - insert failed:%s code(%d)", time, error, errNum);
         client_print(Client, print_chat, "[ MySql ] 数据保存失败，%s请联系管理员!",name);
         return;
     }
     
     client_print(0, print_chat, "[ MySql ] 账号'%s'已成功注册!", name);
-    server_print("[ MySql ] 新玩家 %s 数据保存成功", name);
+    server_print("[ MySql ] new player %s data saved", name);
 
     g_PlayerStats[Client][PS_IS_REGISTERED] = true;
     g_PlayerStats[Client][PS_IS_LOGGED] = true;
@@ -1177,25 +1177,25 @@ public onConnectionCheck(FailState,Handle:query,error[],errNum,data[],dataSize)
         case TQUERY_SUCCESS:
         {
             //成功接收到结果(即使查询无实际数据也说明连接正常)
-            server_print("[ MySql ] 连接状态 : 成功连接到数据库!");
-            log_amx("时间:%s -- 插件[fcxbattle.amxx] -> [ MySql ] 连接状态 : 成功连接到数据库!",time);
+            server_print("[ MySql ] connection state : connected to database!");
+            log_amx("time:%s -- plugin[fcxbattle.amxx] -> [ MySql ] connection state : connected to database!",time);
 
             //可选:验证数据结果有效性(确保查询执行成功)
             if(SQL_NumResults(query)>0)
             {
-                server_print("[ MySql ] 测试查询验证通过");
-                log_amx("时间:%s -- 插件[fcxbattle.amxx] -> [ MySql ] 测试查询验证通过!",time);
+                server_print("[ MySql ] test query verified");
+                log_amx("time:%s -- plugin[fcxbattle.amxx] -> [ MySql ] test query verified!",time);
             }
         }
         case TQUERY_CONNECT_FAILED:
         {
-            server_print("[ MySql ] 连接失败:%s 错误码(%d)",error,errNum);
-            log_amx("时间:%s -- 插件[fcxbattle.amxx] -> [ MySql ] 连接失败:%s 错误码(%d)",time,error,errNum);
+            server_print("[ MySql ] connection failed:%s code(%d)",error,errNum);
+            log_amx("time:%s -- plugin[fcxbattle.amxx] -> [ MySql ] connection failed:%s code(%d)",time,error,errNum);
         }
         case TQUERY_QUERY_FAILED:
         {
-            server_print("[ MySql ] 查询失败:%s 错误码(%d)",error,errNum);
-            log_amx("时间:%s -- 插件[fcxbattle.amxx] -> [ My Sql ] 查询失败:%s 错误码(%d)",time,error,errNum);
+            server_print("[ MySql ] query failed:%s code(%d)",error,errNum);
+            log_amx("time:%s -- plugin[fcxbattle.amxx] -> [ My Sql ] query failed:%s code(%d)",time,error,errNum);
         }
     }
 
@@ -1649,7 +1649,7 @@ public LoadPlayerStats(FailState, Handle:query, error[], errNum, data[], dataSiz
 {
     if(FailState != TQUERY_SUCCESS)
     {
-        server_print("[ MySql ] 查询失败:%s 错误码(%d)", error, errNum);
+        server_print("[ MySql ] query failed:%s code(%d)", error, errNum);
         return;
     }
 
@@ -1667,7 +1667,7 @@ public LoadPlayerStats(FailState, Handle:query, error[], errNum, data[], dataSiz
         client_print(id, print_chat, "[ MySql ] 玩家%s 数据加载成功!",name);
 
         //debug
-        server_print("[ MySql ] 玩家%s 总杀人数:%d 总死亡数:%d 胜场:%d 负场:%d"
+        server_print("[ MySql ] player %s kills:%d deaths:%d wins:%d losses:%d"
         ,name,
         g_PlayerStats[id][PS_TOTAL_KILLS],
         g_PlayerStats[id][PS_TOTAL_DEATHS],
@@ -1687,11 +1687,11 @@ public SQLOnIpUpdate(FailState, Handle:query, error[], errNum, data[], dataSize)
 
     if (FailState != TQUERY_SUCCESS)
     {
-        server_print("[ MySql ] 更新IP失败:%s 错误码(%d)", error, errNum);
+        server_print("[ MySql ] update IP failed:%s code(%d)", error, errNum);
     }
 
     client_print(id, print_chat, "[ MySql ] 账号'%s'更新IP数据!", name);
-    server_print("[ MySql ] 玩家 %s Ip数据保存成功", name);
+    server_print("[ MySql ] player %s IP data saved", name);
 
     g_PlayerStats[id][PS_IS_REGISTERED] = true;
     g_PlayerStats[id][PS_IS_LOGGED] = true;
@@ -1745,7 +1745,7 @@ public onPasswordCheck(FailState, Handle:query, error[], errNum, data[], dataSiz
 
     if (FailState != TQUERY_SUCCESS)
     {
-        server_print("[ MySql ] 查询失败:%s 错误码(%d)", error, errNum);
+        server_print("[ MySql ] query failed:%s code(%d)", error, errNum);
         client_print(id, print_chat, "[ MySql ] 查询失败，请稍后再试。");
         return;
     }
@@ -1760,7 +1760,7 @@ public onPasswordCheck(FailState, Handle:query, error[], errNum, data[], dataSiz
             g_PlayerStats[id][PS_IS_LOGGED] = true;
 
             client_print(id, print_chat, "[ MySql ] 登录成功，欢迎回来！");
-            server_print("[ MySql ] 玩家 %s 登录成功", name);
+            server_print("[ MySql ] player %s login ok", name);
 
             new ip[16];
             get_user_ip(id, ip, 15, 1);
@@ -1777,13 +1777,13 @@ public onPasswordCheck(FailState, Handle:query, error[], errNum, data[], dataSiz
         else
         {
             client_print(id, print_chat, "[ MySql ] 密码错误，请重试。");
-            server_print("[ MySql ] 玩家 %s 尝试登录，但密码错误", pev(id,pev_netname));
+            server_print("[ MySql ] player %s tried to login, wrong password", pev(id,pev_netname));
         }
     }
     else
     {
         client_print(id, print_chat, "[ MySql ] 未找到用户数据，请注册。");
-        server_print("[ MySql ] 玩家 %s 尝试登录，但未找到用户数据", pev(id,pev_netname));
+        server_print("[ MySql ] player %s tried to login, no user data", pev(id,pev_netname));
     }
 }
 
