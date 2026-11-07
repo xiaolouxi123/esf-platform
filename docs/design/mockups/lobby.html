@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="tokens.css">
+<title>ESF · 大厅</title>
+<style>
+  body { background: #05070b; }
+
+  /* 全局氛围：游戏底图 + 暗化 + 光晕 */
+  .bg {
+    position: fixed; inset: 0; z-index: 0; overflow: hidden;
+  }
+  .bg img {
+    width: 100%; height: 100%; object-fit: cover; object-position: 50% 38%;
+    filter: blur(14px) saturate(1.15) brightness(0.5);
+    transform: scale(1.08);
+  }
+  .bg::after {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(1100px 640px at 14% 0%, rgba(255, 138, 31, 0.16), transparent 62%),
+      radial-gradient(900px 560px at 92% 100%, rgba(63, 208, 255, 0.12), transparent 64%),
+      linear-gradient(180deg, rgba(5, 7, 11, 0.55) 0%, rgba(5, 7, 11, 0.86) 62%, #05070b 100%);
+  }
+  .vignette {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    box-shadow: inset 0 0 220px 60px rgba(0, 0, 0, 0.72);
+  }
+
+  .app { position: relative; z-index: 1; grid-template-rows: 60px 1fr 30px; }
+
+  /* ---------- 标题栏 ---------- */
+  .titlebar { background: rgba(7, 9, 14, 0.72); border-bottom: 1px solid rgba(255,255,255,.06); }
+  .logo { display: flex; align-items: center; gap: 11px; }
+  .logo-mark {
+    width: 32px; height: 32px; border-radius: 10px;
+    background: linear-gradient(150deg, #ffb057, #ff5d1f);
+    box-shadow: 0 0 0 1px rgba(255, 180, 90, 0.5) inset, 0 6px 18px rgba(255, 93, 31, 0.35);
+    display: grid; place-items: center; color: #1a0c02; font-weight: 900; font-size: 15px;
+    transform: rotate(-4deg);
+  }
+  .logo-text b { display: block; font-size: 14.5px; font-weight: 800; letter-spacing: 0.10em; }
+  .logo-text span { display: block; font-size: 9.5px; letter-spacing: 0.30em; color: #8d97ad; margin-top: 1px; }
+
+  .nav { gap: 2px; }
+  .nav a { display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; font-size: 13px; }
+  .nav a .ic { width: 13px; height: 13px; border: 1.4px solid currentColor; border-radius: 3px; opacity: .8; }
+  .nav a.active {
+    color: #fff;
+    background: linear-gradient(180deg, rgba(255, 138, 31, 0.20), rgba(255, 138, 31, 0.08));
+    box-shadow: inset 0 0 0 1px rgba(255, 138, 31, 0.35), 0 6px 16px rgba(255, 93, 31, 0.14);
+  }
+  .nav a.active::before { display: none; }
+
+  /* ---------- 三栏 ---------- */
+  .main { grid-template-columns: 62px 1fr 286px; gap: 14px; padding: 14px 16px; }
+
+  /* 左侧图标导航 */
+  .rail {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 10px 6px; border-radius: var(--r-16);
+    background: rgba(12, 15, 22, 0.72);
+    border: 1px solid rgba(255,255,255,.07);
+    backdrop-filter: blur(12px);
+  }
+  .rail-btn {
+    width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; gap: 2px;
+    color: #8c96ab; font-size: 10px; text-align: center; line-height: 1.1;
+    border: 1px solid transparent;
+  }
+  .rail-btn i { width: 15px; height: 15px; border: 1.5px solid currentColor; border-radius: 4px; display: block; margin: 0 auto 3px; }
+  .rail-btn.on {
+    color: #ffcf9e; background: rgba(255, 138, 31, 0.14);
+    border-color: rgba(255, 138, 31, 0.34);
+    box-shadow: 0 0 18px rgba(255, 93, 31, 0.18) inset;
+  }
+  .rail-spacer { flex: 1; }
+  .rail-mini {
+    width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+    color: #7d8699; font-size: 10px; border: 1px solid rgba(255,255,255,.06);
+    background: rgba(255,255,255,.03);
+  }
+
+  /* ---------- 主列 ---------- */
+  .center { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden; }
+
+  .hero {
+    position: relative; min-height: 258px; border-radius: var(--r-16); overflow: hidden;
+    border: 1px solid rgba(255, 150, 60, 0.28);
+    box-shadow: 0 26px 60px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.05);
+  }
+  .hero-art {
+    position: absolute; inset: 0;
+    background-image: url("assets/bg.png");
+    background-size: 146% auto; background-position: 92% 22%;
+    filter: saturate(1.25) brightness(0.72);
+    transform: scale(1.02);
+  }
+  .hero-mask {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(90deg, rgba(8, 10, 15, 0.94) 0%, rgba(8, 10, 15, 0.72) 42%, rgba(8, 10, 15, 0.18) 74%, rgba(8, 10, 15, 0.55) 100%),
+      linear-gradient(0deg, rgba(6, 8, 12, 0.9) 0%, transparent 46%),
+      radial-gradient(520px 300px at 84% 18%, rgba(255, 138, 31, 0.28), transparent 62%);
+  }
+  .hero-inner {
+    position: relative; z-index: 1; height: 100%;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 22px 26px 20px;
+  }
+  .eyebrow { display: flex; align-items: center; gap: 9px; }
+  .eyebrow b { font-size: 10px; letter-spacing: 0.24em; color: #ffb877; font-weight: 700; }
+  .eyebrow span { font-size: 10.5px; color: #cfd6e4; opacity: .7; letter-spacing: .12em; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #3ddc97; box-shadow: 0 0 10px #3ddc97; }
+
+  .hero h1 {
+    margin: 8px 0 4px; font-size: 44px; font-weight: 900; letter-spacing: 0.02em;
+    text-shadow: 0 4px 26px rgba(255, 120, 40, 0.35), 0 1px 0 rgba(0,0,0,.6);
+  }
+  .hero-sub { color: #b9c2d4; font-size: 12.5px; letter-spacing: 0.04em; }
+  .hero-tags { display: flex; gap: 6px; margin-top: 12px; }
+  .tag {
+    font-size: 10.5px; padding: 4px 9px; border-radius: 5px; color: #d9c3ad;
+    background: rgba(255, 138, 31, 0.10); border: 1px solid rgba(255, 138, 31, 0.26);
+    letter-spacing: 0.04em;
+  }
+  .tag.ghost { color: #aab3c6; background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.10); }
+
+  .hero-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .hud { display: flex; gap: 8px; }
+  .hud-cell {
+    position: relative; min-width: 86px; padding: 9px 12px 8px;
+    background: rgba(8, 11, 17, 0.62); border: 1px solid rgba(255,255,255,.10);
+    border-radius: 8px; backdrop-filter: blur(6px);
+  }
+  .hud-cell::before {
+    content: ""; position: absolute; left: -1px; top: -1px; width: 9px; height: 9px;
+    border-left: 1.5px solid #ff8a1f; border-top: 1.5px solid #ff8a1f; border-radius: 3px 0 0 0;
+  }
+  .hud-cell span { display: block; font-size: 9.5px; letter-spacing: .16em; color: #8d97ad; text-transform: uppercase; }
+  .hud-cell b { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .hud-cell b em { font-size: 10px; font-style: normal; color: #8d97ad; margin-left: 2px; }
+
+  .cta-row { display: flex; align-items: center; gap: 10px; }
+  .btn-play {
+    position: relative; height: 48px; padding: 0 34px; border: 0; cursor: pointer;
+    color: #1a0c02; font-size: 15.5px; font-weight: 900; letter-spacing: 0.06em;
+    background: linear-gradient(180deg, #ffb057 0%, #ff8a1f 45%, #f26a10 100%);
+    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+    box-shadow: 0 10px 30px rgba(255, 110, 30, 0.38), inset 0 1px 0 rgba(255,255,255,.5);
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .btn-play kbd {
+    font: inherit; font-size: 9.5px; font-weight: 700; letter-spacing: .1em;
+    background: rgba(0,0,0,.18); padding: 3px 6px; border-radius: 4px;
+  }
+  .btn-line {
+    height: 48px; padding: 0 20px; border-radius: 8px; cursor: pointer;
+    background: rgba(12, 15, 22, 0.66); color: #d5dbe8; font-size: 13px; font-weight: 600;
+    border: 1px solid rgba(255,255,255,.14); backdrop-filter: blur(6px);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+
+  /* 快捷入口 */
+  .quick { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 10px; }
+  .qcard {
+    position: relative; padding: 13px 15px; border-radius: 12px; overflow: hidden;
+    background: rgba(14, 17, 25, 0.78);
+    border: 1px solid rgba(255,255,255,.08);
+    backdrop-filter: blur(10px);
+  }
+  .qcard.hot { border-color: rgba(255, 138, 31, 0.3); box-shadow: inset 0 0 30px rgba(255, 110, 30, 0.10); }
+  .qcard .q-head { display: flex; align-items: center; gap: 7px; color: #ffb877; font-size: 10px; letter-spacing: .16em; font-weight: 700; }
+  .qcard.hot .q-head { color: #ffcf9e; }
+  .qcard h3 { margin: 7px 0 3px; font-size: 14.5px; font-weight: 700; }
+  .qcard p { margin: 0; font-size: 11px; color: #8d97ad; }
+  .qcard .arrow { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #4d5668; font-size: 15px; }
+
+  /* 在线房间 */
+  .rooms { background: rgba(12, 15, 22, 0.74); border: 1px solid rgba(255,255,255,.07); border-radius: var(--r-16); backdrop-filter: blur(10px); overflow: hidden; }
+  .rooms-head { display: flex; align-items: center; gap: 9px; padding: 13px 16px 10px; }
+  .rooms-head h2 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: .02em; }
+  .rooms-head .badge { font-size: 10px; color: #ffcf9e; background: rgba(255,138,31,.14); border: 1px solid rgba(255,138,31,.28); padding: 1px 7px; border-radius: 4px; }
+  .rooms-head .more { margin-left: auto; font-size: 11px; color: #8d97ad; }
+  .rtable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .rtable th {
+    text-align: left; font-size: 9.5px; letter-spacing: .16em; color: #6f7a8f;
+    font-weight: 600; padding: 6px 16px; border-top: 1px solid rgba(255,255,255,.06);
+    border-bottom: 1px solid rgba(255,255,255,.06); text-transform: uppercase;
+  }
+  .rtable th.r, .rtable td.r { text-align: right; }
+  .rtable td { padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,.05); color: #c8d0df; }
+  .rtable tr:last-child td { border-bottom: 0; }
+  .rtable tr:hover td { background: rgba(255,255,255,.025); }
+  .fcx {
+    display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: .1em;
+    color: #9fe3c2; border: 1px solid rgba(61,220,151,.34); background: rgba(61,220,151,.10);
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .rname b { display: block; font-size: 13px; font-weight: 600; color: #eef1f7; }
+  .rname span { font-size: 10.5px; color: #7d8699; }
+  .bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; margin-right: 6px; }
+  .bars i { width: 3px; background: #3ddc97; border-radius: 1px; }
+  .bars i:nth-child(1) { height: 4px; } .bars i:nth-child(2) { height: 7px; } .bars i:nth-child(3) { height: 11px; opacity: .35; }
+  .join {
+    height: 26px; padding: 0 13px; border-radius: 6px; font-size: 11.5px; font-weight: 700;
+    color: #1a0c02; background: linear-gradient(180deg, #ffb057, #ff8a1f); border: 0; cursor: pointer;
+  }
+  .star { color: #4d5668; margin-right: 10px; font-size: 13px; }
+  .star.on { color: #ffc861; }
+  .foot-note { padding: 9px 16px; font-size: 10.5px; color: #6f7a8f; border-top: 1px solid rgba(255,255,255,.05); }
+
+  /* 公告 / 上架 */
+  .bottom { display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; min-height: 0; }
+  .bcard { background: rgba(12, 15, 22, 0.74); border: 1px solid rgba(255,255,255,.07); border-radius: 14px; padding: 14px 16px; backdrop-filter: blur(10px); }
+  .bcard .b-head { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+  .bcard .b-head h3 { margin: 0; font-size: 12.5px; font-weight: 700; }
+  .bcard .b-head span { margin-left: auto; font-size: 10.5px; color: #8d97ad; }
+  .notice-line { display: flex; gap: 9px; padding: 8px 0; border-top: 1px dashed rgba(255,255,255,.07); font-size: 11.5px; color: #aab3c6; line-height: 1.5; }
+  .notice-line:first-of-type { border-top: 0; }
+  .notice-line b { color: #ffcf9e; font-weight: 700; margin-right: 4px; }
+
+  /* ---------- 成员面板 ---------- */
+  .members {
+    display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+    background: rgba(12, 15, 22, 0.78); border: 1px solid rgba(255,255,255,.08);
+    border-radius: var(--r-16); backdrop-filter: blur(14px);
+  }
+  .m-head { display: flex; align-items: center; gap: 7px; padding: 14px 14px 8px; }
+  .m-head h2 { margin: 0; font-size: 13px; font-weight: 700; }
+  .m-head span { margin-left: auto; font-size: 10.5px; color: #8d97ad; }
+  .self {
+    margin: 0 12px 8px; padding: 10px 11px; border-radius: 10px;
+    background: linear-gradient(135deg, rgba(255,138,31,.14), rgba(255,138,31,.03));
+    border: 1px solid rgba(255,138,31,.24);
+    display: flex; align-items: center; gap: 9px;
+  }
+  .self .av { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(145deg,#3a4a6b,#1c2536); border: 1px solid rgba(255,255,255,.16); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #dce4f2; }
+  .self b { display: block; font-size: 12.5px; }
+  .self span { font-size: 10px; color: #9aa4b8; }
+  .self .gear { margin-left: auto; color: #8d97ad; font-size: 12px; }
+  .admin-link {
+    margin: 0 12px 8px; padding: 8px 10px; border-radius: 8px; font-size: 11.5px; color: #aab3c6;
+    border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.03);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .admin-link span { margin-left: auto; color: #5c667a; }
+  .m-search {
+    margin: 0 12px 10px; padding: 7px 10px; border-radius: 8px; font-size: 11px; color: #6f7a8f;
+    background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.07);
+  }
+  .m-scroll { flex: 1; overflow: hidden; padding: 0 8px 10px; }
+  .m-group { display: flex; align-items: center; gap: 6px; padding: 9px 6px 5px; }
+  .m-group i { width: 5px; height: 5px; border-radius: 50%; }
+  .m-group b { font-size: 10px; letter-spacing: .14em; color: #97a1b5; font-weight: 700; text-transform: uppercase; }
+  .m-group span { margin-left: auto; font-size: 9.5px; color: #5c667a; }
+
+  .m-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 6px; border-radius: 8px; cursor: pointer;
+    transition: background .12s ease, box-shadow .12s ease;
+  }
+  .m-row:hover { background: rgba(255, 255, 255, 0.055); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
+  .m-row:hover .nm { text-shadow: 0 0 12px currentColor; }
+  .m-row.me { background: rgba(255,138,31,.10); }
+  .m-row .av {
+    position: relative; width: 28px; height: 28px; border-radius: 50%; flex: none;
+    background: linear-gradient(145deg,#33415e,#1a2231); border: 1px solid rgba(255,255,255,.12);
+    display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #d7dfef;
+  }
+  .m-row .av .st { position: absolute; right: -2px; bottom: -2px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid #0d1118; background: #3ddc97; }
+  .m-row .av .st.off { background: #565f72; }
+  .m-row .av .st.away { background: #ffc861; }
+  .mrow-txt { min-width: 0; flex: 1; }
+  .mrow-txt .l1 { display: flex; align-items: center; gap: 5px; min-width: 0; }
+  .mrow-txt .nm {
+    font-size: 12.5px; font-weight: 650; letter-spacing: .01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: text-shadow .12s ease;
+  }
+  .mrow-txt .l2 {
+    display: flex; align-items: center; gap: 4px; margin-top: 1px;
+    font-size: 10px; color: #8c96aa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mrow-txt .l2 .ico { width: 9px; height: 9px; border-radius: 2px; border: 1px solid #6f7a8f; flex: none; }
+  .tag-mini {
+    font-size: 8.5px; font-weight: 800; letter-spacing: .06em; padding: 1px 4px; border-radius: 3px;
+    border: 1px solid currentColor; opacity: .95; flex: none;
+  }
+  .rank-mini {
+    font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 3px; flex: none;
+    color: #cbd3e3; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  }
+  .rank-mini.d { color: #b9a6ff; border-color: rgba(160,120,255,.45); background: rgba(160,120,255,.14); }
+
+  .statusbar { background: rgba(7, 9, 14, 0.8); }
+</style>
+</head>
+<body>
+<div class="bg"><img src="assets/bg.png" alt=""></div>
+<div class="vignette"></div>
+
+<div class="app">
+
+  <header class="titlebar">
+    <div class="logo">
+      <div class="logo-mark">E</div>
+      <div class="logo-text"><b>ESF PLATFORM</b><span>DRAGON BALL ONLINE</span></div>
+    </div>
+    <nav class="nav">
+      <a class="active" href="#"><span class="ic"></span>大厅</a>
+      <a href="#"><span class="ic" style="border-radius:50%"></span>排位</a>
+      <a href="#"><span class="ic" style="transform:rotate(45deg)"></span>约战</a>
+      <a href="#"><span class="ic"></span>服务器</a>
+      <a href="#"><span class="ic" style="border-radius:50%"></span>资源库</a>
+      <a href="#"><span class="ic"></span>管理台</a>
+    </nav>
+    <div class="titlebar-right">
+      <span class="chip"><span class="coin">●</span> <b>924</b> 金币</span>
+      <div class="user"><div class="avatar">Y</div><div class="user-meta"><b>yun</b><span>所有者 · 在线</span></div></div>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- 左：图标导航 -->
+    <aside class="rail">
+      <div class="rail-btn on"><i></i>地图</div>
+      <div class="rail-btn"><i style="border-radius:50%"></i>频道</div>
+      <div class="rail-spacer"></div>
+      <div class="rail-mini">7/7</div>
+      <div class="rail-mini">＋</div>
+      <div class="rail-mini" style="color:#ff7a6a">⏻</div>
+    </aside>
+
+    <!-- 中：主内容 -->
+    <section class="center">
+
+      <div class="hero">
+        <div class="hero-art"></div>
+        <div class="hero-mask"></div>
+        <div class="hero-inner">
+          <div>
+            <div class="eyebrow"><span class="live-dot"></span><b>CURRENT MAP</b><span>已就绪 · 平台身份校验开启</span></div>
+            <h1>首领会战</h1>
+            <div class="hero-sub">pkwlz_9 · 团队夺点 · 本地开图</div>
+            <div class="hero-tags">
+              <span class="tag">剧情</span><span class="tag">SelectBoss</span><span class="tag ghost">组队模式</span><span class="tag ghost">平台身份校验</span>
+            </div>
+          </div>
+          <div class="hero-foot">
+            <div class="hud">
+              <div class="hud-cell"><span>地图</span><b>49</b></div>
+              <div class="hud-cell"><span>在线房间</span><b>2</b></div>
+              <div class="hud-cell"><span>最低延迟</span><b>4<em>ms</em></b></div>
+            </div>
+            <div class="cta-row">
+              <button class="btn-line">↻ 换一张</button>
+              <button class="btn-play">开始游戏 <kbd>ENTER</kbd></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quick">
+        <div class="qcard">
+          <div class="q-head">★ 我的收藏服</div>
+          <h3>[ESF-FCX] 单挑房 [1]</h3>
+          <p>0 / 12 人 · 4 ms · pkwlz_9</p>
+          <span class="arrow">›</span>
+        </div>
+        <div class="qcard hot">
+          <div class="q-head">◆ 天梯排位</div>
+          <h3>黄金 III · 960 RR</h3>
+          <p>1v1 / 2v2 · 快速匹配</p>
+          <span class="arrow">›</span>
+        </div>
+        <div class="qcard">
+          <div class="q-head">✦ 约战大厅</div>
+          <h3>开房邀请</h3>
+          <p>自定规则 · 不计分不锁服</p>
+          <span class="arrow">›</span>
+        </div>
+      </div>
+
+      <div class="rooms">
+        <div class="rooms-head"><h2>在线房间</h2><span class="badge">2</span><span class="more">全部 ›</span></div>
+        <table class="rtable">
+          <tr><th>房间</th><th>延迟</th><th>人数</th><th class="r"></th></tr>
+          <tr>
+            <td class="rname"><span class="fcx">FCX</span> <b style="display:inline">[ESF-FCX] 单挑房 [1]</b><br><span style="margin-left:34px">pkwlz_9 · 114.132.84.150:27016</span></td>
+            <td><span class="bars"><i></i><i></i><i></i></span>4 ms</td>
+            <td>0 / 12</td>
+            <td class="r"><span class="star on">★</span><button class="join">加入</button></td>
+          </tr>
+          <tr>
+            <td class="rname"><span class="fcx">FCX</span> <b style="display:inline">[ESF-FCX] 新手房 [2]</b><br><span style="margin-left:34px">pkwlz_9 · 114.132.84.150:27017</span></td>
+            <td><span class="bars"><i></i><i></i><i></i></span>6 ms</td>
+            <td>0 / 6</td>
+            <td class="r"><span class="star">★</span><button class="join">加入</button></td>
+          </tr>
+        </table>
+        <div class="foot-note">↻ 每 15 秒自动刷新 · 上次同步 0 秒前 · 已运行 [Level] A</div>
+      </div>
+
+      <div class="bottom">
+        <div class="bcard">
+          <div class="b-head"><h3>平台公告</h3><span>管理员发布</span></div>
+          <div class="notice-line"><span><b>公告</b>0.4.11 已发布：修复整合包客户端（no_hl.exe）被误判为已退出、比赛结束后启动器自动关闭游戏进程。</span></div>
+          <div class="notice-line"><span><b>提示</b>点房间行可展开实时玩家，玩家名 / 分数 / 在线时长来自 A2S 查询。</span></div>
+        </div>
+        <div class="bcard">
+          <div class="b-head"><h3>最近上架</h3><span>资源库 ›</span></div>
+          <p style="margin:10px 0 0;font-size:11.5px;color:#7d8699">还没有上架资源，作者上传并通过审核后会出现在这里。</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 右：成员面板（必须保留） -->
+    <aside class="members">
+      <div class="m-head"><h2>成员</h2><span>7 位 · 1 在线</span></div>
+      <div class="self">
+        <div class="av">Y</div>
+        <div><b>yun</b><span>所有者 · 22 场 · 金币 924</span></div>
+        <span class="gear">⚙</span>
+      </div>
+      <div class="admin-link">管理台与平台设置 <span>›</span></div>
+      <div class="m-search">搜索成员</div>
+      <div class="m-scroll">
+        <div class="m-group"><i style="background:#ff8a1f"></i><b style="color:#ffb877">所有者</b><span>1</span></div>
+        <div class="m-row me">
+          <div class="av">Y<span class="st"></span></div>
+          <div class="mrow-txt">
+            <div class="l1"><span class="nm" style="color:#ff9e45">yun <span style="opacity:.55;font-weight:500">· 我</span></span><span class="tag-mini" style="color:#ff9e45">OWNER</span></div>
+            <div class="l2"><span class="ico"></span>正在 1v1 · 第 3 回合</div>
+          </div>
+          <span class="rank-mini">未定级</span>
+        </div>
+
+        <div class="m-group"><i style="background:#ff5f6d"></i><b style="color:#ff8d99">神</b><span>1</span></div>
+        <div class="m-row">
+          <div class="av">Z<span class="st away"></span></div>
+          <div class="mrow-txt">
+            <div class="l1"><span class="nm" style="color:#ff7385">Yuzuki.</span><span class="tag-mini" style="color:#ff7385">ADMIN</span></div>
+            <div class="l2"><span class="ico"></span>挂机中 · 12 分钟</div>
+          </div>
+          <span class="rank-mini d">D</span>
+        </div>
+
+        <div class="m-group"><i style="background:#a78bfa"></i><b style="color:#bda6ff">作者</b><span>1</span></div>
+        <div class="m-row">
+          <div class="av">I<span class="st off"></span></div>
+          <div class="mrow-txt">
+            <div class="l1"><span class="nm" style="color:#b79dff">lkyiu</span><span class="tag-mini" style="color:#b79dff">OPS</span></div>
+            <div class="l2"><span class="ico"></span>编辑资源 · 悟空模型</div>
+          </div>
+          <span class="rank-mini">运营</span>
+        </div>
+
+        <div class="m-group"><i style="background:#94a0b8"></i><b style="color:#aab4c8">玩家</b><span>4</span></div>
+        <div class="m-row">
+          <div class="av">O<span class="st off"></span></div>
+          <div class="mrow-txt">
+            <div class="l1"><span class="nm" style="color:#d9e1f0">ok_123</span></div>
+            <div class="l2">今天也要打到黄金</div>
+          </div>
+          <span class="rank-mini d">D</span>
+        </div>
+        <div class="m-row">
+          <div class="av">X<span class="st off"></span></div>
+          <div class="mrow-txt">
+            <div class="l1"><span class="nm" style="color:#d9e1f0">Xiao Mi</span></div>
+            <div class="l2">最后在线 2 小时前</div>
+          </div>
+          <span class="rank-mini d">D</span>
+        </div>
+        <div class="m-row">
+          <div class="av">L<span class="st off"></span></div>
+          <div class="mrow-txt">
+            <div class="l1"><span class="nm" style="color:#d9e1f0">leihin</span></div>
+            <div class="l2">在频道 #新手区</div>
+          </div>
+          <span class="rank-mini">未定级</span>
+        </div>
+        <div class="m-row">
+          <div class="av">0<span class="st off"></span></div>
+          <div class="mrow-txt">
+            <div class="l1"><span class="nm" style="color:#d9e1f0">ok1231</span></div>
+            <div class="l2">最后在线 3 天前</div>
+          </div>
+          <span class="rank-mini">未定级</span>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <footer class="statusbar">
+    <span><span class="dot"></span>平台服务在线</span>
+    <span><span class="dot"></span>数据库正常</span>
+    <span>待审 0</span>
+    <span>2 / 2 在线</span>
+    <div class="right">
+      <span>http://119.29.82.217:3000</span>
+      <span>帮助中心</span>
+      <span>v0.4.11</span>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import Icon from './Icon';
+import { playResultSfx } from '../lib/sfx';
 
 function TeamColumn({ label, players, winner }) {
   const list = players || [];
@@ -45,13 +47,19 @@ function formatWhen(value) {
 }
 
 export default function RankedResultModal({ result, onClose }) {
+  const stale = Boolean(result?.fromHistory);
+  const win = result?.result === 'win';
+
+  useEffect(() => {
+    if (!result || stale) return;
+    playResultSfx(win);
+  }, [result, stale, win]);
+
   if (!result) return null;
-  const win = result.result === 'win';
   const playersA = (result.players || []).filter((player) => player.team === 'a');
   const playersB = (result.players || []).filter((player) => player.team === 'b');
   const delta = result.ratingDelta;
   const when = formatWhen(result.finishedAt);
-  const stale = Boolean(result.fromHistory);
   const deltaText = Number.isFinite(delta) ? `${delta > 0 ? '+' : ''}${delta}` : '';
 
   return (

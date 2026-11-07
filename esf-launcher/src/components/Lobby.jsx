@@ -14,6 +14,7 @@ import ChallengeResultModal from './ChallengeResultModal';
 import ServerRoomList from './ServerRoomList';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import { DEFAULT_RANKS, normalizeRanks } from '../lib/ranks';
+import { playSfx } from '../lib/sfx';
 import dragonBall from '../assets/dragon-ball.webp';
 import {
   formatRelative,
@@ -542,6 +543,7 @@ export default function Lobby({
   };
 
   const startLocal = async () => {
+    playSfx('click');
     if (platformState.maintenance) {
       toast(platformState.maintenanceText || '平台维护中，请稍后再试', 'error');
       return;
@@ -571,6 +573,7 @@ export default function Lobby({
   };
 
   const joinServer = async (server) => {
+    playSfx('click');
     if (platformState.maintenance) {
       toast(platformState.maintenanceText || '平台维护中，请稍后再试', 'error');
       return;

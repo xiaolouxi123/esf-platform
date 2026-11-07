@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="tokens.css">
+<title>ESF · 排位</title>
+<style>
+  .page-head { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 14px; }
+  .page-head h1 { margin: 6px 0 0; font-size: 28px; font-weight: 700; letter-spacing: 0.01em; }
+  .page-head .sub { margin: 6px 0 0; color: var(--tx-3); font-size: 12.5px; }
+  .page-head .right { margin-left: auto; text-align: right; }
+
+  .rank-card {
+    background:
+      radial-gradient(520px 260px at 12% 0%, rgba(255, 138, 31, 0.16), transparent 62%),
+      var(--bg-1);
+    border: 1px solid var(--line-1); border-radius: var(--r-16);
+    padding: 22px; display: grid; grid-template-columns: 116px 1fr; gap: 22px;
+    align-items: center;
+  }
+  .emblem {
+    width: 116px; height: 116px; border-radius: 50%;
+    display: grid; place-items: center; text-align: center;
+    background: conic-gradient(from 210deg, #ff8a1f, #b45f13 42%, #3a2a16 70%, #ff8a1f);
+    box-shadow: inset 0 0 0 8px var(--bg-1);
+  }
+  .emblem .inner {
+    width: 96px; height: 96px; border-radius: 50%;
+    background: radial-gradient(circle at 32% 26%, #2a3448, #141a26);
+    display: grid; place-items: center; gap: 0;
+  }
+  .emblem b { display: block; font-size: 13px; letter-spacing: 0.08em; color: #ffd9b3; }
+  .emblem span { display: block; font-size: 26px; font-weight: 750; line-height: 1.1; }
+
+  .rank-title { display: flex; align-items: baseline; gap: 10px; }
+  .rank-title b { font-size: 22px; font-weight: 700; }
+  .rank-title span { font-size: 12px; color: var(--tx-3); }
+  .bar { height: 8px; border-radius: var(--r-pill); background: rgba(255,255,255,0.07); margin: 12px 0 8px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 50%; border-radius: inherit; background: linear-gradient(90deg, #ff8a1f, #ffc861); }
+  .bar-meta { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--tx-3); font-variant-numeric: tabular-nums; }
+  .rank-stats { display: flex; gap: 30px; margin-top: 16px; }
+  .rank-stats div span { display: block; font-size: 10.5px; letter-spacing: 0.08em; color: var(--tx-3); text-transform: uppercase; }
+  .rank-stats div b { font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+  .history { margin-top: 12px; }
+  .hrow {
+    display: grid; grid-template-columns: 48px 1fr 78px 70px;
+    align-items: center; gap: 10px;
+    padding: 13px 6px; border-bottom: 1px solid var(--line-1);
+    font-size: 13px;
+  }
+  .hrow:last-child { border-bottom: 0; }
+  .hrow .res {
+    font-size: 11px; font-weight: 600; text-align: center; padding: 4px 0;
+    border-radius: var(--r-6);
+  }
+  .res.win { color: var(--green); background: rgba(61, 220, 151, 0.10); }
+  .res.loss { color: var(--red); background: rgba(255, 95, 109, 0.10); }
+  .hrow .m-main { min-width: 0; }
+  .hrow .m-main b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hrow .m-main span { display: block; font-size: 11px; color: var(--tx-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hrow .delta { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .delta.up { color: var(--green); }
+  .delta.down { color: var(--red); }
+  .hrow .after { text-align: right; color: var(--tx-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  .queue { padding: 18px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--line-1); border-radius: var(--r-10); padding: 4px; }
+  .seg button {
+    appearance: none; border: 0; background: transparent; color: var(--tx-2);
+    font: inherit; font-size: 13px; padding: 9px 0; border-radius: var(--r-6); cursor: pointer;
+  }
+  .seg button.on { background: rgba(255, 138, 31, 0.16); color: #ffd9b3; font-weight: 600; }
+
+  .server-strip {
+    margin-top: 12px; padding: 12px; border-radius: var(--r-10);
+    background: var(--bg-2); border: 1px solid var(--line-1);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .server-strip .dot2 { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .server-strip b { font-size: 12.5px; font-weight: 500; }
+  .server-strip span { font-size: 11px; color: var(--tx-3); }
+  .server-strip .ms { margin-left: auto; font-size: 11.5px; color: var(--green); font-variant-numeric: tabular-nums; }
+
+  .queue .btn.primary { margin-top: 14px; height: 46px; font-size: 15px; }
+  .queue-hint { margin-top: 10px; font-size: 11.5px; color: var(--tx-3); line-height: 1.6; }
+
+  .rules { margin: 0; padding-left: 16px; }
+  .rules li { margin: 0 0 8px; font-size: 12px; color: var(--tx-2); line-height: 1.55; }
+  .rules b { color: var(--tx-1); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="titlebar">
+    <div class="brand">
+      <div class="brand-mark">E</div>
+      <div>ESF 平台 <small>ALPHA 0.4.11</small></div>
+    </div>
+    <nav class="nav">
+      <a href="#">大厅</a>
+      <a class="active" href="#">排位</a>
+      <a href="#">约战</a>
+      <a href="#">频道</a>
+      <a href="#">服务器</a>
+      <a href="#">军备库</a>
+    </nav>
+    <div class="titlebar-right">
+      <span class="chip"><span class="coin">●</span> <b>3,200,000</b> 银币</span>
+      <span class="chip">在线 <b>12</b></span>
+      <div class="user">
+        <div class="avatar">Y</div>
+        <div class="user-meta"><b>yun</b><span>房主 · 黄金 III</span></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main two" style="grid-template-columns:1fr 344px">
+
+    <section style="display:flex;flex-direction:column;min-height:0;overflow:hidden">
+      <div class="page-head">
+        <div>
+          <span class="micro">SEASON 3 · 平台计分</span>
+          <h1>排位竞技场</h1>
+          <p class="sub">1v1 / 2v2 · 胜负影响 RR，赛季结束按段位发放银币</p>
+        </div>
+        <div class="right">
+          <span class="chip">赛季剩余 <b>12 天</b></span>
+        </div>
+      </div>
+
+      <div class="rank-card">
+        <div class="emblem"><div class="inner"><b>GOLD</b><span>III</span></div></div>
+        <div>
+          <div class="rank-title"><b>黄金 III</b><span>960 RR · 距黄金 II 还差 40</span></div>
+          <div class="bar"><i></i></div>
+          <div class="bar-meta"><span>黄金 III · 920</span><span>黄金 II · 1,000</span></div>
+          <div class="rank-stats">
+            <div><span>本赛季</span><b>24 场</b></div>
+            <div><span>胜 / 负</span><b>13 / 11</b></div>
+            <div><span>胜率</span><b>54%</b></div>
+            <div><span>当前连胜</span><b>2</b></div>
+            <div><span>最高段位</span><b>黄金 II</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card history" style="flex:1;min-height:0">
+        <div class="card-head"><h3>我的战绩</h3><span class="micro">HISTORY</span><span class="more">最近 10 场</span></div>
+        <div class="hrow">
+          <span class="res loss">负</span>
+          <span class="m-main"><b>1v1 · [ESF-FCX] 单挑房 [1]</b><span>今天 09:17 · 对手 Yuzuki.</span></span>
+          <span class="delta down">−20</span>
+          <span class="after">960</span>
+        </div>
+        <div class="hrow">
+          <span class="res win">胜</span>
+          <span class="m-main"><b>2v2 · [ESF-FCX] 新手房 [2]</b><span>昨天 22:41 · 队友 Cloud</span></span>
+          <span class="delta up">+25</span>
+          <span class="after">980</span>
+        </div>
+        <div class="hrow">
+          <span class="res win">胜</span>
+          <span class="m-main"><b>1v1 · [ESF-FCX] 单挑房 [1]</b><span>昨天 21:40 · 对手 Matias_E</span></span>
+          <span class="delta up">+22</span>
+          <span class="after">955</span>
+        </div>
+        <div class="hrow">
+          <span class="res loss">负</span>
+          <span class="m-main"><b>1v1 · [ESF-FCX] 单挑房 [1]</b><span>11-07 20:12 · 对手 Nexus</span></span>
+          <span class="delta down">−18</span>
+          <span class="after">933</span>
+        </div>
+        <div class="hrow">
+          <span class="res win">胜</span>
+          <span class="m-main"><b>2v2 · [ESF-FCX] 新手房 [2]</b><span>11-07 19:03 · 队友 Yuzuki.</span></span>
+          <span class="delta up">+24</span>
+          <span class="after">951</span>
+        </div>
+        <div class="hrow">
+          <span class="res loss">负</span>
+          <span class="m-main"><b>1v1 · [ESF-FCX] 单挑房 [1]</b><span>11-06 22:18 · 对手 Cloud</span></span>
+          <span class="delta down">−16</span>
+          <span class="after">927</span>
+        </div>
+        <div class="hrow">
+          <span class="res win">胜</span>
+          <span class="m-main"><b>1v1 · [ESF-FCX] 单挑房 [1]</b><span>11-06 21:02 · 对手 Matias_E</span></span>
+          <span class="delta up">+21</span>
+          <span class="after">943</span>
+        </div>
+      </div>
+    </section>
+
+    <aside style="display:flex;flex-direction:column;min-height:0;overflow:hidden">
+      <div class="card queue">
+        <div class="card-head"><h3>开始匹配</h3><span class="micro">QUEUE</span></div>
+        <div class="seg"><button class="on">1v1</button><button>2v2</button></div>
+        <div class="server-strip">
+          <span class="dot2"></span>
+          <div><b>[ESF-FCX] 单挑房 [1]</b><br><span>114.132.84.150:27016 · 0 / 12</span></div>
+          <span class="ms">4 ms</span>
+        </div>
+        <button class="btn primary wide">开始匹配</button>
+        <p class="queue-hint">预计等待 40 秒。匹配成功后启动器会拉起游戏并自动带票进服。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>计分规则</h3><span class="micro">RULES</span></div>
+        <ul class="rules">
+          <li>胜利 <b>+20 ~ +28</b>，失败 <b>−14 ~ −22</b>，按对手分段浮动。</li>
+          <li>中途退出或断线判负，<b>不补分</b>。</li>
+          <li>结算弹窗只在 <b>60 分钟内</b>的新对局自动弹出。</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>赛季奖励</h3><span class="micro">REWARD</span></div>
+        <div class="asset" style="border-bottom:0;padding:6px 0">
+          <div class="thumb" style="background:linear-gradient(140deg,#3a2a16,#1c150c);border-color:rgba(255,138,31,.3)"></div>
+          <div class="txt"><b>黄金段位 · 赛季框</b><span>赛季结束发放</span></div>
+          <span class="tag">预览</span>
+        </div>
+        <div class="asset" style="border-bottom:0;padding:6px 0">
+          <div class="thumb" style="background:linear-gradient(140deg,#1e2a3c,#141a26)"></div>
+          <div class="txt"><b>银币 × 120,000</b><span>按最终段位结算</span></div>
+          <span class="tag">预览</span>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <footer class="statusbar">
+    <span><span class="dot"></span>平台在线 · 延迟 4 ms</span>
+    <span>本赛季 24 场 · 13 胜 11 负</span>
+    <div class="right">
+      <span>启动器 v0.4.11</span>
+      <span>更新检查：刚刚</span>
+      <span>窗口 1440 × 900</span>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

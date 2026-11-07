@@ -5,6 +5,7 @@ import Toast from './components/Toast';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import Lobby from './components/Lobby';
+import { setSoundEnabled, playSfx } from './lib/sfx';
 import './App.css';
 
 function Splash({ message }) {
@@ -35,6 +36,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
 
   const showToast = useCallback((message, tone = 'ok') => {
+    if (tone === 'error') playSfx('error');
     setToast({ message, tone, at: Date.now() });
   }, []);
 
@@ -73,6 +75,7 @@ export default function App() {
         ]);
         if (!alive) return;
         setSettings(loadedSettings);
+        setSoundEnabled(loadedSettings?.soundEnabled !== false);
         setAppInfo(info);
       } catch (err) {
         if (!alive) return;
@@ -141,6 +144,7 @@ export default function App() {
 
   const handleSettingsChanged = (next) => {
     setSettings(next);
+    setSoundEnabled(next?.soundEnabled !== false);
     checkBackend();
   };
 

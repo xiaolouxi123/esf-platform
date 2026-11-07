@@ -275,6 +275,8 @@ const setCombatLevel = (settings, token, id, combatLevel) =>
     token,
     body: { combatLevel },
   });
+const setMemberStatus = (settings, token, text) =>
+  request(settings, { method: 'PUT', path: '/api/members/me/status', token, body: { text } });
 const economySummary = (settings, token) =>
   request(settings, { path: '/api/economy/summary', token });
 
@@ -394,6 +396,7 @@ module.exports = {
   membersList,
   memberDetail,
   setCombatLevel,
+  setMemberStatus,
   economySummary,
   rankedState,
   rankedQueue,

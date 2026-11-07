@@ -276,6 +276,27 @@ export default function SettingsDrawer({
           </section>
 
           <section className="drawer-section">
+            <h3>音效</h3>
+            <p className="drawer-hint">界面点击、切页、匹配与结算的提示音；关闭后完全静音。</p>
+            <label className="field field--row">
+              <span className="field-label">界面音效</span>
+              <button
+                type="button"
+                className={`switch${draft.soundEnabled !== false ? ' is-on' : ''}`}
+                role="switch"
+                aria-checked={draft.soundEnabled !== false}
+                onClick={() => {
+                  const next = { ...draft, soundEnabled: draft.soundEnabled === false };
+                  setDraft(next);
+                  onSave?.(next);
+                }}
+              >
+                <i />
+              </button>
+            </label>
+          </section>
+
+          <section className="drawer-section">
             <h3>账号</h3>
             <p className="drawer-hint">头像会显示在标题栏、在线列表和大厅频道里。</p>
 

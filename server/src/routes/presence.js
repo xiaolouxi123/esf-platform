@@ -44,7 +44,7 @@ router.get('/presence', requireAuth, async (req, res, next) => {
   try {
     const rows = await q(
       `SELECT u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.title_id, u.role,
-              u.combat_level, p.state, p.server_key, p.updated_at,
+              u.combat_level, u.status_text, p.state, p.server_key, p.updated_at,
               s.name AS server_name, st.map AS server_map
          FROM presence p
          JOIN users u ON u.id = p.user_id
@@ -70,6 +70,7 @@ router.get('/presence', requireAuth, async (req, res, next) => {
           combatLevel: Number(row.combat_level || 0),
           role: row.role,
           state: row.state,
+          statusText: row.status_text || '',
           serverKey: row.server_key || null,
           serverName: row.server_name || null,
           serverMap: row.server_map || null,

@@ -108,6 +108,13 @@ async function main() {
       'game_name_updated_at',
       "DATETIME NULL COMMENT '游戏昵称最近修改时间（自然日限改一次）' AFTER game_name"
     );
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'users',
+      'status_text',
+      "VARCHAR(48) NULL COMMENT '自定义状态（Discord 式，最多 48 字）' AFTER combat_level"
+    );
     // 资源封面（支持动图，原样保存）
     const coverColumns = [
       ['cover_name', 'VARCHAR(255) NULL AFTER sha256'],

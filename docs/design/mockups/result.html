@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="tokens.css">
+<title>ESF · 结算</title>
+<style>
+  .stage { position: relative; height: 100%; overflow: hidden; }
+  .stage .app { filter: blur(0); }
+  .backdrop {
+    position: absolute; inset: 0; z-index: 20;
+    background:
+      radial-gradient(700px 420px at 18% 8%, rgba(255,138,31,.14), transparent 62%),
+      rgba(6, 8, 12, 0.58);
+    backdrop-filter: blur(3px) saturate(0.9);
+    display: grid; place-items: center;
+    padding: 28px;
+  }
+  .modal {
+    width: 760px; max-height: 740px; overflow: auto;
+    background: linear-gradient(180deg, #1b2333 0%, #151b28 100%);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: var(--r-16);
+    box-shadow: 0 40px 90px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.35);
+    padding: 24px 26px 22px;
+  }
+  .m-top { display: flex; align-items: center; gap: 10px; padding-right: 26px; }
+  .badge {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+    color: #150c02; background: var(--brand); border-radius: var(--r-6);
+    padding: 5px 9px;
+  }
+  .m-meta { font-size: 12px; color: var(--tx-3); }
+  .m-close {
+    position: absolute; top: 20px; right: 22px;
+    width: 28px; height: 28px; border-radius: var(--r-6);
+    border: 1px solid var(--line-1); background: rgba(255,255,255,.04);
+    color: var(--tx-2); display: grid; place-items: center; font-size: 14px;
+  }
+  .modal { position: relative; }
+  .m-title { margin: 16px 0 4px; font-size: 30px; font-weight: 700; letter-spacing: .01em; }
+  .m-sub { margin: 0; font-size: 12.5px; color: var(--tx-2); }
+
+  .rating {
+    margin-top: 18px; padding: 16px 18px; border-radius: var(--r-10);
+    background: rgba(255,255,255,.03); border: 1px solid var(--line-1);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .rating .lbl { font-size: 10.5px; letter-spacing: .09em; color: var(--tx-3); text-transform: uppercase; }
+  .rating .nums { display: flex; align-items: baseline; gap: 10px; margin-left: auto; }
+  .rating .from { font-size: 18px; color: var(--tx-2); font-variant-numeric: tabular-nums; }
+  .rating .arrow { color: var(--tx-3); }
+  .rating .to { font-size: 26px; font-weight: 750; font-variant-numeric: tabular-nums; }
+  .rating .delta { font-size: 16px; font-weight: 700; color: var(--red); }
+  .rating .delta.up { color: var(--green); }
+
+  .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .team { border: 1px solid var(--line-1); border-radius: var(--r-10); overflow: hidden; background: rgba(11,14,20,.35); }
+  .team.win { border-color: rgba(255,138,31,.32); }
+  .team-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 13px; border-bottom: 1px solid var(--line-1);
+    font-size: 11px; letter-spacing: .08em; color: var(--tx-3); text-transform: uppercase;
+  }
+  .team.win .team-head { color: #ffcf9e; background: rgba(255,138,31,.08); }
+  .team-head .flag { margin-left: auto; color: var(--brand); font-weight: 700; letter-spacing: .06em; }
+  .player { display: flex; align-items: center; gap: 10px; padding: 11px 13px; }
+  .player .av {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(145deg,#2c3a55,#1a2335); border: 1px solid var(--line-2);
+    display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #cfd8ea;
+  }
+  .player b { font-size: 13px; font-weight: 550; }
+  .player .rr { margin-left: auto; font-size: 12px; color: var(--tx-3); font-variant-numeric: tabular-nums; }
+  .player .rr em { font-style: normal; color: var(--tx-2); }
+
+  .m-note { margin: 14px 2px 0; font-size: 11.5px; color: var(--tx-3); }
+  .m-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .m-actions .btn { flex: 1; height: 44px; }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- 背景：大厅（压暗） -->
+  <div class="app" style="opacity:.9">
+    <header class="titlebar">
+      <div class="brand"><div class="brand-mark">E</div><div>ESF 平台 <small>ALPHA 0.4.11</small></div></div>
+      <nav class="nav">
+        <a class="active" href="#">大厅</a><a href="#">排位</a><a href="#">约战</a><a href="#">频道</a><a href="#">服务器</a><a href="#">军备库</a>
+      </nav>
+      <div class="titlebar-right">
+        <span class="chip"><span class="coin">●</span> <b>3,200,000</b> 银币</span>
+        <div class="user"><div class="avatar">Y</div><div class="user-meta"><b>yun</b><span>房主 · 黄金 III</span></div></div>
+      </div>
+    </header>
+    <main class="main">
+      <aside class="panel">
+        <div class="panel-head"><h2>地图库</h2><span class="count">49</span></div>
+        <div class="search"><i></i> 搜索地图 / 关键字</div>
+        <div class="list">
+          <div class="row active"><div class="thumb">BK</div><div class="txt"><b>pkwlz_9</b><span>首领会战</span></div></div>
+          <div class="row"><div class="thumb">CD</div><div class="txt"><b>esf_cell_day</b><span>赛亚人试炼</span></div></div>
+          <div class="row"><div class="thumb">CN</div><div class="txt"><b>esf_cell_night</b><span>夜间试炼</span></div></div>
+        </div>
+      </aside>
+      <section>
+        <div class="hero">
+          <div><div class="hero-top"><span class="tagline">CURRENT MAP</span></div><h1>首领会战</h1><div class="hero-sub">pkwlz_9 · 团队夺点</div></div>
+          <div class="hero-bottom">
+            <div class="stats"><div class="stat"><span>地图</span><b>49</b></div><div class="stat"><span>在线房间</span><b>2</b></div></div>
+            <div class="actions"><button class="btn primary">开始游戏</button></div>
+          </div>
+        </div>
+      </section>
+      <aside>
+        <div class="card"><div class="card-head"><h3>平台公告</h3></div>
+          <div class="notice"><span class="notice-dot"></span><p><b>0.4.11 已发布</b>：修复整合包真实进程识别与赛后收尾。</p></div>
+        </div>
+      </aside>
+    </main>
+    <footer class="statusbar"><span><span class="dot"></span>平台在线 · 延迟 4 ms</span></footer>
+  </div>
+
+  <!-- 结算弹窗 -->
+  <div class="backdrop">
+    <div class="modal">
+      <div class="m-top">
+        <span class="badge">排位结算</span>
+        <span class="m-meta">1v1 · [ESF-FCX] 单挑房 [1] · 今天 09:17</span>
+      </div>
+      <button class="m-close">✕</button>
+
+      <h2 class="m-title">这场输了</h2>
+      <p class="m-sub">B 队获胜 · 时长 6 分 12 秒 · 你的评分变化 −20</p>
+
+      <div class="rating">
+        <div>
+          <div class="lbl">你的评分</div>
+          <div style="font-size:12px;color:var(--tx-3);margin-top:4px">黄金 III · 距黄金 II 还差 60</div>
+        </div>
+        <div class="nums">
+          <span class="from">960</span>
+          <span class="arrow">→</span>
+          <span class="to">940</span>
+          <span class="delta">−20</span>
+        </div>
+      </div>
+
+      <div class="teams">
+        <div class="team">
+          <div class="team-head">A 队 <span class="flag" style="color:var(--tx-3)">失败</span></div>
+          <div class="player"><span class="av">Y</span><b>yun</b><span class="rr"><em>960</em> → 940</span></div>
+        </div>
+        <div class="team win">
+          <div class="team-head">B 队 <span class="flag">胜利</span></div>
+          <div class="player"><span class="av">Z</span><b>Yuzuki.</b><span class="rr"><em>1050</em> → 1075</span></div>
+        </div>
+      </div>
+
+      <p class="m-note">排位结果已回写平台，返回大厅后可继续匹配。</p>
+
+      <div class="m-actions">
+        <button class="btn primary">返回排位大厅</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

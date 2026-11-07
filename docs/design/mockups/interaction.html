@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="tokens.css">
+<title>ESF · 交互与音效规范</title>
+<style>
+  body { background: #070a10; }
+  .bg { position: fixed; inset: 0; z-index: 0; }
+  .bg img { width: 100%; height: 100%; object-fit: cover; filter: blur(18px) brightness(.36) saturate(1.1); }
+  .bg::after { content:""; position:absolute; inset:0; background: radial-gradient(900px 500px at 12% 0%, rgba(255,138,31,.14), transparent 62%), linear-gradient(180deg, rgba(6,8,12,.72), #070a10 70%); }
+  .wrap { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 34px 28px 60px; }
+  .kicker { font-size: 10px; letter-spacing: .26em; color: #ffb877; font-weight: 800; }
+  h1 { margin: 8px 0 6px; font-size: 34px; font-weight: 900; letter-spacing: .01em; }
+  .lede { margin: 0 0 26px; color: #a4adc2; font-size: 13px; line-height: 1.7; max-width: 760px; }
+  h2 { margin: 30px 0 12px; font-size: 16px; font-weight: 800; letter-spacing: .04em; display: flex; align-items: center; gap: 8px; }
+  h2::before { content: ""; width: 10px; height: 10px; background: #ff8a1f; transform: rotate(45deg); border-radius: 2px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card {
+    background: rgba(14, 17, 25, .82); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px; padding: 18px 18px 16px; backdrop-filter: blur(10px);
+  }
+  .card h3 { margin: 0 0 4px; font-size: 13.5px; font-weight: 700; }
+  .card p { margin: 0 0 14px; font-size: 11.5px; color: #8c96aa; line-height: 1.6; }
+
+  .states { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .state-demo {
+    border-radius: 10px; padding: 12px; text-align: center; font-size: 12px; font-weight: 700;
+    border: 1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.03); color: #cfd6e4;
+    transition: all .12s ease;
+  }
+  .state-demo small { display: block; margin-top: 5px; font-size: 9.5px; font-weight: 500; color: #6f7a8f; letter-spacing: .08em; }
+  .state-demo.hover { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.2); box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  .state-demo.press { background: linear-gradient(180deg,#ffb057,#f26a10); color:#1a0c02; border-color: rgba(255,200,140,.6); box-shadow: 0 4px 14px rgba(255,110,30,.4); }
+  .state-demo.active { background: rgba(255,138,31,.16); border-color: rgba(255,138,31,.45); color:#ffd9b3; box-shadow: inset 0 0 18px rgba(255,110,30,.18); }
+  .state-demo.disabled { opacity: .4; }
+
+  .sfx { display: flex; flex-direction: column; gap: 8px; }
+  .sfx-row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.025);
+  }
+  .sfx-row .play {
+    width: 32px; height: 32px; border-radius: 50%; border: 0; cursor: pointer; flex: none;
+    background: linear-gradient(180deg,#ffb057,#ff8a1f); color:#1a0c02; font-size: 11px; font-weight: 900;
+    box-shadow: 0 4px 14px rgba(255,110,30,.3);
+  }
+  .sfx-row .play:active { transform: scale(.94); }
+  .sfx-row b { font-size: 12.5px; font-weight: 650; min-width: 108px; }
+  .sfx-row span { font-size: 11px; color: #8c96aa; flex: 1; }
+  .sfx-row em { font-style: normal; font-size: 10px; color: #6f7a8f; letter-spacing: .06em; }
+
+  .map { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
+  .map div { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px dashed rgba(255,255,255,.06); font-size: 11.5px; }
+  .map div i { width: 4px; height: 4px; border-radius: 50%; background: #ff8a1f; flex: none; }
+  .map div b { font-weight: 650; color: #dfe5f0; }
+  .map div span { color: #8c96aa; }
+  .map div em { margin-left: auto; font-style: normal; font-size: 10px; color: #6f7a8f; }
+
+  .demo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    height: 40px; padding: 0 18px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700;
+    color: #1a0c02; border: 0; background: linear-gradient(180deg,#ffb057,#ff8a1f);
+    box-shadow: 0 6px 20px rgba(255,110,30,.3); transition: transform .1s ease, box-shadow .12s ease;
+  }
+  .btn:hover { box-shadow: 0 8px 26px rgba(255,110,30,.42); }
+  .btn:active { transform: translateY(1px) scale(.99); }
+  .btn.ghost { background: rgba(12,15,22,.8); color: #d5dbe8; border: 1px solid rgba(255,255,255,.16); box-shadow: none; }
+  .tabs { display: flex; gap: 6px; }
+  .tab {
+    padding: 9px 15px; border-radius: 8px; font-size: 12px; color: #a4adc2; cursor: pointer;
+    border: 1px solid transparent; background: transparent;
+  }
+  .tab.on { color: #fff; background: linear-gradient(180deg, rgba(255,138,31,.20), rgba(255,138,31,.08)); box-shadow: inset 0 0 0 1px rgba(255,138,31,.35); }
+  .timing { display:flex; flex-direction:column; gap:10px; }
+  .timing div { display:grid; grid-template-columns:88px 1fr 150px; align-items:center; gap:10px; font-size:11.5px; }
+  .timing b { font-weight:650; color:#dfe5f0; }
+  .timing .bar { height:6px; border-radius:999px; background:linear-gradient(90deg,#ff8a1f,#ff5d1f); width:var(--w); box-shadow:0 0 12px rgba(255,110,30,.35); }
+  .timing em { font-style:normal; font-size:10px; color:#6f7a8f; letter-spacing:.04em; }
+  .mini-list { display: flex; flex-direction: column; gap: 2px; width: 300px; }
+  .mini-row { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border-radius: 8px; cursor: pointer; transition: background .12s ease; }
+  .mini-row:hover { background: rgba(255,255,255,.06); }
+  .mini-row .av { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(145deg,#33415e,#1a2231); border: 1px solid rgba(255,255,255,.14); display: grid; place-items: center; font-size: 10px; font-weight: 700; }
+  .mini-row b { font-size: 12.5px; }
+  .mini-row span { font-size: 10px; color: #8c96aa; display: block; }
+  .hint { margin-top: 12px; font-size: 10.5px; color: #6f7a8f; }
+  .toggle { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #cfd6e4; }
+  .sw { width: 38px; height: 21px; border-radius: 999px; background: rgba(255,255,255,.14); position: relative; }
+  .sw::after { content:""; position:absolute; top:3px; left:3px; width:15px; height:15px; border-radius:50%; background:#fff; }
+  .sw.on { background: #ff8a1f; }
+  .sw.on::after { left: 20px; }
+</style>
+</head>
+<body>
+<div class="bg"><img src="assets/bg.png" alt=""></div>
+<div class="wrap">
+  <div class="kicker">ESF · INTERACTION SPEC</div>
+  <h1>交互与音效规范 v1</h1>
+  <p class="lede">界面的"手感"由三件事决定：状态变化是否可感知、点击是否有即时反馈、声音是否只在关键时刻出现。下面是这一版定义的全部状态与音效，页面里的按钮可以直接点，声音就是成品。</p>
+
+  <h2>五种状态</h2>
+  <div class="card">
+    <h3>卡片 / 行 / 按钮共用同一套状态</h3>
+    <p>悬停只提亮一层，按下才给橙色反馈，选中用橙色描边 + 内发光——不靠位移和缩放制造噪音。</p>
+    <div class="states">
+      <div class="state-demo">默认<small>DEFAULT</small></div>
+      <div class="state-demo hover">悬停<small>HOVER · 120MS</small></div>
+      <div class="state-demo press">按下<small>PRESS · 90MS</small></div>
+      <div class="state-demo active">选中<small>ACTIVE</small></div>
+      <div class="state-demo disabled">禁用<small>DISABLED · 40%</small></div>
+    </div>
+  </div>
+
+  <h2>音效清单</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>7 个音效，全部短于 800ms</h3>
+      <p>合成音，无版权问题；音量统一压在 −18 dB 左右，不盖过游戏声。</p>
+      <div class="sfx">
+        <div class="sfx-row"><button class="play" data-sfx="ui-hover">▶</button><b>悬停</b><span>鼠标扫过可交互元素</span><em>50ms</em></div>
+        <div class="sfx-row"><button class="play" data-sfx="ui-click">▶</button><b>点击</b><span>按钮、卡片、房间行</span><em>70ms</em></div>
+        <div class="sfx-row"><button class="play" data-sfx="ui-tab">▶</button><b>切换页签</b><span>大厅 / 排位 / 约战 / 服务器</span><em>140ms</em></div>
+        <div class="sfx-row"><button class="play" data-sfx="ui-match">▶</button><b>匹配成功</b><span>进入比赛前，一次</span><em>620ms</em></div>
+        <div class="sfx-row"><button class="play" data-sfx="ui-win">▶</button><b>胜利</b><span>结算弹窗出现时</span><em>750ms</em></div>
+        <div class="sfx-row"><button class="play" data-sfx="ui-lose">▶</button><b>失败</b><span>结算弹窗出现时</span><em>600ms</em></div>
+        <div class="sfx-row"><button class="play" data-sfx="ui-error">▶</button><b>错误</b><span>登录失败、进服被拒</span><em>220ms</em></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>触发映射</h3>
+      <p>同一动作只发声一次；连续悬停同一个元素不重复播。</p>
+      <div class="map">
+        <div><i></i><b>悬停</b><span>成员行 / 房间行 / 主按钮</span><em>hover</em></div>
+        <div><i></i><b>点击</b><span>加入 / 开始游戏 / 打开资料</span><em>click</em></div>
+        <div><i></i><b>切页签</b><span>顶部导航</span><em>tab</em></div>
+        <div><i></i><b>匹配成功</b><span>队列命中</span><em>match</em></div>
+        <div><i></i><b>结算</b><span>弹窗入场</span><em>win / lose</em></div>
+        <div><i></i><b>错误</b><span>任何失败提示</span><em>error</em></div>
+      </div>
+      <div class="hint">音量与开关建议放在「设置 → 音效」：总开关、界面音效、比赛提示音三档。</div>
+
+      <h3 style="margin:20px 0 4px">反馈时序</h3>
+      <p style="margin:0 0 12px">所有过渡都用同一组时长，避免有的快有的慢。</p>
+      <div class="timing">
+        <div><b>悬停提亮</b><span class="bar" style="--w:12%"></span><em>120ms ease-out</em></div>
+        <div><b>按下回弹</b><span class="bar" style="--w:9%"></span><em>90ms ease-out</em></div>
+        <div><b>页面切换</b><span class="bar" style="--w:18%"></span><em>180ms ease</em></div>
+        <div><b>弹窗入场</b><span class="bar" style="--w:22%"></span><em>220ms cubic-bezier(.2,.8,.2,1)</em></div>
+        <div><b>提示停留</b><span class="bar" style="--w:70%"></span><em>2200ms</em></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>现场试听</h2>
+  <div class="card">
+    <h3>先用耳朵判断，再决定要不要接到客户端</h3>
+    <p>下面的页签、按钮和成员行都接了真实音效：悬停有轻响、点击有回弹、切页签有短促上扬。</p>
+    <div class="demo" style="margin-bottom:14px">
+      <div class="tabs">
+        <button class="tab on" data-sfx="ui-tab">大厅</button>
+        <button class="tab" data-sfx="ui-tab">排位</button>
+        <button class="tab" data-sfx="ui-tab">约战</button>
+      </div>
+      <button class="btn" data-sfx="ui-match">模拟匹配成功</button>
+      <button class="btn ghost" data-sfx="ui-error">模拟错误</button>
+    </div>
+    <div class="mini-list">
+      <div class="mini-row" data-sfx="ui-click"><div class="av">Y</div><div><b style="color:#ff9e45">yun</b><span>正在 1v1 · 第 3 回合</span></div></div>
+      <div class="mini-row" data-sfx="ui-click"><div class="av">Z</div><div><b style="color:#ff7385">Yuzuki.</b><span>挂机中 · 12 分钟</span></div></div>
+      <div class="mini-row" data-sfx="ui-click"><div class="av">I</div><div><b style="color:#b79dff">lkyiu</b><span>编辑资源 · 悟空模型</span></div></div>
+    </div>
+    <div class="toggle" style="margin-top:16px"><div class="sw on"></div> 界面音效（建议默认开）</div>
+  </div>
+</div>
+
+<script>
+  const audios = {};
+  ['ui-hover','ui-click','ui-tab','ui-match','ui-win','ui-lose','ui-error'].forEach((n) => {
+    const a = new Audio('sfx/' + n + '.wav');
+    a.preload = 'auto';
+    a.volume = 0.5;
+    audios[n] = a;
+  });
+  const play = (name) => {
+    const a = audios[name];
+    if (!a) return;
+    try { a.currentTime = 0; a.play(); } catch (e) {}
+  };
+  document.querySelectorAll('[data-sfx]').forEach((el) => {
+    const name = el.getAttribute('data-sfx');
+    el.addEventListener('mouseenter', () => play(name === 'ui-click' ? 'ui-hover' : 'ui-hover'));
+    el.addEventListener('click', (e) => {
+      if (el.classList.contains('tab')) {
+        document.querySelectorAll('.tab').forEach((t) => t.classList.remove('on'));
+        el.classList.add('on');
+      }
+      play(name);
+    });
+  });
+</script>
+</body>
+</html>

@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS = {
   apiBaseUrl: 'http://119.29.82.217:3000',
   localServerKey: 'fcx-1v1-1',
   updateFeedUrl: '',
+  soundEnabled: true,
 };
 
 function baseDir() {
@@ -48,6 +49,7 @@ function normalizeSettings(raw) {
       merged[key] = String(merged[key] || '');
     }
   }
+  merged.soundEnabled = merged.soundEnabled !== false;
   return merged;
 }
 

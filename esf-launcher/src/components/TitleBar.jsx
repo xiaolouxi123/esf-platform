@@ -1,6 +1,7 @@
 import Icon from './Icon';
 import Avatar from './Avatar';
 import { isStaff, roleLabel } from '../lib/format';
+import { playSfx } from '../lib/sfx';
 import dragonBall from '../assets/dragon-ball.webp';
 
 /**
@@ -28,6 +29,7 @@ export default function TitleBar({
   ];
 
   const handleNav = (key) => {
+    playSfx(key === 'settings' ? 'click' : 'tab');
     if (key === 'settings') {
       onOpenSettings?.();
       return;

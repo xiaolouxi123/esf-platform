@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "title": "ESF 平台界面审计与改版方案",
+    "subtitle": "从 7,265 行手写 CSS 到一套可复用的设计系统",
+    "author": "ESF 平台",
+    "date": "2026.11.08",
+    "reading_time": "约 8 分钟",
+    "tags": [
+      "设计系统",
+      "界面审计",
+      "改版方案"
+    ],
+    "type": "design-audit",
+    "status": "draft",
+    "hero_image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNDAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDE0MDAgNjAwIj4KPGRlZnM+CjxwYXR0ZXJuIGlkPSJnIiB3aWR0aD0iNTYiIGhlaWdodD0iNTYiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPgo8cGF0aCBkPSJNNTYgMEgwVjU2IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1vcGFjaXR5PSIwLjA2IiBzdHJva2Utd2lkdGg9IjEiLz4KPC9wYXR0ZXJuPgo8cGF0dGVybiBpZD0iZCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE0IiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPGNpcmNsZSBjeD0iMS41IiBjeT0iMS41IiByPSIxLjIiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNTUiLz4KPC9wYXR0ZXJuPgo8L2RlZnM+CjxyZWN0IHdpZHRoPSIxNDAwIiBoZWlnaHQ9IjYwMCIgZmlsbD0iIzBCMEUxNCIvPgo8cmVjdCB3aWR0aD0iMTQwMCIgaGVpZ2h0PSI2MDAiIGZpbGw9InVybCgjZykiLz4KPHJlY3Qgd2lkdGg9IjE0MDAiIGhlaWdodD0iNjAwIiBmaWxsPSJ1cmwoI2QpIi8+CjxyZWN0IHg9Ijk2IiB5PSIxMjAiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiBmaWxsPSIjZmY4YTFmIi8+CjxyZWN0IHg9IjIzMiIgeT0iMTIwIiB3aWR0aD0iNTYiIGhlaWdodD0iNTYiIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC45MiIvPgo8cmVjdCB4PSIzMDQiIHk9IjEyMCIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1vcGFjaXR5PSIwLjUiIHN0cm9rZS13aWR0aD0iMiIvPgo8cmVjdCB4PSI5NiIgeT0iMjcyIiB3aWR0aD0iODgiIGhlaWdodD0iOCIgZmlsbD0iI2ZmZmZmZiIgZmlsbC1vcGFjaXR5PSIwLjMyIi8+CjxyZWN0IHg9Ijk2IiB5PSIyOTYiIHdpZHRoPSIxNzYiIGhlaWdodD0iOCIgZmlsbD0iI2ZmZmZmZiIgZmlsbC1vcGFjaXR5PSIwLjE4Ii8+CjxyZWN0IHg9Ijk2IiB5PSIzMjAiIHdpZHRoPSIxMzIiIGhlaWdodD0iOCIgZmlsbD0iI2ZmZmZmZiIgZmlsbC1vcGFjaXR5PSIwLjEwIi8+CjxnIHN0cm9rZT0iI2ZmOGExZiIgc3Ryb2tlLW9wYWNpdHk9IjAuNTUiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIj4KPHBhdGggZD0iTTk4MCAzODBoMzIwIi8+PHBhdGggZD0iTTk4MCAzODB2LTkwIi8+PHBhdGggZD0iTTExMjAgMzgwdi01MiIvPjxwYXRoIGQ9Ik0xMjYwIDM4MHYtMTI2Ii8+CjwvZz4KPGcgZmlsbD0iI2ZmZmZmZiIgZmlsbC1vcGFjaXR5PSIwLjE2Ij4KPGNpcmNsZSBjeD0iOTgwIiBjeT0iMjg4IiByPSI0Ii8+PGNpcmNsZSBjeD0iMTEyMCIgY3k9IjMyNiIgcj0iNCIvPjxjaXJjbGUgY3g9IjEyNjAiIGN5PSIyNTIiIHI9IjQiLz4KPC9nPgo8cmVjdCB4PSIxMTgwIiB5PSI5NiIgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxMjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmZmZiIgc3Ryb2tlLW9wYWNpdHk9IjAuMjIiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3N2Zz4=",
+    "lang": null
+  },
+  "upgrades": [
+    {
+      "type": "pullquote",
+      "line": 13,
+      "accent": "没有过设计系统"
+    },
+    {
+      "type": "highlight",
+      "line": 69,
+      "label": "设计原则"
+    },
+    {
+      "type": "aside",
+      "line": 136,
+      "title": "落地边界",
+      "text": "这一轮只动样式层：token、组件、间距与动效。信息架构、路由、接口与业务逻辑全部保持不动，任何一步都可以单独回滚。"
+    },
+    {
+      "type": "process",
+      "lines": [
+        138,
+        139,
+        140,
+        141
+      ],
+      "items": [
+        {
+          "title": "P0 · 一天",
+          "desc": "token 层与六个基础组件，只替换样式值"
+        },
+        {
+          "title": "P1 · 三天",
+          "desc": "大厅、排位、约战、服务器四页收口"
+        },
+        {
+          "title": "P2 · 两天",
+          "desc": "军备库、管理台、频道、设置抽屉收口"
+        },
+        {
+          "title": "P3 · 一天",
+          "desc": "动效与状态统一，逐页截图回归"
+        }
+      ]
+    },
+    {
+      "type": "checklist",
+      "lines": [
+        145,
+        146,
+        147,
+        148,
+        149,
+        150
+      ]
+    }
+  ]
+}

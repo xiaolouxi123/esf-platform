@@ -4,6 +4,7 @@ import Avatar from './Avatar';
 import Icon from './Icon';
 import { roleLabel, formatDuration, formatRelative } from '../lib/format';
 import { DEFAULT_RANKS, normalizeRanks, rankFor } from '../lib/ranks';
+import { playSfx } from '../lib/sfx';
 
 const ROLE_RANK = { owner: 4, admin: 3, ops: 2, creator: 1, user: 0 };
 const ROLE_COLOR = {
@@ -32,6 +33,9 @@ export default function MemberSidebar({
   const [menu, setMenu] = useState(null);
   const [profile, setProfile] = useState(null);
   const [zoom, setZoom] = useState(false);
+  const [editingStatus, setEditingStatus] = useState(false);
+  const [statusDraft, setStatusDraft] = useState('');
+  const [statusSaving, setStatusSaving] = useState(false);
 
   const reloadMembers = async () => {
     try {
@@ -43,6 +47,42 @@ export default function MemberSidebar({
   };
 
   const canManageRoles = user?.role === 'admin' || user?.role === 'owner';
+
+  const selfMember = members.find((item) => Number(item.id) === Number(user?.id));
+  const selfStatus = String(selfMember?.statusText || '');
+
+  const saveStatus = async () => {
+    if (statusSaving) return;
+    setStatusSaving(true);
+    try {
+      await window.electronAPI.members.setStatus(statusDraft);
+      await reloadMembers();
+      setEditingStatus(false);
+      playSfx('click');
+      toast?.('状态已更新', 'ok');
+    } catch (err) {
+      toast?.(err.message, 'error');
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
+  /** 成员行第二行：优先自定义状态，其次按对局/服务器自动推导 */
+  const activityOf = (member) => {
+    if (!member.online) return '离线';
+    if (member.statusText) return member.statusText;
+    if (member.ranked) {
+      const label =
+        member.ranked.status === 'queued'
+          ? '匹配中'
+          : member.ranked.status === 'waiting'
+            ? '待准备'
+            : '比赛中';
+      return `${label} · ${member.ranked.mode}`;
+    }
+    if (member.state === 'ingame') return member.serverMap || member.serverName || '游戏中';
+    return '在大厅';
+  };
 
   const openMenu = (event, member) => {
     if (!staff) return;
@@ -224,6 +264,43 @@ export default function MemberSidebar({
         <Icon name="settings" size={14} />
       </button>
 
+      <div className="member-status-edit">
+        {editingStatus ? (
+          <>
+            <input
+              type="text"
+              value={statusDraft}
+              maxLength={48}
+              autoFocus
+              placeholder="正在做什么？（最多 48 字）"
+              onChange={(event) => setStatusDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') saveStatus();
+                if (event.key === 'Escape') setEditingStatus(false);
+              }}
+            />
+            <button type="button" onClick={saveStatus} disabled={statusSaving}>
+              {statusSaving ? '…' : '保存'}
+            </button>
+            <button type="button" className="is-ghost" onClick={() => setEditingStatus(false)}>
+              取消
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setStatusDraft(selfStatus);
+              setEditingStatus(true);
+            }}
+          >
+            <Icon name="spark" size={12} />
+            <span>{selfStatus || '设置我的状态'}</span>
+            <em>编辑</em>
+          </button>
+        )}
+      </div>
+
       {staff ? (
         <button type="button" className="member-admin-link" onClick={onOpenAdmin}>
           管理台与平台设置
@@ -261,7 +338,10 @@ export default function MemberSidebar({
                   data-member-id={member.id}
                   className={`member-row${member.id === user?.id ? ' is-self' : ''}${member.online ? '' : ' is-offline'}`}
                   onContextMenu={(event) => openMenu(event, member)}
-                  onClick={() => openProfile(member)}
+                  onClick={() => {
+                    playSfx('click');
+                    openProfile(member);
+                  }}
                 >
                   <Avatar user={member} size="xs" />
                   <span className="member-row-meta">
@@ -297,12 +377,10 @@ export default function MemberSidebar({
                           {member.ranked.mode}
                         </span>
                       )}
-                      {member.online
-                        ? member.state === 'ingame'
-                          ? member.serverMap || member.serverName || '游戏中'
-                          : '在大厅'
-                        : '离线'}
                     </small>
+                    <span className={`member-status${member.online ? '' : ' is-offline'}`}>
+                      {activityOf(member)}
+                    </span>
                   </span>
                   <span
                     className={`member-dot${member.online ? (member.state === 'ingame' ? ' is-ingame' : '') : ' is-offline'}${member.ranked ? ' is-ranked' : ''}`}

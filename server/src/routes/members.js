@@ -17,7 +17,7 @@ router.get('/members', requireAuth, async (req, res, next) => {
   try {
     const rows = await q(
       `SELECT u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.title_id, u.role,
-              u.combat_level, p.state, p.server_key, p.updated_at,
+              u.combat_level, u.status_text, p.state, p.server_key, p.updated_at,
               s.name AS server_name, st.map AS server_map,
               (SELECT rq.mode FROM ranked_queue rq
                 WHERE rq.user_id = u.id AND rq.matched_match_id IS NULL
@@ -56,6 +56,7 @@ router.get('/members', requireAuth, async (req, res, next) => {
           role: row.role,
           online: Boolean(row.updated_at),
           state: row.updated_at ? row.state : 'offline',
+          statusText: row.status_text || '',
           serverKey: row.server_key || null,
           serverName: row.server_name || null,
           serverMap: row.server_map || null,
@@ -68,6 +69,27 @@ router.get('/members', requireAuth, async (req, res, next) => {
         })),
       },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 自定义状态：Discord 式一句话，最多 48 字；传空字符串表示清除 */
+router.put('/members/me/status', requireAuth, async (req, res, next) => {
+  try {
+    const raw = typeof req.body?.text === 'string' ? req.body.text : '';
+    const text = raw
+      .replace(/[\u0000-\u001f\u007f]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 48);
+    const value = text || null;
+    await q('UPDATE users SET status_text = ? WHERE id = ? AND status = ?', [
+      value,
+      req.user.id,
+      'active',
+    ]);
+    res.json({ ok: true, data: { statusText: value || '' } });
   } catch (err) {
     next(err);
   }
@@ -112,7 +134,7 @@ router.get('/members/:id', requireAuth, async (req, res, next) => {
 
     const rows = await q(
       `SELECT u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.title_id, u.role,
-              u.combat_level, u.created_at, u.last_login_at,
+              u.combat_level, u.status_text, u.created_at, u.last_login_at,
               (SELECT COUNT(*) FROM play_sessions p WHERE p.user_id = u.id) AS sessions,
               (SELECT COALESCE(SUM(p.duration_sec), 0) FROM play_sessions p WHERE p.user_id = u.id) AS total_seconds,
               p.state, p.server_key, p.updated_at,
@@ -148,6 +170,7 @@ router.get('/members/:id', requireAuth, async (req, res, next) => {
           role: row.role,
           online: Boolean(row.updated_at),
           state: row.updated_at ? row.state : 'offline',
+          statusText: row.status_text || '',
           serverName: row.server_name || null,
           serverMap: row.server_map || null,
           sessions: Number(row.sessions || 0),

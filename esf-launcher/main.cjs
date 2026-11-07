@@ -733,6 +733,10 @@ handle('members:set-combat-level', async ({ id, combatLevel } = {}) =>
   apiCall(api.setCombatLevel, getSettings(), requireToken(), id, combatLevel)
 );
 
+handle('members:set-status', async ({ text } = {}) =>
+  apiCall(api.setMemberStatus, getSettings(), requireToken(), String(text ?? ''))
+);
+
 handle('economy:summary', async () =>
   apiCall(api.economySummary, getSettings(), requireToken())
 );
