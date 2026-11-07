@@ -1,0 +1,99 @@
+/* ============================================================
+   ESF 设计系统 · P0 设计令牌
+   来源：docs/design/ESF-UI-AUDIT.md + docs/design/mockups/tokens.css
+   规则：新增/修改样式一律引用这里的 token，不再写裸色值。
+   旧变量名（--bg-0/--panel/--accent…）保持兼容，只换取值。
+   ============================================================ */
+
+:root {
+  /* ---------- 色板：三层背景 + 一条主色 ---------- */
+  --bg-0: #0b0e14;              /* 舞台底色 */
+  --bg-1: #121722;              /* 卡片/面板 */
+  --bg-2: #1a2130;              /* 悬浮/选中 */
+  --bg-3: #222a3a;              /* 输入/凹陷 */
+
+  --panel: rgba(18, 23, 34, 0.86);
+  --panel-solid: #141a26;
+
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --line-accent: rgba(255, 138, 31, 0.42);
+
+  /* ---------- 文字 ---------- */
+  --text: #eef1f7;
+  --muted: #a4adc2;
+  --dim: #7a8399;
+  --tx-1: var(--text);
+  --tx-2: var(--muted);
+  --tx-3: var(--dim);
+
+  /* ---------- 强调色 ---------- */
+  --accent: #ff8a1f;
+  --accent-2: #ff5d1f;
+  --accent-soft: rgba(255, 138, 31, 0.14);
+  --accent-line: rgba(255, 138, 31, 0.34);
+
+  --cyan: #3fd0ff;
+  --green: #3ddc97;
+  --red: #ff5f6d;
+  --yellow: #ffc861;
+
+  /* 角色色（成员列表用，比旧值亮一档） */
+  --role-owner: #ff9e45;
+  --role-admin: #ff7385;
+  --role-ops: #58d9ff;
+  --role-creator: #b79dff;
+  --role-user: #d9e1f0;
+
+  /* ---------- 圆角：只用这四档 ---------- */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-pill: 999px;
+
+  /* ---------- 字号：8 档 ---------- */
+  --fs-display: 32px;
+  --fs-h1: 24px;
+  --fs-h2: 18px;
+  --fs-body: 14px;
+  --fs-label: 13px;
+  --fs-caption: 12px;
+  --fs-micro: 11px;
+  --fs-mono: 12px;
+
+  /* ---------- 间距 ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* ---------- 阴影 / 发光 ---------- */
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  --el-1: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --el-2: 0 12px 32px rgba(0, 0, 0, 0.35);
+  --el-3: 0 24px 64px rgba(0, 0, 0, 0.5);
+  --glow-accent: 0 0 0 1px rgba(255, 138, 31, 0.35), 0 8px 24px rgba(255, 138, 31, 0.18);
+
+  /* ---------- 动效 ---------- */
+  --dur-hover: 120ms;
+  --dur-press: 90ms;
+  --dur-panel: 180ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-pop: cubic-bezier(0.2, 1.4, 0.4, 1);
+
+  /* ---------- 层级 ---------- */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-drawer: 40;
+  --z-modal: 60;
+  --z-toast: 80;
+}
+
+/* 基础表面：卡片统一用这一套，禁止再手写 rgba(255,255,255,.03) */
+:root {
+  --surface: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012));
+  --surface-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  --surface-active: linear-gradient(180deg, rgba(255, 138, 31, 0.16), rgba(255, 138, 31, 0.05));
+}

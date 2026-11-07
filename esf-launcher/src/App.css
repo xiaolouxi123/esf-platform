@@ -37,7 +37,7 @@
   background-image: url('./assets/bg.jpg');
   background-size: cover;
   background-position: center;
-  filter: blur(16px) brightness(0.52) saturate(0.9);
+  filter: blur(18px) brightness(0.42) saturate(1.2);
 }
 
 .app-shell::before,
@@ -47,9 +47,9 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(760px 460px at 12% -8%, rgba(255, 138, 31, 0.16), transparent 62%),
-    radial-gradient(680px 440px at 92% 108%, rgba(63, 208, 255, 0.1), transparent 60%),
-    linear-gradient(180deg, rgba(6, 7, 11, 0.74), rgba(6, 7, 11, 0.93));
+  background: radial-gradient(820px 520px at 10% -10%, rgba(255, 138, 31, 0.18), transparent 62%),
+    radial-gradient(720px 480px at 94% 110%, rgba(63, 208, 255, 0.1), transparent 60%),
+    linear-gradient(180deg, rgba(11, 14, 20, 0.72), rgba(11, 14, 20, 0.94));
 }
 
 /* ============================ 标题栏 ============================ */
@@ -61,7 +61,7 @@
   gap: 18px;
   padding: 0 12px 0 18px;
   border-bottom: 1px solid var(--line);
-  background: rgba(9, 10, 16, 0.72);
+  background: rgba(11, 14, 20, 0.78);
   backdrop-filter: blur(18px);
   -webkit-app-region: drag;
 }
@@ -998,6 +998,7 @@
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--panel);
+  background-image: var(--surface);
   backdrop-filter: blur(14px);
 }
 
