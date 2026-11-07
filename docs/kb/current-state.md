@@ -2,12 +2,12 @@
 title: 线上现状
 category: state
 tags: [state, versions, deployment]
-updated: 2026-11-08T04:30:00+08:00
+updated: 2026-11-08T07:05:00+08:00
 ---
 
 # 线上现状（2026-11-08）
 
-只放"现在是什么"，决策理由见 [[migration]]、[[launcher-updater]]、[[ranked-challenge]]、[[amxx-plugins]]。
+只放"现在是什么"，决策理由见 [[migration]]、[[launcher-updater]]、[[ranked-challenge]]、[[amxx-plugins]]、[[lobby-presence-sound]]。
 任何数字变化后**直接改这里**，不要留下旧值。
 
 ## 服务端
@@ -26,10 +26,10 @@ updated: 2026-11-08T04:30:00+08:00
 
 | 项 | 值 |
 |---|---|
-| 最新版本 | **0.4.10**（提交 a43d18c，tag v0.4.10） |
+| 最新版本 | **0.4.12**（提交 43e4b83，tag v0.4.12） |
 | 更新源 | https://119.29.82.217/updates/ |
-| 安装包 | ESF-Platform-Setup-0.4.10.exe（128,570,607 B） |
-| 差量基线 | 0.4.9 → 0.4.10：25 个操作，下载 3,283,667 B |
+| 安装包 | ESF-Platform-Setup-0.4.12.exe（128,739,708 B，blockmap 135,547 B） |
+| 差量基线 | 0.4.11 → 0.4.12：30 个操作，下载 7,606,741 B；0.4.9 → 0.4.10：25 个操作，下载 3,283,667 B |
 
 ## AMXX 插件
 

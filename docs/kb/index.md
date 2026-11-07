@@ -2,7 +2,7 @@
 title: ESF 平台知识库索引
 category: index
 tags: [index, rules]
-updated: 2026-11-08T04:30:00+08:00
+updated: 2026-11-08T07:06:00+08:00
 ---
 
 # ESF 平台知识库
@@ -28,6 +28,7 @@ updated: 2026-11-08T04:30:00+08:00
 | [[launcher-updater]] | 启动器自动更新：差量、blockmap、缓存校验、发布与版本策略 |
 | [[ranked-challenge]] | 排位/约战业务规则：战绩历史、结算弹窗、按天房号、guest 与排位锁 |
 | [[amxx-plugins]] | AMXX 插件：UTF-8 构建、日志语言、构建心跳、自动更新管线 |
+| [[lobby-presence-sound]] | 成员状态行与界面音效：status_text 字段、自动活动、7 音效与开关 |
 | [[kb-policy]] | 本知识库自身的位置与维护规则 |
 | [[servers]] | 三台服务器清单：角色、路径、服务、任务、端口 |
 | [[accounts-secrets]] | 账号、凭据存放位置、授权与轮换待办（不写明文密码） |
