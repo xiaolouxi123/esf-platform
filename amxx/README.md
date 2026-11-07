@@ -101,3 +101,34 @@ battle_quit_delay "5.0"
 - `platform_sync_name "1"` 会在平台身份验证通过后，把游戏内昵称自动改成平台资料里的游戏昵称；关闭时保持玩家客户端原名，只受 `platform_require_name` 约束。
 - 机器人没有平台 token，不参与战绩回写
 - 源码中的中文日志建议统一用英文，避免 AMXX 日志按本地代码页读取时乱码
+
+## 服务器插件自动更新（2026-11-07 起）
+
+链路：本机打包上传 → 新平台静态目录 → 114 定时任务拉取替换 → HLSM 自动重启游戏服。
+
+1. 发布（本机，打包 4 个受管插件：`esf_gamemode` / `esf_platform_auth` / `esf_ranked_lock` / `test_ranked`）：
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\publish-amxx.ps1 `
+     -SourceDir C:\esf-build\amxx -Version 2026.11.08-1 -Notes "本次改动"
+   ```
+
+   产物落到 `C:\esf-release\amxx\`，并经 WinRM 上传到新机 `C:\esf\updates\amxx\`
+   （`esf-challenge-plugins-<ver>.zip` + `manifest.json`，manifest 必须无 BOM）。
+
+2. 服务器目录：`https://119.29.82.217/updates/amxx/manifest.json`、
+   `https://119.29.82.217/updates/amxx/esf-challenge-plugins-<ver>.zip`；
+   回落 `http://119.29.82.217:3000/updates/amxx/...`。
+
+3. 114 游戏服：计划任务 `ESFAmxxUpdate`（SYSTEM，每 10 分钟）跑
+   `C:\esf-agent\amxx-updater.cmd` → `amxx-updater.ps1`：
+   比对 `C:\esf-agent\amxx-version.txt` → 下载并校验 sha256 → 备份到
+   `C:\esf-agent\backups\<时间戳>\<服务器名>\` → 替换两套 `FcxServer*` 的
+   `esf\addons\amxmodx\plugins\` → 写版本 → 杀 `rehlds.exe` 让 HLSM 2.4 重启。
+   日志：`C:\esf-agent\amxx-update.log`。
+
+4. 注意：`amxx.cfg` 里的 SQL host/密码由迁移维护，插件包不包含 `amxx.cfg`，
+   更新不会覆盖数据库配置。
+
+5. 控制台编码：HLDS 控制台按 UTF-8 解释非 ASCII，GBK 编译出的中文日志会显示成
+   `??λ`；`qconsole.log` 里仍是 GBK 字节（GBK 编辑器可读）。给控制台看的日志请用英文/ASCII。
