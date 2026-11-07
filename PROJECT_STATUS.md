@@ -1,84 +1,8 @@
-# ESF Platform 项目汇总
+# ESF Platform 项目状态（已迁移）
 
-更新：2026-11-05
+**本文件不再维护具体状态。** 项目背景、决定、线上版本与待办统一记录在知识库：
 
-## 当前版本
+- 入口：[docs/kb/index.md](docs/kb/index.md)
+- 线上现状：[docs/kb/current-state.md](docs/kb/current-state.md)
 
-| 项目 | 状态 |
-|---|---|
-| 启动器 | 0.4.2 已发布 |
-| 后端 | 0.4 结构，已部署线上 |
-| AMXX | 身份校验 / 排位锁服 / 2v2 自动检测 / 模式守卫 |
-| 仓库 | https://github.com/xiaolouxi123/esf-platform |
-| 官网 | https://xiaolouxi123.github.io/esf-platform/ · API http://119.91.99.176:3000/ |
-
-## 已完成
-
-### 启动器
-
-- 登录 / 注册 / 自动登录
-- 大厅、地图库、服务器大厅、资源库、管理台、频道、排位
-- 一键连服 / 本地开图 / 游戏中切服
-- 托盘：开游戏自动隐藏，退出游戏自动恢复
-- 自动更新：差量更新、暂停 / 继续 / 关闭
-- Discord 式成员名单、头衔、头像、右键管理
-- 金币、格斗等级、排位、竞猜、排行榜
-- 本地混战 / 组队切换（写 `game.cfg`）
-
-### 后端
-
-- JWT 鉴权、五级角色、审计日志
-- launch token 签发 / 消费 / 服务器绑定
-- 排位匹配、座位、准备、锁服、竞猜、结算存储过程
-- 金币钱包、在线时长结算
-- 资源上传审核、公告、维护模式
-- 更新 feed、Range / multipart 下载
-- 每日 04:00 数据库备份、14 天保留、SHA-256、恢复演练
-
-### AMXX
-
-- `esf_platform_auth`：身份校验、Token、在线时长
-- `esf_ranked_lock`：比赛锁服
-- `esf_gamemode`：混战/组队模式守卫
-- `test_ranked`：1v1/2v2、队伍 HUD、战绩回写、结束 5 秒 quit
-
-## 进行中 / 待办
-
-| 事项 | 状态 |
-|---|---|
-| 0.4.2 图标 / 暂停更新发布 | 已完成 |
-| 数据库备份 / 恢复演练 | 已完成（2026-11-05） |
-| 模型商店 / 金币兑换模型 | 未开始 |
-| 赛事系统 / 比赛奖励 | 未开始 |
-| 游戏内观战 | 平台观战入口已有，进服旁观未接 |
-| AMXX 自动胜负上报 | 已接结算过程，依赖 4 人身份识别 |
-| 更新 CDN / HTTPS | 目前 Node 直出 |
-| 代码签名 | 未配置证书 |
-| 0.2.6 差量更新 | blockmap 缺失，会回退完整包 |
-
-## 下载源
-
-- 安装包已切到 GitHub Releases：
-  `https://github.com/xiaolouxi123/esf-platform/releases/download/v0.4.2/ESF-Platform-Setup-0.4.2.exe`
-- 游戏服务器不再直接承担 128MB 下载流量
-
-## 已知限制
-
-- 0.2.6 升级到 0.4.x 可能从 6MB 差量回退到 128MB 完整包，因为服务器没有 0.2.6 的 blockmap。
-- 本地 listen server 房主无法被 AMXX 踢出，本地测试建议 `platform_enforce 0`。
-- 2v2 使用最后存活/击杀限制判定，不是队伍总分制。
-- 机器人没有平台 Token，可以打但不写战绩。
-- 线上游戏服需要手动同步 AMXX 插件和 `amxx.cfg`。
-
-## 下一步
-
-1. 统一入口 / HTTPS / 反代，解决 API 暴露 IP 和端口
-2. 模型商店 / 赛事奖励
-3. 游戏内观战与自动比赛结果
-4. 更新源 CDN / 代码签名 / 监控告警
-
-## 更新源
-
-- 启动器更新源已切到 GitHub Releases 的 `latest/download/`
-- 即使自有 API 暂时不可用，也会回退到 GitHub
-- 后端 `/updates/latest.yml` 保留为兼容入口
+> 旧版本的历史内容可在 git 历史中查看（本文件在 2026-11-08 之前的内容已合并进 KB）。
