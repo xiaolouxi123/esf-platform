@@ -1,4 +1,4 @@
-﻿# AMXX 插件
+# AMXX 插件
 
 当前版本：`test_ranked 1.2.0-r14`，`esf_platform_auth 1.2.0`，`esf_ranked_lock 1.2.0`，
 `esf_gamemode 1.0.0`。发布包 `esf-challenge-plugins-0.4.6-r14.zip` 的哈希与安装步骤见
@@ -25,19 +25,21 @@ G:\FCX1\FCX7.02融合版\esf\addons\amxmodx\scripting\amxxpc.exe
 G:\FCX1\FCX7.02融合版\esf\addons\amxmodx\scripting\include
 ```
 
-`amxxpc.exe` 1.10 直接编译 UTF-8 中文源码会报
-`error 037: invalid string` / `error 027: invalid character constant`。
-必须先转 GBK 临时副本，再编译该副本；仓库源码保持 UTF-8：
+`amxxpc.exe` 1.10 默认按源码字节原样收录字符串；**必须用 UTF-8 源码直接编译**
+（不要转 GBK），否则游戏客户端/控制台把非 ASCII 字节按 UTF-8 解释，中文必然乱码。
+编辑器保存时去掉 BOM（test_ranked.sma 历史上带 BOM，会报
+`error 010: invalid function or declaration`），构建脚本统一在编译前剥离：
 
 ```powershell
 $src = 'amxx\test_ranked.sma'
-$tmp = '.build\gbk\test_ranked.sma'
+$tmp = '.build\utf8\test_ranked.sma'
 New-Item -ItemType Directory -Force (Split-Path $tmp) | Out-Null
-[IO.File]::WriteAllText($tmp, [IO.File]::ReadAllText($src), [Text.Encoding]::GetEncoding(936))
+$text = [IO.File]::ReadAllText($src).TrimStart([char]0xFEFF)
+[IO.File]::WriteAllText($tmp, $text, (New-Object System.Text.UTF8Encoding($false)))
 
 & 'G:\FCX1\FCX7.02融合版\esf\addons\amxmodx\scripting\amxxpc.exe' `
   $tmp -d1 -i"G:\FCX1\FCX7.02融合版\esf\addons\amxmodx\scripting\include" `
-  -o".build\r14\out\test_ranked.amxx"
+  -o".build\utf8\out\test_ranked.amxx"
 ```
 
 固定 `-d1` 是构建要求：amxxpc 1.10 默认 `-d2` 在同源重复编译极小插件时会写出不稳定的调试
@@ -162,5 +164,10 @@ EXECUTE ON PROCEDURE esf_platform.settle_challenge_match TO 'esf_amxx'@'<游戏�
 - 本地 listen server 的房主无法被引擎踢出；本地测试把 `platform_enforce` 设 `0`。
 - `platform_allow_guest 1` 只放行进服，不伪造身份、不写平台会话/战绩；上线后必须回 `0`。
 - 机器人没有平台 token，不参与战绩回写。
-- 源码中文日志建议统一英文，避免 AMXX 日志按本地代码页读取时乱码。
+- 源码中文日志建议统一英文，避免 HLDS 控制台按 UTF-8 解释 GBK/混合字节时乱码；
+  `client_print` 等游戏内文案用 UTF-8 中文即可（客户端按 UTF-8 渲染）。
+- 两个插件连上数据库后会向 `amxx_builds` 表写心跳（`server_key, plugin, build`），
+  RDP 不可达时用它确认线上实际运行的构建版本。
+- 无 `_platform_token` 的玩家进服时，若数据库里存在同名参赛记录且本服有 10 分钟内
+  未使用的 token，`esf_ranked_lock` 会按「参赛玩家兜底」放行；否则按 `RANKED_LOCKED` 踢出。
 - r13 包不可由当前源码复现（默认 `-d2` 的调试字符串不稳定）；不要用 r13 的 SHA 校验 r14。

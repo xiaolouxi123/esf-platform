@@ -23,6 +23,7 @@
 
 #define PLUGIN  "ESF Platform Auth"
 #define VERSION "1.2.0"
+#define BUILD   "0.47"
 #define AUTHOR  "ESF Platform"
 
 #define TASK_VERIFY 1000
@@ -123,8 +124,29 @@ DbStatus:ensureDatabase() {
     // 中文昵称必须 utf8mb4，否则读出来是乱码
     SQL_SetCharset(g_db, "utf8mb4");
     g_dbReady = true;
-    log_amx("[Platform] database connected (%s) build 0.45", host);
+    log_amx("[Platform] database connected (%s) build 0.47", host);
+    recordBuildHeartbeat();
     return DbReady;
+}
+
+/**
+ * 把当前插件构建写进 amxx_builds 表，便于平台侧确认线上到底跑的是哪一版
+ * （尤其 RDP 不通时，数据库就是唯一可信的观测通道）。
+ */
+recordBuildHeartbeat() {
+    new serverKey[34], query[256];
+    get_pcvar_string(g_pcServerKey, serverKey, charsmax(serverKey));
+    if (serverKey[0] == 0) return;
+    formatex(query, charsmax(query),
+        "REPLACE INTO amxx_builds (server_key, plugin, build) VALUES ('%s', 'platform_auth', '%s')",
+        serverKey, BUILD);
+    SQL_ThreadQuery(g_db, "OnBuildHeartbeatDone", query);
+}
+
+public OnBuildHeartbeatDone(failstate, Handle:query, error[], errnum, data[], dataSize) {
+    if (failstate != TQUERY_SUCCESS) {
+        log_amx("[Platform] build heartbeat failed err=%s", error);
+    }
 }
 
 // ---------------------------------------------------------------------
