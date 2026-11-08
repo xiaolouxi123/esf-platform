@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "style": "swiss",
+    "theme": "safety-orange",
+    "brand": "#ff8a1f",
+    "hero_image": "hero-grid.svg",
+    "embed": true,
+    "tags": ["设计系统", "P2", "大厅", "Hero"],
+    "author": "ESF PLATFORM · 设计系统 v1",
+    "date": "2026.11.08",
+    "reading_time": "4 min",
+    "title": "P2 · 大厅内容",
+    "subtitle": "Hero / 快捷三卡 / 在线房间 / 公告 —— 把仪表盘排布换成游戏大厅的阅读顺序"
+  },
+  "upgrades": [
+    {
+      "type": "aside",
+      "line": 38,
+      "title": "功能面没动",
+      "text": "开始游戏、换一张、收藏进入、加入房间、管理链接仍然走原来的 handlers；P2 只新增了公告展开/收起这类纯前端状态，并在模式切换、换一张、快捷卡跳转上补了 click / tab 两处音效反馈。"
+    },
+    {
+      "type": "checklist",
+      "lines": [60, 61, 62, 63, 64, 65],
+      "title": "验收清单"
+    }
+  ]
+}
