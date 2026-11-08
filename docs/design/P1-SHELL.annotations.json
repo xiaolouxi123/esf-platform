@@ -1,0 +1,39 @@
+{
+  "meta": {
+    "style": "swiss",
+    "theme": "safety-orange",
+    "brand": "#ff8a1f",
+    "hero_image": "hero-grid.svg",
+    "embed": true,
+    "tags": [
+      "设计系统",
+      "P1",
+      "外壳",
+      "令牌"
+    ],
+    "author": "ESF PLATFORM · 设计系统 v1",
+    "date": "2026.11.08",
+    "reading_time": "4 min",
+    "title": "P1 · 外壳改造",
+    "subtitle": "标题栏 / 左侧 rail / 状态栏 —— 从企业后台的手感，换成游戏启动器的手感"
+  },
+  "upgrades": [
+    {
+      "type": "aside",
+      "line": 27,
+      "title": "可以单点回滚",
+      "text": "P0/P1 都是新增文件与文件末尾的覆盖段，没有改任何一行旧规则；出问题删掉覆盖段即可回到 0.4.13 的外观。"
+    },
+    {
+      "type": "checklist",
+      "lines": [
+        48,
+        49,
+        50,
+        51,
+        52
+      ],
+      "title": "验收清单"
+    }
+  ]
+}
