@@ -10,7 +10,11 @@
 
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { app, BrowserWindow } = require('electron');
+
+// 截图用独立 profile：别把 mock 场景写进真实客户端的 localStorage
+app.setPath('userData', path.join(os.tmpdir(), 'esf-shot-profile'));
 
 function argOf(name, fallback) {
   const hit = process.argv.find((value) => value.startsWith(`--${name}=`));

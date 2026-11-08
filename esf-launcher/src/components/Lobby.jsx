@@ -17,7 +17,6 @@ import { DEFAULT_RANKS, normalizeRanks, rankLabel } from '../lib/ranks';
 import { playSfx } from '../lib/sfx';
 import dragonBall from '../assets/dragon-ball.webp';
 import {
-  formatRelative,
   isStaff,
   loadFavoriteSet,
   saveFavoriteSet,
@@ -25,7 +24,16 @@ import {
 
 const FAV_SERVERS = 'esf:favServers';
 const FAV_MAPS = 'esf:favMaps';
+const LOCAL_MODE_KEY = 'esf:localMode';
 
+// 上次选的模式记在本地，下次进平台直接沿用
+function readLocalMode() {
+  try {
+    return localStorage.getItem(LOCAL_MODE_KEY) === 'deathmatch' ? 'deathmatch' : 'team';
+  } catch {
+    return 'team';
+  }
+}
 export default function Lobby({
   user,
   settings,
@@ -44,7 +52,7 @@ export default function Lobby({
   const [mapKeyword, setMapKeyword] = useState('');
   const [mapCategory, setMapCategory] = useState('all');
   const [selectedMap, setSelectedMap] = useState('');
-  const [localMode, setLocalMode] = useState('team');
+  const [localMode, setLocalMode] = useState(readLocalMode);
   const [coins, setCoins] = useState(Number(user?.coins || 0));
   const [mapOpen, setMapOpen] = useState(false);
   const [servers, setServers] = useState([]);
@@ -505,7 +513,15 @@ export default function Lobby({
   useEffect(() => {
     const element = noticeTextRef.current;
     if (!element || noticeOpen) return undefined;
-    const measure = () => setNoticeExpandable(element.scrollHeight - element.clientHeight > 2);
+    // -webkit-line-clamp 下 scrollHeight 也只剩两行，量不出来；
+    // 先记下裁切后的高度，再临时取消裁切读完整高度，最后还原。
+    const measure = () => {
+      const clampedHeight = element.clientHeight;
+      element.classList.add('is-measuring');
+      const fullHeight = element.scrollHeight;
+      element.classList.remove('is-measuring');
+      setNoticeExpandable(fullHeight - clampedHeight > 2);
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
@@ -676,15 +692,14 @@ export default function Lobby({
     if (mode === localMode) return;
     playSfx('tab');
     setLocalMode(mode);
+    try {
+      localStorage.setItem(LOCAL_MODE_KEY, mode);
+    } catch {
+      /* 读写失败就用默认值，不影响开局 */
+    }
   };
 
   const openSettings = () => setSettingsOpen(true);
-
-  const assetUrl = (url) => {
-    if (!url) return '';
-    if (/^(data:|https?:)/i.test(url)) return url;
-    return `${String(settings?.apiBaseUrl || '').replace(/\/$/, '')}${url}`;
-  };
 
   const saveSettings = async (patch) => {
     const next = await window.electronAPI.settings.update(patch);
@@ -1385,105 +1400,64 @@ export default function Lobby({
               </section>
 
 
-              <section className="feed">
+              <section className="feed feed--compact">
                 <div className="feed-col">
                   <div className="section-head">
                     <h2>平台公告</h2>
                     <span className="tag">{platformState.notice ? '管理员发布' : '公开'}</span>
+                    {noticeExpandable && (
+                      <button
+                        type="button"
+                        className="feed-more"
+                        onClick={() => setNoticeOpen((value) => !value)}
+                      >
+                        {noticeOpen ? '收起' : '展开全文'}
+                      </button>
+                    )}
                   </div>
 
-                  <ul className="feed-list">
-                    <li className={`feed-item feed-item--notice${noticeOpen ? ' is-open' : ''}`}>
-                      <span className="feed-tag feed-tag--notice">
-                        {platformNotice ? '公告' : '提示'}
-                      </span>
-                      <div className="feed-body">
-                        <p className="feed-text" ref={noticeTextRef}>
-                          {platformNotice || '平台已接入真实账号与连服凭证'}
-                        </p>
-                        <small>
-                          {platformNotice
-                            ? '由管理员在大厅维护，重要通知会在这里置顶'
-                            : '进入游戏后自动完成身份校验'}
-                        </small>
-                        {noticeExpandable && (
+                  <div className={`feed-notice${noticeOpen ? ' is-open' : ''}`}>
+                    <span className="feed-tag feed-tag--notice">
+                      {platformNotice ? '公告' : '提示'}
+                    </span>
+                    <p className="feed-text" ref={noticeTextRef}>
+                      {platformNotice || '平台已接入真实账号与连服凭证，进入游戏后自动完成身份校验。'}
+                    </p>
+                  </div>
+
+                  <p className="feed-hint">
+                    <b>提示</b> 点房间行可展开实时玩家（A2S） · <b>功能</b> 大厅频道与在线状态每 20 秒心跳
+                  </p>
+
+                  <div className="feed-assets">
+                    <div className="feed-assets-head">
+                      <span className="feed-assets-title">最近上架</span>
+                      <button type="button" className="link" onClick={() => setPage('assets')}>
+                        资源库 <Icon name="chevronRight" size={12} />
+                      </button>
+                    </div>
+
+                    {recentAssets.length === 0 ? (
+                      <p className="feed-assets-empty">还没有上架资源，作者上传并通过审核后会出现在这里。</p>
+                    ) : (
+                      <div className="asset-chips">
+                        {recentAssets.slice(0, 4).map((asset) => (
                           <button
                             type="button"
-                            className="feed-more"
-                            onClick={() => setNoticeOpen((value) => !value)}
+                            key={asset.id}
+                            className="asset-chip"
+                            onClick={() => setPage('assets')}
+                            title={`v${asset.version} · ${asset.name}`}
                           >
-                            {noticeOpen ? '收起' : '展开全文'}
-                          </button>
-                        )}
-                      </div>
-                    </li>
-
-                    <li className="feed-item">
-                      <span className="feed-tag">提示</span>
-                      <div>
-                        <b>点房间行可展开实时玩家</b>
-                        <small>玩家名 / 分数 / 在线时长，来自 A2S 查询</small>
-                      </div>
-                    </li>
-
-                    <li className="feed-item">
-                      <span className="feed-tag">功能</span>
-                      <div>
-                        <b>大厅频道与在线状态已上线</b>
-                        <small>每 20 秒心跳，游戏中会自动标记地图</small>
-                      </div>
-                    </li>
-                  </ul>
-
-                  <p className="feed-foot">
-                    <span>公告由管理员在大厅维护</span>
-                    <Icon name="bell" size={12} />
-                  </p>
-                </div>
-
-                <div className="feed-col">
-                  <div className="section-head">
-                    <h2>最近上架</h2>
-                    <button type="button" className="link" onClick={() => setPage('assets')}>
-                      资源库 <Icon name="chevronRight" size={13} />
-                    </button>
-                  </div>
-
-                  {recentAssets.length === 0 ? (
-                    <p className="admin-muted">还没有上架资源，作者上传并通过审核后会出现在这里。</p>
-                  ) : (
-                    <ul className="feed-list">
-                      {recentAssets.slice(0, 4).map((asset) => (
-                        <li key={asset.id} className="feed-item">
-                          {asset.coverUrl && (
-                            <img
-                              className="feed-thumb"
-                              src={assetUrl(asset.coverUrl)}
-                              alt=""
-                              loading="lazy"
-                            />
-                          )}
-                          <span className="feed-tag feed-tag--asset">
-                            {asset.kind === 'model' ? '模型' : asset.kind === 'sound' ? '声音' : '资源'}
-                          </span>
-                          <div>
+                            <span className="asset-chip-kind">
+                              {asset.kind === 'model' ? '模型' : asset.kind === 'sound' ? '声音' : '资源'}
+                            </span>
                             <b>{asset.name}</b>
-                            <small>
-                              v{asset.version} · {formatRelative(asset.createdAt)}
-                              {asset.authorName ? ` · ${asset.authorName}` : ''}
-                            </small>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  <p className="feed-foot">
-                    <span>共 {recentAssets.length} 个已上架资源</span>
-                    <button type="button" className="link" onClick={() => setPage('assets')}>
-                      查看全部 <Icon name="chevronRight" size={12} />
-                    </button>
-                  </p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </section>
 
