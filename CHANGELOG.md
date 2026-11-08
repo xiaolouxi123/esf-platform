@@ -2,6 +2,17 @@
 
 所有重要变更记录在这里。格式参考 Keep a Changelog。
 
+## [0.4.14] - 2026-11-08
+
+### Added
+
+- 支持 ESF Engine 1.0（新引擎整合包）：自动识别 `ESF.exe + engine\engine.cfg` 布局，启动前把 `+connect` / `+map` 等参数写进 `engine.cfg` 的 `Launcher=` 行，退游戏后还原配置——这类引擎会丢弃命令行参数，旧逻辑只能进到主菜单
+- 首次改写前把原始配置备份为 `engine\engine.cfg.esf-base`，之后每次启动都从备份重建，参数不会累积
+
+### Fixed
+
+- 启动失败时给出可执行的诊断：`EACCES/EPERM` 会提示"被杀毒或 SmartScreen 拦截 / 需要解除文件锁定"，不再只显示 spawn 原始错误
+
 ## [0.4.13] - 2026-11-08
 
 ### Changed

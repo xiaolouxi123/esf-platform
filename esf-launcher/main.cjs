@@ -237,7 +237,7 @@ function requireOwner() {
 }
 
 /** 已知的游戏进程名：整合包常见壳是 hl.exe，真正跑起来的可能是 no_hl.exe 等 */
-const GAME_IMAGE_NAMES = ['hl.exe', 'no_hl.exe', 'esf.exe', 'fcx.exe'];
+const GAME_IMAGE_NAMES = ['hl.exe', 'no_hl.exe', 'esf.exe', 'esf_mp.exe', 'fcx.exe', 'engine.dll'];
 /** 启动时从壳进程的子进程里学到的真实游戏进程名 */
 const learnedGameNames = new Set();
 /** 启动器自己拉起的进程（壳 + 可能是真游戏），关闭时优先精确杀 */
@@ -472,15 +472,34 @@ function prepareLaunch(token, username) {
   for (const item of failed) log(`⚠️ 无法清理 ${item.name}: ${item.error}`);
 }
 
+/** 新引擎模式下被改写的 engine.cfg，退出时还原 */
+let activeEngineCfg = '';
+
 function spawnGame(args) {
   const current = getSettings();
   const gameDir = path.dirname(current.hlPath);
-  log('🚀 启动命令:', core.formatCommand(current.hlPath, args));
+
+  // 新引擎（ESF Engine 1.0）：ESF.exe 只认 engine.cfg，命令行参数会被丢弃
+  let spawnArgs = args;
+  const engineCfg = core.detectEngineCfg(current.hlPath);
+  if (engineCfg) {
+    try {
+      const applied = core.applyEngineArgs(engineCfg, args);
+      activeEngineCfg = engineCfg;
+      spawnArgs = [];
+      log('🎛 新引擎模式：启动参数已写入 engine.cfg');
+      log('   Launcher =', applied.launcher);
+    } catch (err) {
+      log('⚠️ 写入 engine.cfg 失败，回退为命令行传参:', err.message);
+    }
+  }
+
+  log('🚀 启动命令:', core.formatCommand(current.hlPath, spawnArgs));
 
   return new Promise((resolve, reject) => {
     let child;
     try {
-      child = spawn(current.hlPath, args, {
+      child = spawn(current.hlPath, spawnArgs, {
         cwd: gameDir,
         detached: true,
         stdio: 'ignore',
@@ -505,6 +524,14 @@ function spawnGame(args) {
 
     child.once('error', (err) => {
       log('❌ 启动游戏主程序失败:', err.message);
+      if (err.code === 'EACCES' || err.code === 'EPERM') {
+        reject(new Error(
+          `游戏启动失败：没有权限执行 ${path.basename(current.hlPath)}。`
+          + '常见原因：文件被杀毒/SmartScreen 拦截、或未解除锁定。'
+          + '请右键该 exe → 属性 → 勾选“解除锁定”，或把它加入安全软件白名单后重试。',
+        ));
+        return;
+      }
       reject(new Error(`游戏启动失败：${err.message}`));
     });
   });
@@ -1338,6 +1365,10 @@ if (!gotLock) {
   app.on('before-quit', () => {
     quitting = true;
     stopGameWatcher();
+    if (activeEngineCfg && core.restoreEngineCfg(activeEngineCfg)) {
+      log('🎛 已还原 engine.cfg');
+      activeEngineCfg = '';
+    }
     if (tray) {
       tray.destroy();
       tray = null;

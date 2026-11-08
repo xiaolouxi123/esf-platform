@@ -283,6 +283,61 @@ function findModDir(root) {
   return candidates.length > 0 ? candidates[0].dir : '';
 }
 
+// ================= 新引擎（ESF Engine 1.0）=================
+// 这类整合包没有 hl.exe，只有 ESF.exe + engine\engine.cfg。
+// ESF.exe 是 Steam 启动壳：读 engine.cfg 的 Launcher= 行再 CreateProcess，
+// 命令行参数会被它忽略——所以参数必须写进 engine.cfg。
+
+const ENGINE_CFG_REL = path.join('engine', 'engine.cfg');
+const ENGINE_CFG_BASE_SUFFIX = '.esf-base';
+
+/** 命中新引擎布局时返回 engine.cfg 的绝对路径，否则空串 */
+function detectEngineCfg(exePath) {
+  if (!exePath) return '';
+  const root = path.dirname(exePath);
+  const cfg = path.join(root, ENGINE_CFG_REL);
+  if (!fs.existsSync(cfg)) return '';
+  if (!fs.existsSync(path.join(root, 'ESF_mp.exe'))) return '';
+  return cfg;
+}
+
+/**
+ * 把启动参数并进 engine.cfg 的 Launcher 行。
+ * 首次调用先把原始配置备份成 engine.cfg.esf-base，之后每次都从备份重建，避免参数叠加。
+ */
+function applyEngineArgs(cfgPath, args) {
+  const basePath = cfgPath + ENGINE_CFG_BASE_SUFFIX;
+  if (!fs.existsSync(basePath)) {
+    fs.copyFileSync(cfgPath, basePath);
+  }
+
+  const base = fs.readFileSync(basePath, 'latin1');
+  const matched = base.match(/^([ \t]*Launcher[ \t]*=[ \t]*)(.*)$/im);
+  if (!matched) throw new Error('engine.cfg 缺少 Launcher= 行');
+
+  let rest = (args || []).slice();
+  // Launcher 里已经带 -game <mod>，避免重复
+  if (/^-game$/i.test(rest[0] || '')) rest = rest.slice(2);
+
+  const launcher = rest.length ? `${matched[2].trim()} ${rest.join(' ')}`.trim() : matched[2].trim();
+  const next = base.replace(/^([ \t]*Launcher[ \t]*=[ \t]*)(.*)$/im, (line, prefix) => `${prefix}${launcher}`);
+
+  fs.writeFileSync(cfgPath, next, 'latin1');
+  return { cfgPath, launcher };
+}
+
+/** 退出时把 engine.cfg 还原成备份内容（备份保留，下次启动仍从它重建） */
+function restoreEngineCfg(cfgPath) {
+  const basePath = cfgPath + ENGINE_CFG_BASE_SUFFIX;
+  if (!cfgPath || !fs.existsSync(basePath)) return false;
+  try {
+    fs.copyFileSync(basePath, cfgPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 根据用户选中的目录推断 hl.exe 与模组目录。
  * 兼容两种情况：选中整合包根目录、或直接选中了模组文件夹。
@@ -368,5 +423,8 @@ module.exports = {
   findHlExe,
   findModDir,
   resolveGameFiles,
+  detectEngineCfg,
+  applyEngineArgs,
+  restoreEngineCfg,
   appendLog,
 };
