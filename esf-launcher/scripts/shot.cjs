@@ -51,7 +51,8 @@ app.whenReady().then(async () => {
 
   await win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   win.webContents.setZoomFactor(zoom);
-  await new Promise((resolve) => setTimeout(resolve, 900));
+  // 大厅 hero 用整张背景图，合成层要等图片解码完才栅格化；等太短会截出空白块
+  await new Promise((resolve) => setTimeout(resolve, 1900));
 
   if (state === 'register') {
     await win.webContents.executeJavaScript(

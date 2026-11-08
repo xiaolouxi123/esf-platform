@@ -116,7 +116,8 @@ const api = {
       packaged: false,
     }),
     config: async () => ({
-      notice: '10 月 31 日更新：连服 Token 已改为服务端签发，进服 2 秒内完成校验。',
+      notice:
+        '0.4.13 已发布：成员状态移到名字后面同一行显示，角色与段位收进第二行；点自己那一栏的状态可以直接编辑，改完立刻在全体成员那里生效。启动器重启后会自动检查更新，不用再手动下载安装包。',
       maintenance: process.env.MOCK_MAINTENANCE === '1',
       maintenanceText: '今晚 20:00-21:00 停服维护',
       minLauncherVersion: '0.1.0',
@@ -145,6 +146,10 @@ const api = {
     },
     logout: async () => ({ loggedOut: true }),
     updateProfile: async (patch) => ({ user: { ...user, ...patch } }),
+  },
+  favorites: {
+    list: async () => ({ serverKeys: ['fcx-1v1-1'] }),
+    set: async (keys) => ({ serverKeys: Array.isArray(keys) ? keys : [] }),
   },
 
   presence: {
@@ -321,13 +326,17 @@ const api = {
   },
 
   update: {
-    check: async () => ({
-      current: '0.1.0',
-      latest: '0.2.0',
-      hasUpdate: true,
-      releaseNotes: '新增大厅频道与在线状态',
-      downloadUrl: 'https://example.com/esf-platform/releases',
-    }),
+    // 默认无更新，避免更新弹窗挡住每一张截图；要拍弹窗用 --state=update
+    check: async () =>
+      scenario === 'update'
+        ? {
+            current: '0.1.0',
+            latest: '0.2.0',
+            hasUpdate: true,
+            releaseNotes: '新增大厅频道与在线状态',
+            downloadUrl: 'https://example.com/esf-platform/releases',
+          }
+        : { current: '0.4.13', latest: '', hasUpdate: false, releaseNotes: '', downloadUrl: '' },
   },
   stats: {
     get: async () => ({

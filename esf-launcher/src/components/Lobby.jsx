@@ -13,7 +13,7 @@ import ChallengePage from './ChallengePage';
 import ChallengeResultModal from './ChallengeResultModal';
 import ServerRoomList from './ServerRoomList';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
-import { DEFAULT_RANKS, normalizeRanks } from '../lib/ranks';
+import { DEFAULT_RANKS, normalizeRanks, rankLabel } from '../lib/ranks';
 import { playSfx } from '../lib/sfx';
 import dragonBall from '../assets/dragon-ball.webp';
 import {
@@ -64,6 +64,7 @@ export default function Lobby({
   const joinServerRef = useRef(null);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [releaseNotice, setReleaseNotice] = useState(null);
+  const [noticeOpen, setNoticeOpen] = useState(false);
   const [autoUpdate, setAutoUpdate] = useState(null);
   const [adminSummary, setAdminSummary] = useState(null);
   const [recentAssets, setRecentAssets] = useState([]);
@@ -495,6 +496,22 @@ export default function Lobby({
 
   const selectedMeta = useMemo(() => mapMeta(selectedMap || ''), [selectedMap]);
 
+  const platformNotice = String(platformState.notice || '').trim();
+  // 公告折叠按"实际有没有被两行裁掉"判断，而不是数字符：
+  // 1180 宽下卡片更窄，同样长度的公告会多出一行，数字符会漏掉这种情况。
+  const [noticeExpandable, setNoticeExpandable] = useState(false);
+  const noticeTextRef = useRef(null);
+
+  useEffect(() => {
+    const element = noticeTextRef.current;
+    if (!element || noticeOpen) return undefined;
+    const measure = () => setNoticeExpandable(element.scrollHeight - element.clientHeight > 2);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [platformNotice, noticeOpen]);
+
   // 排序后选中的那张可能在视口外，切图时把它滚进可视区
   useEffect(() => {
     const scroller = document.querySelector('.map-scroll');
@@ -534,6 +551,12 @@ export default function Lobby({
     () => servers.filter((server) => favServers.has(server.serverKey)),
     [servers, favServers]
   );
+
+  // 收藏服优先展示"在线的那一台"，都离线时退回第一个，保证快捷卡永远有内容
+  const favoriteTop = useMemo(() => {
+    if (favoriteServers.length === 0) return null;
+    return favoriteServers.find((server) => server.online) || favoriteServers[0];
+  }, [favoriteServers]);
 
   const ensureGameDir = () => {
     if (hasGameDir) return true;
@@ -643,9 +666,16 @@ export default function Lobby({
 
   const pickRandomMap = () => {
     if (maps.length === 0) return;
+    playSfx('click');
     const pool = maps.filter((map) => map !== selectedMap);
     const next = pool.length ? pool[Math.floor(Math.random() * pool.length)] : maps[0];
     setSelectedMap(next);
+  };
+
+  const switchLocalMode = (mode) => {
+    if (mode === localMode) return;
+    playSfx('tab');
+    setLocalMode(mode);
   };
 
   const openSettings = () => setSettingsOpen(true);
@@ -1103,103 +1133,156 @@ export default function Lobby({
                 </div>
               )}
 
-              <section className="lobby-command">
-                <div className="lobby-quick">
-                  <div className="lobby-command-head">
-                    <span>
+              <section className="quick-cards">
+                <div className="quick-card quick-card--fav">
+                  <div className="quick-card-head">
+                    <span className="quick-card-title">
                       <Icon name="starFill" size={13} /> 我的收藏服
                     </span>
-                    <button type="button" className="link" onClick={() => setPage('servers')}>
+                    <button
+                      type="button"
+                      className="link"
+                      onClick={() => {
+                        playSfx('tab');
+                        setPage('servers');
+                      }}
+                    >
                       管理 <Icon name="chevronRight" size={12} />
                     </button>
                   </div>
-                  {favoriteServers.length === 0 ? (
-                    <button type="button" className="lobby-quick-empty" onClick={() => setPage('servers')}>
-                      <Icon name="star" size={15} />
-                      <span>
+
+                  {!favoriteTop ? (
+                    <button
+                      type="button"
+                      className="quick-card-body quick-card-body--empty"
+                      onClick={() => {
+                        playSfx('tab');
+                        setPage('servers');
+                      }}
+                    >
+                      <span className="quick-card-info">
                         <b>还没有收藏服务器</b>
-                        <small>去服务器页点星标，收藏会显示在这里，一键进服</small>
+                        <small>去服务器页点星标，收藏会出现在这里</small>
                       </span>
-                      <Icon name="chevronRight" size={14} />
+                      <Icon name="chevronRight" size={14} className="quick-card-chev" />
                     </button>
                   ) : (
-                    <div className="lobby-quick-list">
-                      {favoriteServers.slice(0, 4).map((server) => (
-                        <button
-                          key={server.serverKey}
-                          type="button"
-                          className="lobby-quick-server"
-                          disabled={!server.online || joinBusyKey === server.serverKey}
-                          onClick={() => joinServer(server)}
-                          title={server.online ? `进入 ${server.name}` : '服务器当前离线'}
-                        >
-                          <span className={`lobby-quick-dot${server.online ? ' is-online' : ''}`} />
-                          <span className="lobby-quick-meta">
-                            <b>{server.name}</b>
-                            <small>
-                              {server.online
-                                ? `${server.players}/${server.maxPlayers} 人 · ${server.ping || 0}ms`
-                                : '当前离线'}
-                            </small>
-                          </span>
-                          {joinBusyKey === server.serverKey ? (
-                            <span className="spinner" />
-                          ) : (
-                            <Icon name="play" size={13} />
-                          )}
-                        </button>
-                      ))}
+                    <div className="quick-card-body">
+                      <span className="quick-card-info">
+                        <b>
+                          <i className={`quick-card-dot${favoriteTop.online ? ' is-online' : ''}`} />
+                          {favoriteTop.name}
+                        </b>
+                        <small>
+                          {favoriteTop.online
+                            ? `${favoriteTop.players}/${favoriteTop.maxPlayers} 人 · ${favoriteTop.ping || 0}ms · ${favoriteTop.map || '未知地图'}`
+                            : `当前离线${favoriteServers.length > 1 ? ` · 共 ${favoriteServers.length} 个收藏` : ''}`}
+                        </small>
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-primary quick-card-go"
+                        disabled={!favoriteTop.online || joinBusyKey === favoriteTop.serverKey}
+                        onClick={() => joinServer(favoriteTop)}
+                        title={favoriteTop.online ? `进入 ${favoriteTop.name}` : '服务器当前离线'}
+                      >
+                        {joinBusyKey === favoriteTop.serverKey ? <span className="spinner" /> : '进入'}
+                      </button>
                     </div>
                   )}
                 </div>
 
-                <div className="lobby-command-actions">
-                  <button
-                    type="button"
-                    className="lobby-action lobby-action--ranked"
-                    onClick={() => setPage('ranked')}
-                  >
-                    <span className="lobby-action-icon">
-                      <Icon name="trophy" size={18} />
+                <button
+                  type="button"
+                  className="quick-card quick-card--ranked"
+                  onClick={() => {
+                    playSfx('tab');
+                    setPage('ranked');
+                  }}
+                >
+                  <span className="quick-card-head">
+                    <span className="quick-card-title">
+                      <Icon name="trophy" size={13} /> 天梯排位
                     </span>
-                    <span className="lobby-action-text">
-                      <b>天梯排位</b>
+                    <Icon name="chevronRight" size={14} className="quick-card-chev" />
+                  </span>
+                  <span className="quick-card-body">
+                    <span className="quick-card-info">
+                      <b>
+                        {rankLabel(combatRanks, user?.combatLevel)} · {stats?.sessions ?? 0} 场
+                      </b>
                       <small>1v1 / 2v2 · 快速匹配</small>
                     </span>
-                    <Icon name="chevronRight" size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    className="lobby-action lobby-action--challenge"
-                    onClick={() => setPage('challenges')}
-                  >
-                    <span className="lobby-action-icon">
-                      <Icon name="swords" size={18} />
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  className="quick-card quick-card--challenge"
+                  onClick={() => {
+                    playSfx('tab');
+                    setPage('challenges');
+                  }}
+                >
+                  <span className="quick-card-head">
+                    <span className="quick-card-title">
+                      <Icon name="swords" size={13} /> 约战大厅
                     </span>
-                    <span className="lobby-action-text">
-                      <b>约战大厅</b>
-                      <small>开房邀请 · 不计分不锁服</small>
+                    <Icon name="chevronRight" size={14} className="quick-card-chev" />
+                  </span>
+                  <span className="quick-card-body">
+                    <span className="quick-card-info">
+                      <b>开房邀请</b>
+                      <small>自定义规则 · 不计分不锁服</small>
                     </span>
-                    <Icon name="chevronRight" size={15} />
-                  </button>
-                </div>
+                  </span>
+                </button>
               </section>
 
-              <section className={`hero hero--${selectedMeta.tone}`}>
+              <section className={`hero hero--${selectedMeta.tone} hero--mode-${localMode}`}>
+                <span className="hero-art" aria-hidden="true" />
+                <span className="hero-mask" aria-hidden="true" />
+
                 <div className="hero-content">
                   <span className="eyebrow">
                     <Icon name="map" size={13} />
-                    当前地图
-                    <em className="eyebrow-status">{hasGameDir ? '已就绪' : '未就绪'}</em>
+                    <b>当前地图</b>
+                    <em className={`eyebrow-status${hasGameDir ? '' : ' is-off'}`}>
+                      {hasGameDir ? '已就绪' : '未就绪'}
+                    </em>
+                    <span className="eyebrow-note">平台身份校验</span>
                   </span>
-                  <h1>{selectedMeta.name}</h1>
+
+                  <h1 className="hero-title">{selectedMeta.name}</h1>
 
                   <div className="hero-tags">
-                    <span className="tag">{selectedMeta.categoryLabel}</span>
                     <span className="tag tag--code">{selectedMap || '未选择'}</span>
+                    <span className="tag">{selectedMeta.categoryLabel}</span>
+                    <span className={`tag tag--mode ${localMode === 'team' ? 'tag--team' : 'tag--dm'}`}>
+                      <i />
+                      {localMode === 'deathmatch' ? '混战模式' : '组队模式'}
+                    </span>
                     <span className="tag">本地开图</span>
-                    <span className="tag">{localMode === 'deathmatch' ? '混战模式' : '组队模式'}</span>
-                    <span className="tag">平台身份校验</span>
+                  </div>
+                </div>
+
+                <div className="hero-foot">
+                  <div className="hud">
+                    <div className="hud-cell hud-cell--map">
+                      <span>地图</span>
+                      <b>{maps.length}</b>
+                    </div>
+                    <div className="hud-cell hud-cell--rooms">
+                      <span>在线房间</span>
+                      <b>{onlineServers.length}</b>
+                    </div>
+                    <div className="hud-cell hud-cell--ping">
+                      <span>最低延迟</span>
+                      <b>
+                        {bestPing === null ? '—' : bestPing}
+                        {bestPing === null ? '' : <em>ms</em>}
+                      </b>
+                    </div>
                   </div>
 
                   <div className="hero-actions">
@@ -1207,48 +1290,36 @@ export default function Lobby({
                       <button
                         type="button"
                         className={localMode === 'team' ? 'is-active' : ''}
-                        onClick={() => setLocalMode('team')}
+                        aria-pressed={localMode === 'team'}
+                        onClick={() => switchLocalMode('team')}
                       >
+                        <i />
                         组队
                       </button>
                       <button
                         type="button"
                         className={localMode === 'deathmatch' ? 'is-active' : ''}
-                        onClick={() => setLocalMode('deathmatch')}
+                        aria-pressed={localMode === 'deathmatch'}
+                        onClick={() => switchLocalMode('deathmatch')}
                       >
+                        <i />
                         混战
                       </button>
                     </div>
-                    <button type="button" className="btn btn-primary btn-lg" onClick={startLocal} disabled={localBusy}>
+                    <button type="button" className="btn btn-ghost btn-lg" onClick={pickRandomMap}>
+                      <Icon name="refresh" size={15} /> 换一张
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-lg hero-cta"
+                      onClick={startLocal}
+                      disabled={localBusy}
+                    >
                       {localBusy ? <span className="spinner" /> : <Icon name="play" size={16} />}
                       {localBusy ? '启动中…' : '开始游戏'}
                       <kbd className="btn-kbd">Enter</kbd>
                     </button>
-                    <button type="button" className="btn btn-ghost" onClick={pickRandomMap}>
-                      <Icon name="refresh" size={15} /> 换一张
-                    </button>
                   </div>
-                </div>
-
-                <div className="hero-side">
-                  <div className="hero-stat hero-stat--map">
-                    <span>地图</span>
-                    <b>{maps.length}</b>
-                  </div>
-                  <div className="hero-stat hero-stat--rooms">
-                    <span>在线房间</span>
-                    <b>{onlineServers.length}</b>
-                  </div>
-                  <div className="hero-stat hero-stat--ping">
-                    <span>最低延迟</span>
-                    <b>{bestPing === null ? '—' : `${bestPing}ms`}</b>
-                  </div>
-                  {staff && (
-                    <div className="hero-stat hero-stat--staff">
-                      <span>待审资源</span>
-                      <b>{adminSummary ? adminSummary.assets.pending : '—'}</b>
-                    </div>
-                  )}
                 </div>
               </section>
 
@@ -1322,17 +1393,28 @@ export default function Lobby({
                   </div>
 
                   <ul className="feed-list">
-                    <li className="feed-item">
+                    <li className={`feed-item feed-item--notice${noticeOpen ? ' is-open' : ''}`}>
                       <span className="feed-tag feed-tag--notice">
-                        {platformState.notice ? '公告' : '提示'}
+                        {platformNotice ? '公告' : '提示'}
                       </span>
-                      <div>
-                        <b>{platformState.notice || '平台已接入真实账号与连服凭证'}</b>
+                      <div className="feed-body">
+                        <p className="feed-text" ref={noticeTextRef}>
+                          {platformNotice || '平台已接入真实账号与连服凭证'}
+                        </p>
                         <small>
-                          {platformState.notice
+                          {platformNotice
                             ? '由管理员在大厅维护，重要通知会在这里置顶'
                             : '进入游戏后自动完成身份校验'}
                         </small>
+                        {noticeExpandable && (
+                          <button
+                            type="button"
+                            className="feed-more"
+                            onClick={() => setNoticeOpen((value) => !value)}
+                          >
+                            {noticeOpen ? '收起' : '展开全文'}
+                          </button>
+                        )}
                       </div>
                     </li>
 
