@@ -9,6 +9,8 @@ updated: 2026-11-08T04:50:00+08:00
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-08 · 启动器 0.4.14：支持 ESF Engine 1.0（无 hl.exe，参数写入 `engine.cfg` 的 `Launcher=` 行、退出还原、`engine.cfg.esf-base` 备份）；EACCES 诊断。提交 ea14d16，tag v0.4.14；差量 0.4.13→0.4.14 下载 1,867,465 B。新增 `decision/engine-mode`。
+
 - 2026-11-08 · 启动器 0.4.13：成员行版式调整（状态跟在名字后同一行，角色/段位收进第二行，自己那栏点状态即编辑）。提交 4e9bdfc，tag v0.4.13；差量 0.4.12→0.4.13 下载 1,686,703 B。
 - 2026-11-08 · 启动器 0.4.12：成员自定义状态（users.status_text）+ 自动活动行 + 7 个界面音效与设置开关；新增 decision/lobby-presence-sound。提交 43e4b83，tag v0.4.12；差量 0.4.11→0.4.12 下载 7,606,741 B。
 - 2026-11-08 · 建立 `docs/kb/`：index/current-state + decision（migration、launcher-updater、ranked-challenge、amxx-plugins、kb-policy）+ environment（servers、accounts-secrets、toolchain）+ pattern（release-launcher、release-amxx、remote-ops）+ debugging（known-issues）。依据：仓库现状与线上实测（0.4.10 / 插件 0.48）。

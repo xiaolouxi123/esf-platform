@@ -29,6 +29,7 @@ updated: 2026-11-08T07:06:00+08:00
 | [[ranked-challenge]] | 排位/约战业务规则：战绩历史、结算弹窗、按天房号、guest 与排位锁 |
 | [[amxx-plugins]] | AMXX 插件：UTF-8 构建、日志语言、构建心跳、自动更新管线 |
 | [[lobby-presence-sound]] | 成员状态行与界面音效：status_text 字段、自动活动、7 音效与开关 |
+| [[engine-mode]] | 新引擎（ESF Engine 1.0）：无 hl.exe，参数写 `engine.cfg` 的 `Launcher=` 行 |
 | [[kb-policy]] | 本知识库自身的位置与维护规则 |
 | [[servers]] | 三台服务器清单：角色、路径、服务、任务、端口 |
 | [[accounts-secrets]] | 账号、凭据存放位置、授权与轮换待办（不写明文密码） |
