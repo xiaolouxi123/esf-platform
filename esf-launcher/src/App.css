@@ -11018,3 +11018,290 @@ select:focus {
 .drawer-head h2 {
   flex: 1;
 }
+
+/* ===== P9 · 频道页 ===== */
+.channel-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 11px;
+  min-height: 0;
+  height: auto;
+}
+
+.channel-page-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 2px;
+  border-bottom: 0;
+}
+
+.channel-back {
+  flex: none;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.channel-back:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.channel-title b {
+  font-size: 17px;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+.channel-title small {
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.channel-online {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 3px 9px;
+  border: 1px solid rgba(61, 220, 151, 0.24);
+  border-radius: 999px;
+  background: rgba(61, 220, 151, 0.09);
+  color: #8df3c3;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.channel-online::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.channel-page .card--chat {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  background-image: var(--surface);
+  overflow: hidden;
+}
+
+.channel-page .presence-head {
+  flex: none;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.014);
+}
+
+.channel-page .presence-head h3 {
+  gap: 6px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.channel-page .presence-sub {
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 9.5px;
+  color: var(--dim);
+}
+
+.channel-page .chat-list {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: 12px 14px 14px;
+  overflow-y: auto;
+}
+
+.channel-page .chat-row {
+  gap: 10px;
+  padding: 7px 9px;
+  border-radius: 10px;
+}
+
+.channel-page .chat-row:hover {
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.channel-page .chat-row.is-self {
+  background: rgba(255, 138, 31, 0.055);
+}
+
+.channel-page .chat-meta {
+  gap: 7px;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.channel-page .chat-meta b {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.channel-page .chat-body p {
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.62;
+  color: #e2e7f2;
+}
+
+.channel-page .chat-title {
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 9px;
+}
+
+.channel-page .channel-welcome {
+  margin: 2px 0 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.channel-page .channel-welcome-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.channel-page .channel-welcome p {
+  margin-top: 6px;
+  max-width: 640px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.channel-page .channel-rules {
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.channel-page .channel-rules span {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+}
+
+.channel-page .chat-input {
+  flex: none;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  background: rgba(8, 11, 17, 0.45);
+}
+
+.channel-page .chat-input input {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 12px;
+}
+
+.channel-page .chat-input input:focus {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.1);
+}
+
+.channel-page .chat-input .btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+/* ---------------- 0.4.16 两步验证 / 设备会话 ---------------- */
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.session-row.is-current {
+  border-color: rgba(255, 138, 31, 0.45);
+  background: linear-gradient(180deg, rgba(255, 138, 31, 0.1), rgba(255, 138, 31, 0.02));
+}
+
+.session-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-main b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx-1, #eef1f7);
+}
+
+.session-main span {
+  font-size: 11px;
+  color: var(--tx-3, #7a8399);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-tag {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #ffb066;
+  border: 1px solid rgba(255, 138, 31, 0.35);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.channel-page .chat-input {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.channel-page .chat-input input {
+  flex: 1 1 0%;
+  width: 0;
+  min-width: 0;
+}
+
+.channel-page .chat-input .btn {
+  flex: 0 0 36px;
+  margin: 0;
+}

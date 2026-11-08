@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "title": "P9 · 频道页",
+    "author": "ESF 平台",
+    "date": "2026.11.09",
+    "reading_time": "约 3 分钟",
+    "tags": ["设计系统", "P9", "频道", "聊天"],
+    "subtitle": "把重复的标题删掉，把垂直空间还给消息",
+    "lang": null,
+    "hero_image": "hero-grid.svg",
+    "theme": "ikb",
+    "brand": "#ff8a1f",
+    "type": "design-note",
+    "status": "final"
+  },
+  "upgrades": [
+    {
+      "type": "checklist",
+      "lines": [46, 47, 48, 49, 50, 51]
+    }
+  ]
+}

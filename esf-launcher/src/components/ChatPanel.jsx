@@ -84,18 +84,20 @@ export default function ChatPanel({ user, toast, titles = [], showIntro = false 
 
   return (
     <section className="card card--chat">
-      <div className="presence-head">
-        <h3>
-          <Icon name="bell" size={14} /> 大厅频道
-        </h3>
-        <span className="presence-sub">公开可见</span>
-      </div>
+      {showIntro ? null : (
+        <div className="presence-head">
+          <h3>
+            <Icon name="bell" size={14} /> 大厅频道
+          </h3>
+          <span className="presence-sub">公开可见</span>
+        </div>
+      )}
 
       <div className="chat-list" ref={listRef}>
         {showIntro && (
           <div className="channel-welcome">
             <div className="channel-welcome-title">
-              <span>#</span> 大厅频道
+              <span>#</span> 欢迎来到大厅频道
             </div>
             <p>全服玩家实时聊天。组队、约战、反馈问题都可以在这里发，进服遇到问题优先带截图。</p>
             <div className="channel-rules">
