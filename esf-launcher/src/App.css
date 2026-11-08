@@ -10364,3 +10364,277 @@ select:focus {
     padding: 13px 15px 14px;
   }
 }
+
+/* ===== P5 · 服务器页 ===== */
+.center > .hall {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.hall.servers-page {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.servers-hero {
+  flex: 1 1 auto;
+  min-height: 200px;
+  max-height: 300px;
+  padding: 18px 22px 16px;
+}
+
+.servers-hero .hero-content {
+  gap: 4px;
+}
+
+.servers-hero .hero-title {
+  font-size: 42px;
+}
+
+.servers-hero .hero-art {
+  background-position: 62% 30%;
+  background-size: 158% auto;
+}
+
+.servers-hero .hero-tags {
+  margin-top: 5px;
+}
+
+.servers-hero .hud-cell {
+  min-width: 94px;
+}
+
+.servers-hero .hud-cell b {
+  font-size: 24px;
+}
+
+.servers-hero .hero-actions .servers-refresh {
+  height: 42px;
+  padding: 0 16px;
+  font-size: 12.5px;
+}
+
+.servers-hero .hero-cta {
+  height: 42px;
+  padding: 0 20px;
+  font-size: 13px;
+}
+
+/* 一行筛选：搜索 + 模式 + 全部/在线/收藏 */
+.servers-filters {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+}
+
+.servers-filters .search {
+  flex: 1 1 auto;
+  min-width: 170px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.servers-filters .search input {
+  font-size: 12px;
+}
+
+.servers-modes {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  max-width: 52%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.servers-modes::-webkit-scrollbar {
+  display: none;
+}
+
+.hall-mode {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-hover) var(--ease-out),
+    background var(--dur-hover) var(--ease-out),
+    color var(--dur-hover) var(--ease-out);
+}
+
+.hall-mode em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.hall-mode:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.hall-mode.is-active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: #ffd3a3;
+}
+
+.hall-mode.is-active em {
+  color: #ffc08a;
+}
+
+.servers-filters .segmented {
+  flex: none;
+  height: 34px;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.servers-filters .segmented button {
+  padding: 0 11px;
+  font-size: 11.5px;
+  border-radius: 7px;
+}
+
+/* 底部两栏：我的服务器 + 直连查询 */
+.servers-foot {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.servers-foot .custom-servers,
+.servers-foot .lookup-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 13px 15px 14px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  background-image: var(--surface);
+}
+
+.servers-foot .section-head {
+  margin: 0;
+}
+
+.servers-foot .section-head h2 {
+  font-size: 14px;
+}
+
+.lookup-note {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.servers-foot .lookup {
+  margin: 0;
+}
+
+.servers-foot .lookup-bar {
+  gap: 8px;
+}
+
+.servers-foot .lookup-bar .search {
+  height: 34px;
+  border-radius: 10px;
+}
+
+.servers-foot .lookup-bar .search input {
+  font-size: 11.5px;
+}
+
+.servers-foot .probe {
+  margin-top: 8px;
+}
+
+.custom-hint {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--dim);
+}
+
+.custom-list {
+  max-height: 128px;
+  overflow-y: auto;
+}
+
+.servers-foot .custom-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.servers-foot .custom-form .input {
+  height: 32px;
+  font-size: 11.5px;
+  border-radius: 9px;
+}
+
+.servers-foot .custom-form .btn {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 11.5px;
+}
+
+.custom-row {
+  padding: 8px 0;
+}
+
+.servers-page .hall-tip {
+  flex: none;
+  margin: auto 0 0;
+  padding: 6px 2px 0;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+@media (max-width: 1240px) {
+  .servers-hero {
+    min-height: 190px;
+    padding: 16px 18px 14px;
+  }
+
+  .servers-hero .hero-title {
+    font-size: 38px;
+  }
+
+  .servers-filters .search {
+    min-width: 140px;
+  }
+
+  .servers-modes {
+    max-width: 46%;
+  }
+
+  .servers-foot {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  }
+}

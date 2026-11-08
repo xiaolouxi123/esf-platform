@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon';
 import ServerRoomList from './ServerRoomList';
 import { pingTone } from '../lib/format';
@@ -129,6 +129,15 @@ export default function ServerHall({
   const [customForm, setCustomForm] = useState({ name: '', address: '' });
   const [customBusy, setCustomBusy] = useState(false);
   const [customError, setCustomError] = useState('');
+  const customRef = useRef(null);
+
+  const openCustom = () => {
+    setCustomOpen(true);
+    requestAnimationFrame(() => {
+      customRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      customRef.current?.querySelector('input')?.focus();
+    });
+  };
 
   useEffect(() => {
     let alive = true;
@@ -214,137 +223,91 @@ export default function ServerHall({
   ];
 
   return (
-    <div className="hall">
-      <header className="hall-head">
-        <div>
-          <h2>
+    <div className="hall servers-page">
+      <header className="hero servers-hero">
+        <span className="hero-art" aria-hidden="true" />
+        <span className="hero-mask" aria-hidden="true" />
+
+        <div className="hero-content">
+          <div className="eyebrow">
+            <Icon name="servers" size={12} />
             服务器大厅
-            <span className="pill">{servers.length}</span>
-          </h2>
-          <p>点任意一行展开实时玩家列表；没登记的服务器可以在下面自己添加</p>
+            <b className="eyebrow-status">{onlineList.length > 0 ? '在线' : '全部离线'}</b>
+            <span className="eyebrow-note">平台登记 + 直连，两种都能进</span>
+          </div>
+
+          <h1 className="hero-title">服务器大厅</h1>
+
+          <div className="hero-tags">
+            <span className="tag tag--code">{servers.length} 台已登记</span>
+            <span className="tag">15 秒自动刷新</span>
+            <span className="tag">AMXX 身份校验</span>
+          </div>
         </div>
 
-        <button type="button" className="btn btn-ghost" onClick={onRefresh} disabled={loading}>
-          {loading ? <span className="spinner" /> : <Icon name="refresh" size={15} />}
-          {loading ? '刷新中…' : '刷新列表'}
-        </button>
+        <div className="hero-foot">
+          <div className="hud">
+            <div className="hud-cell hud-cell--rooms">
+              <span>在线服务器</span>
+              <b>
+                {onlineList.length}
+                <em>/{servers.length}</em>
+              </b>
+            </div>
+            <div className="hud-cell hud-cell--map">
+              <span>在线玩家</span>
+              <b>{onlinePlayers}</b>
+            </div>
+            <div className="hud-cell hud-cell--ping">
+              <span>平均延迟</span>
+              <b>
+                {avgPing > 0 ? avgPing : '—'}
+                {avgPing > 0 && <em>ms</em>}
+              </b>
+            </div>
+          </div>
+
+          <div className="hero-actions">
+            <button
+              type="button"
+              className="btn btn-ghost btn-lg servers-refresh"
+              onClick={onRefresh}
+              disabled={loading}
+            >
+              {loading ? <span className="spinner" /> : <Icon name="refresh" size={15} />}
+              {loading ? '刷新中…' : '刷新列表'}
+            </button>
+            <button type="button" className="btn btn-primary btn-lg hero-cta" onClick={openCustom}>
+              <Icon name="plus" size={15} />
+              添加服务器
+            </button>
+          </div>
+        </div>
       </header>
 
-      <div className="hall-stats">
-        <div className="hall-stat">
-          <span>在线服务器</span>
-          <b>
-            {onlineList.length}
-            <em>/{servers.length}</em>
-          </b>
-        </div>
-        <div className="hall-stat">
-          <span>在线玩家</span>
-          <b>{onlinePlayers}</b>
-        </div>
-        <div className="hall-stat">
-          <span>平均延迟</span>
-          <b>{avgPing > 0 ? `${avgPing}ms` : '—'}</b>
-        </div>
-        <div className="hall-stat">
-          <span>我的服务器</span>
-          <b>{customServers.length}</b>
-        </div>
-      </div>
-
-      <div className="hall-modes">
-        {modeOptions.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            className={`hall-mode${mode === item.key ? ' is-active' : ''}`}
-            onClick={() => setMode(item.key)}
-          >
-            {item.label}
-            <em>{item.count}</em>
-          </button>
-        ))}
-      </div>
-
-      <LookupBar onJoin={onJoin} busyKey={busyKey} />
-
-      <section className="custom-servers">
-        <div className="section-head">
-          <h2>
-            我的服务器 <span className="pill">{customServers.length}</span>
-          </h2>
-
-          <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCustomOpen((value) => !value)}>
-            <Icon name={customOpen ? 'close' : 'plus'} size={14} />
-            {customOpen ? '收起' : '添加服务器'}
-          </button>
-        </div>
-
-        <p className="custom-hint">
-          只保存在本机，不走平台登记；直连时不带平台身份，AMXX 不会做身份校验。
-        </p>
-
-        {customOpen && (
-          <form className="custom-form" onSubmit={addCustom}>
-            <input
-              type="text"
-              value={customForm.name}
-              placeholder="名称（可选）"
-              onChange={(event) => setCustomForm((prev) => ({ ...prev, name: event.target.value }))}
-            />
-            <input
-              type="text"
-              value={customForm.address}
-              placeholder="IP:端口，例如 1.2.3.4:27016"
-              onChange={(event) => setCustomForm((prev) => ({ ...prev, address: event.target.value }))}
-            />
-            <button type="submit" className="btn btn-primary btn-sm" disabled={customBusy || !customForm.address.trim()}>
-              {customBusy ? <span className="spinner" /> : '添加'}
-            </button>
-          </form>
-        )}
-
-        {customError && <p className="custom-error">{customError}</p>}
-
-        {customServers.length > 0 && (
-          <div className="custom-list">
-            {customServers.map((server) => (
-              <div className="custom-row" key={server.address}>
-                <span className="room-flag room-flag--custom">自建</span>
-                <div className="custom-meta">
-                  <b>{server.name}</b>
-                  <small>{server.address}</small>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost"
-                  onClick={() => removeCustom(server.address)}
-                >
-                  删除
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={busyKey === server.address}
-                  onClick={() => onJoin({ custom: true, name: server.name, address: server.address })}
-                >
-                  {busyKey === server.address ? <span className="spinner" /> : '加入'}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <div className="hall-toolbar">
+      <div className="servers-filters">
         <div className="search">
-          <Icon name="search" size={16} />
+          <Icon name="search" size={15} />
           <input
             type="text"
             value={keyword}
             placeholder="筛选：名称 / 地图 / IP"
             onChange={(event) => setKeyword(event.target.value)}
           />
+        </div>
+
+        <div className="servers-modes">
+          {modeOptions.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={`hall-mode${mode === item.key ? ' is-active' : ''}`}
+              onClick={() => setMode(item.key)}
+            >
+              {item.label}
+              <em>{item.count}</em>
+            </button>
+          ))}
         </div>
 
         <div className="segmented">
@@ -374,6 +337,85 @@ export default function ServerHall({
         onSpectate={onSpectate}
         onOpenChallenge={onOpenChallenge}
       />
+
+      <div className="servers-foot">
+        <section className="custom-servers" ref={customRef}>
+          <div className="section-head">
+            <h2>
+              我的服务器 <span className="pill">{customServers.length}</span>
+            </h2>
+
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCustomOpen((value) => !value)}>
+              <Icon name={customOpen ? 'close' : 'plus'} size={14} />
+              {customOpen ? '收起' : '添加服务器'}
+            </button>
+          </div>
+
+          <p className="custom-hint">
+            只保存在本机，不走平台登记；直连时不带平台身份，AMXX 不会做身份校验。
+          </p>
+
+          {customOpen && (
+            <form className="custom-form" onSubmit={addCustom}>
+              <input
+                type="text"
+                value={customForm.name}
+                placeholder="名称（可选）"
+                onChange={(event) => setCustomForm((prev) => ({ ...prev, name: event.target.value }))}
+              />
+              <input
+                type="text"
+                value={customForm.address}
+                placeholder="IP:端口，例如 1.2.3.4:27016"
+                onChange={(event) => setCustomForm((prev) => ({ ...prev, address: event.target.value }))}
+              />
+              <button type="submit" className="btn btn-primary btn-sm" disabled={customBusy || !customForm.address.trim()}>
+                {customBusy ? <span className="spinner" /> : '添加'}
+              </button>
+            </form>
+          )}
+
+          {customError && <p className="custom-error">{customError}</p>}
+
+          {customServers.length > 0 && (
+            <div className="custom-list">
+              {customServers.map((server) => (
+                <div className="custom-row" key={server.address}>
+                  <span className="room-flag room-flag--custom">自建</span>
+                  <div className="custom-meta">
+                    <b>{server.name}</b>
+                    <small>{server.address}</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => removeCustom(server.address)}
+                  >
+                    删除
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    disabled={busyKey === server.address}
+                    onClick={() => onJoin({ custom: true, name: server.name, address: server.address })}
+                  >
+                    {busyKey === server.address ? <span className="spinner" /> : '加入'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="lookup-panel">
+          <div className="section-head">
+            <h2>直连查询</h2>
+            <span className="lookup-note">不依赖登记</span>
+          </div>
+
+          <LookupBar onJoin={onJoin} busyKey={busyKey} />
+        </section>
+      </div>
 
       <footer className="hall-tip">
         <Icon name="help" size={14} />

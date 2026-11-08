@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "title": "P5 · 服务器页",
+    "author": "ESF 平台",
+    "date": "2026.11.08",
+    "reading_time": "约 4 分钟",
+    "tags": ["设计系统", "P5", "服务器", "筛选"],
+    "subtitle": "把「查询工具」收成「一屏服务器」，四个统计格换成三个数",
+    "lang": null,
+    "hero_image": "hero-grid.svg",
+    "theme": "ikb",
+    "brand": "#ff8a1f",
+    "type": "design-note",
+    "status": "final"
+  },
+  "upgrades": [
+    {
+      "type": "aside",
+      "line": 30,
+      "title": "一屏的代价是留白没有地方去",
+      "text": "这一页的内容比大厅少，硬要一屏就会剩一截空白。让 hero 吸到 300px 就停，剩下的交给底部两栏卡片撑开——空白进的是背景，不是表格。"
+    },
+    {
+      "type": "aside",
+      "line": 40,
+      "title": "为什么先去掉外层那张卡",
+      "text": "旧版整页套在 `.hall` 里，padding 16、边框、blur 三层叠加，hero 和表格都被推进去一格。清掉之后，这一页和 P2 / P4 落在大厅同一层背景上。"
+    },
+    {
+      "type": "checklist",
+      "lines": [60, 61, 62, 63, 64, 65, 66]
+    }
+  ]
+}
