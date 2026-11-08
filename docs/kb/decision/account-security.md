@@ -58,6 +58,12 @@ RESET_CODE_TTL_MINUTES=15
 
 QQ 邮箱授权码获取：QQ 邮箱网页 → 设置 → 账户 → POP3/IMAP/SMTP 服务 → 开启并生成授权码。
 
+## 线上配置（2026-11-09）
+
+- 两台 API 机 `.env` 已配：`SMTP_USER=503982138@qq.com`，`SMTP_FROM=ESF 平台 <503982138@qq.com>`，授权码只存在 `.env`（不入 git）。
+- `nodemailer.verify()` 通过，测试邮件返回 250 queued。
+- 「忘记密码」全链路已实测：发码 200（maskedEmail `50*******@qq.com`）→ 校验换 token 200 → 重置 200 → 新密码登录 200、旧密码 401。
+
 ## 已知边界
 
 - 没有 2FA、没有设备会话列表、没有密码强度校验（仅 ≥8）。
