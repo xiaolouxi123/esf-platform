@@ -13,6 +13,8 @@ export default function TitleBar({
   page = 'lobby',
   onPage,
   user,
+  coins = 0,
+  online = 0,
   onOpenSettings,
   minimal = false,
 }) {
@@ -66,6 +68,17 @@ export default function TitleBar({
       )}
 
       <div className="titlebar-right">
+        {user && !minimal && (
+          <div className="tb-chips">
+            <span className="tb-chip" title="金币">
+              <b>{Number(coins || 0).toLocaleString('zh-CN')}</b> 金币
+            </span>
+            <span className="tb-chip" title="在线玩家">
+              <i /> {online} 在线
+            </span>
+          </div>
+        )}
+
         {user && !minimal && (
           <button type="button" className="user-chip" onClick={onOpenSettings} title="账号与平台设置">
             <Avatar user={user} />

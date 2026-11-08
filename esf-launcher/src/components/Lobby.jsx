@@ -694,6 +694,8 @@ export default function Lobby({
         page={activePage}
         onPage={setPage}
         user={user}
+        coins={coins}
+        online={onlineServers.length}
         onOpenSettings={openSettings}
       />
 
