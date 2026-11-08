@@ -25,7 +25,9 @@ updated: 2026-11-08T07:06:00+08:00
 |---|---|
 | [[current-state]] | 线上现状：版本、主机、域名、插件构建、待办（最先看这页） |
 | [[migration]] | 老服务器 → 新服务器迁移的决定与结果 |
-| [[launcher-updater]] | 启动器自动更新：差量、blockmap、缓存校验、发布与版本策略 |
+| [[launcher-updater]] | 启动器更新链路：electron-updater、blockmap、差量、发布三件套 |
+| [[account-security]] | 登录锁定、忘记密码、QQ 邮箱绑定、管理台重置 |
+| [[maintenance-channel]] | 114 免 RDP 维护通道：ops_jobs 命令队列与 pull agent |
 | [[ranked-challenge]] | 排位/约战业务规则：战绩历史、结算弹窗、按天房号、guest 与排位锁 |
 | [[amxx-plugins]] | AMXX 插件：UTF-8 构建、日志语言、构建心跳、自动更新管线 |
 | [[lobby-presence-sound]] | 成员状态行与界面音效：status_text 字段、自动活动、7 音效与开关 |
