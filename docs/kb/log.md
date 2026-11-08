@@ -9,6 +9,14 @@ updated: 2026-11-08T04:50:00+08:00
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-09 · 启动器 0.4.16：TOTP 两步验证（10 个一次性备用码）、登录设备列表与撤销、密码强度（≥10 位且 ≥3 类）、接口安全响应头。提交 7f4ea11，tag v0.4.16；差量 0.4.15→0.4.16 下载 7,357,162 B。新增 `decision/account-security` 的 0.4.16 段。
+
+- 2026-11-09 · 启动器 0.4.15：忘记密码三步、设置内绑定 QQ 邮箱与改密、管理台重置临时密码（强制改密）、登录 10 次锁定；两台 API 配好 QQ SMTP 并全链路实测。提交 e4aa157，tag v0.4.15；差量 0.4.14→0.4.15 下载 7,625,781 B。新增 `decision/account-security`、`decision/maintenance-channel`。
+
+- 2026-11-09 · 密钥轮换：esf_app / esf_backup / esf_amxx 全部更换，验证 health、备份、amxx_builds 心跳恢复；同日记 ops agent 卡死事故与修复（轮询 HasExited + 杀进程树）。提交 b978bba。
+
+- 2026-11-09 · 维护通道：`ops_jobs`/`ops_agents` + 114 pull agent（计划任务 ESFOpsAgent），服务器可远程排队执行命令并取回输出。提交见 `deploy/ops-agent`。
+
 - 2026-11-08 · 启动器 0.4.14：支持 ESF Engine 1.0（无 hl.exe，参数写入 `engine.cfg` 的 `Launcher=` 行、退出还原、`engine.cfg.esf-base` 备份）；EACCES 诊断。提交 ea14d16，tag v0.4.14；差量 0.4.13→0.4.14 下载 1,867,465 B。新增 `decision/engine-mode`。
 
 - 2026-11-08 · 启动器 0.4.13：成员行版式调整（状态跟在名字后同一行，角色/段位收进第二行，自己那栏点状态即编辑）。提交 4e9bdfc，tag v0.4.13；差量 0.4.12→0.4.13 下载 1,686,703 B。

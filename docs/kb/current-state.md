@@ -2,12 +2,12 @@
 title: 线上现状
 category: state
 tags: [state, versions, deployment]
-updated: 2026-11-08T07:30:00+08:00
+updated: 2026-11-09T06:10:00+08:00
 ---
 
-# 线上现状（2026-11-08）
+# 线上现状（2026-11-09）
 
-只放"现在是什么"，决策理由见 [[migration]]、[[launcher-updater]]、[[ranked-challenge]]、[[amxx-plugins]]、[[lobby-presence-sound]]。
+只放"现在是什么"，决策理由见 [[migration]]、[[launcher-updater]]、[[ranked-challenge]]、[[amxx-plugins]]、[[lobby-presence-sound]]、[[account-security]]、[[maintenance-channel]]。
 任何数字变化后**直接改这里**，不要留下旧值。
 
 ## 服务端
@@ -26,11 +26,12 @@ updated: 2026-11-08T07:30:00+08:00
 
 | 项 | 值 |
 |---|---|
-| 最新版本 | **0.4.15**（提交 e4aa157，tag v0.4.15） |
+| 最新版本 | **0.4.16**（提交 7f4ea11，tag v0.4.16） |
 | 更新源 | https://119.29.82.217/updates/ |
-| 安装包 | ESF-Platform-Setup-0.4.15.exe（128,750,345 B，blockmap 135,372 B） |
-| 差量基线 | 0.4.14 → 0.4.15：30 个操作，下载 7,625,781 B；0.4.13 → 0.4.14：18 个操作，下载 1,867,465 B；0.4.12 → 0.4.13：26 个操作，下载 1,686,703 B；0.4.11 → 0.4.12：30 个操作，下载 7,606,741 B |
+| 安装包 | ESF-Platform-Setup-0.4.16.exe（128,754,908 B，blockmap 135,424 B） |
+| 差量基线 | 0.4.15 → 0.4.16：30 个操作，下载 7,357,162 B；0.4.14 → 0.4.15：30 个操作，下载 7,625,781 B；0.4.13 → 0.4.14：18 个操作，下载 1,867,465 B；0.4.12 → 0.4.13：26 个操作，下载 1,686,703 B |
 | 新引擎支持 | 0.4.14 起识别 `ESF.exe + engine\engine.cfg`（ESF Engine 1.0），启动参数写入 `Launcher=` 行，退出还原 |
+| 账号安全 | 0.4.15：邮箱绑定 / 忘记密码 / 管理台重置 + 10 次锁定；0.4.16：TOTP 两步验证（含 10 个一次性备用码）、登录设备列表与撤销、密码强度（≥10 位且 ≥3 类）、接口安全响应头 |
 
 ## AMXX 插件
 
@@ -51,7 +52,10 @@ updated: 2026-11-08T07:30:00+08:00
 
 ## 待办
 
-1. 朋友复测：用启动器重进排位，确认不再被 `RANKED_LOCKED` 踢（guest 兜底生效）。
+1. 0.4.16 客户端实机复测：2FA 开启/登录/备用码、设备会话撤销、密码强度提示、忘记密码全链路。
 2. 新手房（27017）未上报 `amxx_builds` 心跳，疑似 `amxx.cfg` 未配 `platform_server_key` / `ranked_server_key`，待查。
 3. 启动器侧把 token 直接写进命令行参数（`+setinfo`），不再依赖 launcher.cfg，随下一版发布。
-4. 迁移收尾：真人 1v1/2v2 验收；7 天后清理老 119 的本机凭据与临时管理员，轮换密钥。
+4. 迁移收尾：真人 1v1/2v2 验收；老 119 的 `esfops` 与 `LocalAccountTokenFilterPolicy` 回滚时点待定（回滚会断老机 WinRM 部署通道，建议 7 天后再清）。
+5. 清理一次性安装脚本 `C:\esf\updates\ops\install-*.ps1`。
+6. ops agent 任务输出的中文乱码（cmd 以 UTF-8 输出、agent 按 GBK 读回），改 `[IO.File]::ReadAllText(..., UTF8)`。
+7. 老 114 仍有 0.2.1 版本残留，待与现网版本对齐。
