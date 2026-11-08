@@ -69,3 +69,10 @@ QQ 邮箱授权码获取：QQ 邮箱网页 → 设置 → 账户 → POP3/IMAP/S
 - 没有 2FA、没有设备会话列表、没有密码强度校验（仅 ≥8）。
 - 邮件发送依赖腾讯 SMTP，失败会返回 503；未做重试队列。
 - 锁定计数按账号累计，攻击者可用大量账号刷锁（成本低但影响面有限）。
+## 密钥轮换（2026-11-09）
+
+- esf_app（API 连库）：已轮换；新密码只写在两台机 C:\esf\server\.env 的 DB_PASSWORD，以及新机 C:\esf\CREDENTIALS.txt（ACL 只留 SYSTEM/Administrators）。
+- esf_backup（备份账号）：已轮换；同步改写 C:\esf\backup\backup.cnf，手动跑 ackup-db.ps1 通过（size=184982，sha256=9fc58449…）。
+- esf_amxx（两服插件连库）：已轮换；两服 esf\addons\amxmodx\configs\amxx.cfg 的 platform_sql_pass/anked_sql_pass 已替换（备份 mxx.cfg.bak-rotate-20261109），杀 rehlds 后 HLSM 重启，mxx_builds 心跳 21:26:18 恢复、两服 A2S 在线。
+- 轮换后验证：两机 /api/health db=up；登录接口错误码正常（401）；server_status 两服 online=1。
+- 密码不再出现在聊天/文档/KB；查当前值只从 C:\esf\CREDENTIALS.txt 读。

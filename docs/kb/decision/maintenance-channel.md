@@ -48,3 +48,10 @@ tags: [ops, 114, remote, maintenance]
 - 查任务：`SELECT id, status, exit_code, LEFT(stdout, 500) FROM ops_jobs ORDER BY id DESC LIMIT 10;`
 - 排队一条：`INSERT INTO ops_jobs (cmd, timeout_sec) VALUES ('...', 60);`
 - 心跳：`SELECT * FROM ops_agents;`
+## 事故与修复（2026-11-09）
+
+- **现象**：job 2（or /r 扫 Desktop）claimed 后长期 running，ops_agents.last_seen_at 停止更新，后续每分钟的实例因 Global\ESFOpsAgent mutex 全部直接退出 → 通道假死。
+- **根因**：Start-Process -NoNewWindow -RedirectStandardOutput 之后用 $proc.WaitForExit(ms)，重定向管道未关闭时该调用可能一直阻塞；超时分支永远到不了，job 不会回写。
+- **恢复**：RDP 进 114，schtasks /end /tn ESFOpsAgent 结束卡死实例（心跳随即恢复）；DB 里把 job 2 标 ailed/124。
+- **修复**：ops-agent.ps1 改为轮询 $proc.HasExited + 截止时间，超时 	askkill /pid <pid> /t /f 杀整棵进程树，再读输出、回写结果；已是当前线上版本（C:\esf-agent\ops-agent.ps1，sha256 前缀 84D3741B），通过 job 7 自更新完成。
+- **教训**：agent 命令要"可终止"；扫描类命令改用 dir /s /b <精确路径> 或 PowerShell Get-ChildItem -Filter，不要 or /r 全盘枚举。
