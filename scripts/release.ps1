@@ -158,7 +158,7 @@ const mysql = require('C:\\esf\\server\\node_modules\\mysql2\\promise');
     database: process.env.DB_NAME,
     charset: 'utf8mb4',
   });
-  await conn.execute('UPDATE platform_settings SET notice = ? WHERE id = 1', [process.env.RELEASE_NOTES]);
+  await conn.execute("UPDATE platform_settings SET setting_value = ? WHERE setting_key = 'notice'", [process.env.RELEASE_NOTES]);
   await conn.end();
   console.log('notice updated');
 })().catch((err) => { console.error(err.message); process.exit(1); });
