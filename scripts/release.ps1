@@ -38,7 +38,7 @@ function Step($msg) { Write-Host "`n== $msg" -ForegroundColor Cyan }
 # ---------------------------------------------------------------- 1. bump
 Step "bump version to $Version"
 Push-Location $launcher
-node -e "const fs=require('fs');const v=process.argv[1];for(const f of ['package.json','package-lock.json']){const p=JSON.parse(fs.readFileSync(f,'utf8'));p.version=v;if(p.packages&&p.packages['']){p.packages[''].version=v}fs.writeFileSync(f,JSON.stringify(p,null,2)+'\n')}"
+node -e "const fs=require('fs');const v=process.argv[1];if(!v)throw new Error('no version');for(const f of ['package.json','package-lock.json']){const p=JSON.parse(fs.readFileSync(f,'utf8'));p.version=v;if(p.packages&&p.packages['']){p.packages[''].version=v}fs.writeFileSync(f,JSON.stringify(p,null,2)+'\n')}" "$Version"
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "bump failed" }
 
 # ---------------------------------------------------------------- 2. checks
@@ -63,21 +63,30 @@ $files = @(
   'esf-launcher/api.cjs',
   'esf-launcher/main.cjs',
   'esf-launcher/preload.js',
-  'esf-launcher/src/App.jsx',
-  'esf-launcher/src/App.css',
-  'esf-launcher/src/components/LoginPage.jsx',
-  'esf-launcher/src/components/SettingsDrawer.jsx',
-  'esf-launcher/src/components/AdminPanel.jsx',
+  'esf-launcher/src',
   'server',
   'deploy/ops-agent',
   'scripts/release.ps1',
-  'docs/kb'
+  'docs/kb',
+  'docs/design'
 )
 git add -A -- $files
 $msg = "release: v$Version`n`n$Notes"
 git commit -m $msg
-if ($LASTEXITCODE -ne 0) { throw "commit failed (nothing staged?)" }
-git tag "v$Version"
+if ($LASTEXITCODE -ne 0) {
+  $staged = @(git diff --cached --name-only)
+  if ($staged.Count -eq 0) {
+    Write-Host "nothing new to commit (version already prepared), continue"
+  } else {
+    throw "commit failed"
+  }
+}
+$tagExists = @(git tag --list "v$Version")
+if ($tagExists.Count -eq 0) {
+  git tag "v$Version"
+} else {
+  Write-Host "tag v$Version already exists, skip"
+}
 git push origin main
 git push origin "v$Version"
 if ($LASTEXITCODE -ne 0) { throw "push failed" }
