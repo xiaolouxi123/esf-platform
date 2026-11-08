@@ -9,10 +9,12 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, not
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
   const [forgot, setForgot] = useState(null);
   const [forgotBusy, setForgotBusy] = useState(false);
   const [forgotError, setForgotError] = useState('');
   const [forgotInfo, setForgotInfo] = useState('');
+  const noticeLong = String(notice || '').length > 46;
 
   const openForgot = () => {
     setForgot({ step: 1, account: username.trim(), code: '', token: '', password: '', confirm: '' });
@@ -135,9 +137,14 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, not
           </header>
 
           {notice ? (
-            <div className="notice-strip">
+            <div className={`notice-strip${noticeOpen ? ' is-open' : ''}`}>
               <Icon name="bell" size={14} />
               <span>{notice}</span>
+              {noticeLong ? (
+                <button type="button" className="notice-more" onClick={() => setNoticeOpen((v) => !v)}>
+                  {noticeOpen ? '收起' : '展开'}
+                </button>
+              ) : null}
             </div>
           ) : null}
 

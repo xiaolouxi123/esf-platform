@@ -11156,3 +11156,221 @@ select:focus {
   height: 26px;
   font-size: 11px;
 }
+
+/* ===== P7 · 设置抽屉 / 登录页 ===== */
+.drawer {
+  width: 470px;
+  border-left: 1px solid var(--line);
+  border-radius: 18px 0 0 18px;
+  background: linear-gradient(180deg, rgba(19, 25, 37, 0.985), rgba(11, 14, 20, 0.995));
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.45);
+}
+
+.drawer-head {
+  padding: 13px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-head h2 {
+  gap: 8px;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+.drawer-body {
+  gap: 10px;
+  padding: 12px 14px 14px;
+}
+
+.drawer-section {
+  gap: 9px;
+  padding: 12px 14px 13px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  background-image: var(--surface);
+}
+
+.drawer-section--muted {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.drawer-section h3 {
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+
+.drawer-hint {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.62;
+  color: var(--dim);
+}
+
+.drawer .path-box {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+}
+
+.drawer .path-box .path-label {
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+}
+
+.drawer .path-box code {
+  font-size: 10.5px;
+}
+
+.drawer .btn-block {
+  height: 32px;
+  font-size: 11.5px;
+}
+
+.drawer-section .field-input {
+  height: 32px;
+  border-radius: 9px;
+}
+
+.drawer-section .field-input input,
+.drawer-section .field-input select,
+.drawer-section textarea {
+  font-size: 11.5px;
+}
+
+.drawer-section .field-label {
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.drawer-section .kv {
+  font-size: 11px;
+}
+
+.drawer-section .kv dt {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.drawer-subhead {
+  margin: 4px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.drawer-actions {
+  gap: 8px;
+}
+
+.drawer-actions .btn {
+  height: 28px;
+  font-size: 11.5px;
+}
+
+.drawer-foot {
+  gap: 10px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--line);
+  background: rgba(11, 14, 20, 0.92);
+  backdrop-filter: blur(10px);
+}
+
+.drawer-foot .btn {
+  height: 36px;
+  font-size: 12.5px;
+}
+
+/* 登录页 */
+.auth-panel .auth-card {
+  width: 388px;
+  gap: 13px;
+  padding: 24px 24px 20px;
+  border-radius: 22px;
+}
+
+.auth-card .auth-emblem img {
+  width: 58px;
+  height: 58px;
+}
+
+.auth-card-head h2 {
+  font-size: 21px;
+  letter-spacing: 0.01em;
+}
+
+.auth-card-head p {
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+.auth-card .notice-strip {
+  align-items: flex-start;
+  gap: 7px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 10.5px;
+  line-height: 1.6;
+  border-color: rgba(255, 138, 31, 0.22);
+  background: rgba(255, 138, 31, 0.07);
+}
+
+.auth-card .notice-strip > span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.auth-card .notice-strip.is-open > span {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
+.notice-more {
+  flex: none;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 10px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.auth-card .field-input {
+  height: 40px;
+  border-radius: 10px;
+}
+
+.auth-card .field-input input {
+  font-size: 12px;
+}
+
+.auth-card .btn-primary,
+.auth-card .btn-ghost {
+  height: 40px;
+  font-size: 12.5px;
+  border-radius: 11px;
+}
+
+.auth-card .btn-ghost {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--muted);
+}
+
+.auth-switch {
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.auth-card .form-hint {
+  font-size: 10.5px;
+}
+
+.drawer-head h2 {
+  flex: 1;
+}
