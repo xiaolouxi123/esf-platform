@@ -505,6 +505,13 @@ export default function Lobby({
   const selectedMeta = useMemo(() => mapMeta(selectedMap || ''), [selectedMap]);
 
   const platformNotice = String(platformState.notice || '').trim();
+  // 公告首句（一般带版本号）单独提亮，剩下的正文压成正文色，读起来不糊成一片
+  const noticeParts = useMemo(() => {
+    const text = platformNotice || '平台已接入真实账号与连服凭证，进入游戏后自动完成身份校验。';
+    const hit = text.match(/^(.{1,26}?)[：:]/);
+    if (!hit) return { lead: '', body: text };
+    return { lead: hit[1], body: text.slice(hit[0].length) };
+  }, [platformNotice]);
   // 公告折叠按"实际有没有被两行裁掉"判断，而不是数字符：
   // 1180 宽下卡片更窄，同样长度的公告会多出一行，数字符会漏掉这种情况。
   const [noticeExpandable, setNoticeExpandable] = useState(false);
@@ -1421,12 +1428,15 @@ export default function Lobby({
                       {platformNotice ? '公告' : '提示'}
                     </span>
                     <p className="feed-text" ref={noticeTextRef}>
-                      {platformNotice || '平台已接入真实账号与连服凭证，进入游戏后自动完成身份校验。'}
+                      {noticeParts.lead && <b className="feed-text-lead">{noticeParts.lead}：</b>}
+                      {noticeParts.body}
                     </p>
                   </div>
 
                   <p className="feed-hint">
-                    <b>提示</b> 点房间行可展开实时玩家（A2S） · <b>功能</b> 大厅频道与在线状态每 20 秒心跳
+                    <em>提示</em> 点房间行可展开实时玩家（A2S）
+                    <i>·</i>
+                    <em>功能</em> 频道与在线状态每 20 秒心跳
                   </p>
 
                   <div className="feed-assets">
