@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "title": "P6 · 资源库与管理台",
+    "author": "ESF 平台",
+    "date": "2026.11.09",
+    "reading_time": "约 4 分钟",
+    "tags": ["设计系统", "P6", "资源库", "管理台"],
+    "subtitle": "两页同一种收法：数字进 hero，列表进表格，右侧补一栏说明",
+    "lang": null,
+    "hero_image": "hero-grid.svg",
+    "theme": "ikb",
+    "brand": "#ff8a1f",
+    "type": "design-note",
+    "status": "final"
+  },
+  "upgrades": [
+    {
+      "type": "aside",
+      "line": 41,
+      "title": "计数为什么准",
+      "text": "原来资源列表按类型发给后端过滤，前端的「模型 2 / 声音 1」只能数到当前筛选的结果。P6 改成一次取回、前端按类型筛，HUD 和 chip 上的数字才是全量的。"
+    },
+    {
+      "type": "aside",
+      "line": 44,
+      "title": "留白关在卡里",
+      "text": "表脚用 margin-top: auto 贴到卡底：条目少的时候，空白留在表格卡内部，而不是把整页撑出下半屏的空洞。"
+    },
+    {
+      "type": "checklist",
+      "lines": [71, 72, 73, 74, 75, 76, 77, 78]
+    }
+  ]
+}

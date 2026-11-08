@@ -10638,3 +10638,521 @@ select:focus {
     grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   }
 }
+
+/* ===== P6 · 资源库 / 管理台 ===== */
+.center > .assets-page,
+.center > .admin {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.assets-page,
+.admin {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.assets-hero,
+.admin-hero {
+  flex: 1 1 auto;
+  min-height: 200px;
+  max-height: 300px;
+  padding: 18px 22px 16px;
+}
+
+.assets-hero .hero-content,
+.admin-hero .hero-content {
+  gap: 4px;
+}
+
+.assets-hero .hero-title,
+.admin-hero .hero-title {
+  font-size: 42px;
+}
+
+.assets-hero .hero-art {
+  background-position: 90% 18%;
+  background-size: 240% auto;
+}
+
+.admin-hero .hero-art {
+  background-position: 66% 20%;
+  background-size: 158% auto;
+}
+
+.assets-hero .hero-actions .assets-refresh,
+.admin-hero .hero-actions .admin-refresh {
+  height: 42px;
+  padding: 0 16px;
+  font-size: 12.5px;
+}
+
+.assets-hero .hero-cta,
+.admin-hero .hero-cta {
+  height: 42px;
+  padding: 0 20px;
+  font-size: 13px;
+}
+
+/* 资源表 + 右侧安装说明 */
+.assets-body {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 12px;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.assets-side {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-height: 0;
+  padding: 13px 15px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  background-image: var(--surface);
+}
+
+.assets-side .section-head {
+  margin: 0;
+}
+
+.assets-side .section-head h2 {
+  font-size: 14px;
+}
+
+.assets-dir {
+  display: block;
+  overflow: hidden;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.035);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10.5px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assets-note {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: var(--dim);
+}
+
+.assets-kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 2px;
+}
+
+.assets-kinds span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.assets-kinds b {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.assets-kinds em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 资源表 */
+.assets-table {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: rgba(12, 16, 24, 0.58);
+}
+
+.assets-table-head,
+.assets-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1.35fr) minmax(0, 0.95fr) 132px 84px 72px 104px;
+  gap: 12px;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.assets-table-head {
+  padding-top: 9px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--line);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+}
+
+.assets-row {
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+.assets-row + .assets-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.assets-row:hover {
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.asset-thumb {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  overflow: hidden;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+}
+
+.asset-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.asset-thumb--model {
+  color: #9fc6ff;
+  background: rgba(72, 132, 255, 0.14);
+}
+
+.asset-thumb--sound {
+  color: #c9a5ff;
+  background: rgba(140, 96, 255, 0.14);
+}
+
+.asset-thumb--sprite {
+  color: #ffc08a;
+  background: rgba(255, 138, 31, 0.14);
+}
+
+.assets-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.assets-name b {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.assets-name b .tag {
+  height: 18px;
+  padding: 0 6px;
+  font-size: 9.5px;
+}
+
+.assets-name .asset-version {
+  font-size: 10px;
+  font-style: normal;
+  color: var(--dim);
+}
+
+.assets-name small {
+  overflow: hidden;
+  font-size: 11px;
+  color: rgba(164, 173, 194, 0.62);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assets-sync {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: auto 0 0;
+  padding: 9px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.assets-path {
+  overflow: hidden;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10.5px;
+  color: var(--dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assets-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.assets-size,
+.assets-downloads {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.assets-ops {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.assets-ops .btn {
+  min-width: 78px;
+  height: 28px;
+  justify-content: center;
+  font-size: 11.5px;
+}
+
+/* 上传面板 */
+.upload-panel {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 16px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  background-image: var(--surface);
+}
+
+.upload-panel .section-head {
+  margin: 0;
+}
+
+.upload-panel .section-head h2 {
+  font-size: 14px;
+}
+
+.upload-panel .section-head .admin-muted {
+  font-size: 10.5px;
+}
+
+.upload-close {
+  margin-left: auto;
+}
+
+.upload-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-row {
+  display: grid;
+  gap: 10px;
+  align-items: start;
+}
+
+.upload-body .upload-row:first-child {
+  grid-template-columns: 120px minmax(0, 1fr) 96px minmax(0, 1.1fr);
+}
+
+.upload-body .upload-row:last-child {
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+}
+
+.upload-panel .field {
+  gap: 5px;
+}
+
+.upload-panel .field-label {
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.upload-panel .field-input {
+  height: 32px;
+  border-radius: 9px;
+}
+
+.upload-panel .field-input input,
+.upload-panel .field-input select {
+  font-size: 11.5px;
+}
+
+.upload-panel .field-hint {
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.upload-panel .cover-picker {
+  min-height: 32px;
+}
+
+.upload-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.upload-actions .admin-muted {
+  font-size: 10.5px;
+}
+
+/* 管理台 */
+.admin-servers-block {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.admin-section {
+  gap: 10px;
+  margin: 0;
+  padding: 13px 16px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  background-image: var(--surface);
+}
+
+.admin-section-head {
+  gap: 10px;
+}
+
+.admin-section-head h3 {
+  gap: 7px;
+  font-size: 14px;
+}
+
+.admin-section-head h3 .pill {
+  font-size: 10.5px;
+  padding: 1px 7px;
+}
+
+.admin-section-head .admin-muted {
+  font-size: 10.5px;
+}
+
+.admin-filters .search {
+  height: 32px;
+  border-radius: 9px;
+}
+
+.admin-filters .search input {
+  font-size: 11.5px;
+}
+
+.admin-table th {
+  padding: 8px 10px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.admin-table td {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.admin-actions .btn {
+  height: 28px;
+  font-size: 11.5px;
+}
+
+@media (max-width: 1240px) {
+  .assets-hero,
+  .admin-hero {
+    min-height: 190px;
+    padding: 16px 18px 14px;
+  }
+
+  .assets-hero .hero-title,
+  .admin-hero .hero-title {
+    font-size: 38px;
+  }
+
+  .assets-body {
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
+
+  .assets-table-head,
+  .assets-row {
+    grid-template-columns: 46px minmax(0, 1.4fr) minmax(0, 0.8fr) 116px 76px 64px 96px;
+    gap: 10px;
+    padding: 0 14px;
+  }
+
+  .upload-body .upload-row:first-child {
+    grid-template-columns: 104px minmax(0, 1fr) 88px minmax(0, 1fr);
+  }
+}
+
+/* 上传面板 · 封面一行 */
+.upload-panel .cover-picker {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 5px 8px;
+  border: 1px dashed var(--line);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.upload-panel .cover-preview {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.upload-panel .cover-empty {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.upload-panel .cover-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.upload-panel .cover-actions .btn {
+  height: 26px;
+  font-size: 11px;
+}

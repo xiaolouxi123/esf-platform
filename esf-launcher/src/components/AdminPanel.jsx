@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from './Icon';
 import Avatar from './Avatar';
 import AdminServers from './AdminServers';
@@ -74,6 +74,7 @@ export default function AdminPanel({
   const [keyword, setKeyword] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const serversRef = useRef(null);
   const [busyId, setBusyId] = useState(null);
 
   const [audit, setAudit] = useState({ logs: [], total: 0 });
@@ -374,41 +375,80 @@ export default function AdminPanel({
     },
   ];
 
+  const cardValue = (key) => cards.find((card) => card.key === key)?.value ?? '—';
+
+  const gotoRegisterServer = () => {
+    const section = serversRef.current;
+    if (!section) return;
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => {
+      section.querySelector('.admin-section-head .btn-primary')?.click();
+    }, 220);
+  };
+
   const transferCandidates = users.filter((item) => item.role !== 'owner' && item.id !== user?.id);
 
   return (
     <div className="admin">
-      <header className="admin-head">
-        <div>
-          <h2>
+      <header className="hero admin-hero">
+        <span className="hero-art" aria-hidden="true" />
+        <span className="hero-mask" aria-hidden="true" />
+
+        <div className="hero-content">
+          <div className="eyebrow">
+            <Icon name="shield" size={12} />
             管理台
-            <span className={`role-badge role-${user?.role}`}>{roleLabel(user?.role)}</span>
-          </h2>
-          <p>账号权限、资源审核、操作审计与开发者工具。普通玩家看不到这个页面。</p>
+            <span className="eyebrow-status is-on">{roleLabel(user?.role)}</span>
+            <span className="eyebrow-note">普通玩家看不到这个页面</span>
+          </div>
+
+          <h1 className="hero-title">管理台</h1>
+
+          <div className="hero-tags">
+            <span className="tag tag--code">admin console</span>
+            <span className="tag">账号 · 资源 · 服务器 · 审计</span>
+            <span className="tag">今日进场 {overview ? formatNumber(overview.sessions.today) : '—'}</span>
+            <span className="tag tag--mode tag--admin">管理员权限</span>
+          </div>
         </div>
 
-        <button type="button" className="btn btn-ghost" onClick={refresh} disabled={loading}>
-          {loading ? <span className="spinner" /> : <Icon name="refresh" size={15} />}
-          {loading ? '刷新中…' : '刷新'}
-        </button>
-      </header>
-
-      <div className="admin-cards">
-        {cards.map((card) => (
-          <div key={card.key} className="admin-card">
-            <span className="admin-card-icon">
-              <Icon name={card.icon} size={16} />
-            </span>
-            <div>
-              <b>{card.value}</b>
-              <span>{card.label}</span>
-              {card.hint ? <small>{card.hint}</small> : null}
+        <div className="hero-foot">
+          <div className="hud">
+            <div className="hud-cell hud-cell--accounts">
+              <span>账号</span>
+              <b>{cardValue('users')}</b>
+            </div>
+            <div className="hud-cell hud-cell--pending">
+              <span>待审资源</span>
+              <b>{cardValue('assets')}</b>
+            </div>
+            <div className="hud-cell hud-cell--servers">
+              <span>在线 / 启用</span>
+              <b>{overview ? overview.servers.online : '—'}<em>/{overview ? overview.servers.enabled : '—'}</em></b>
             </div>
           </div>
-        ))}
+
+          <div className="hero-actions">
+            <button
+              type="button"
+              className="btn btn-ghost btn-lg admin-refresh"
+              onClick={refresh}
+              disabled={loading}
+            >
+              {loading ? <span className="spinner" /> : <Icon name="refresh" size={15} />}
+              {loading ? '刷新中…' : '刷新'}
+            </button>
+            <button type="button" className="btn btn-primary btn-lg hero-cta" onClick={gotoRegisterServer}>
+              <Icon name="plus" size={15} /> 登记服务器
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div ref={serversRef} className="admin-servers-block">
+        <AdminServers toast={toast} />
       </div>
 
-      <AdminServers toast={toast} />
 
       {canAssign && <AdminRanks toast={toast} onRanksChanged={onRanksChanged} />}
 

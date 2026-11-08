@@ -747,6 +747,34 @@ const api = {
       ],
     }),
     setAssetStatus: async (id, status) => ({ id, status }),
+    servers: async () => ({
+      servers: [
+        {
+          id: 1,
+          key: 'fcx-1v1-1',
+          name: '[ESF-FCX]单挑房[1]',
+          ip: '114.132.84.150',
+          port: 27016,
+          mode: '混战',
+          enabled: true,
+          sort: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: 2,
+          key: 'fcx-team',
+          name: '[ESF-FCX]组队服',
+          ip: '114.132.84.152',
+          port: 27018,
+          mode: '组队',
+          enabled: false,
+          sort: 2,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    }),
     audit: async () => ({
       total: 4,
       logs: [
