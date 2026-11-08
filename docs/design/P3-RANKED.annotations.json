@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "style": "swiss",
+    "theme": "safety-orange",
+    "brand": "#ff8a1f",
+    "hero_image": "hero-grid.svg",
+    "embed": true,
+    "tags": ["设计系统", "P3", "排位", "段位"],
+    "author": "ESF PLATFORM · 设计系统 v1",
+    "date": "2026.11.08",
+    "reading_time": "4 min",
+    "title": "P3 · 排位页",
+    "subtitle": "段位进度 / 最近战绩 / 匹配入口 —— 把「我打到哪了」压进第一屏"
+  },
+  "upgrades": [
+    {
+      "type": "aside",
+      "line": 36,
+      "title": "数据链路没动",
+      "text": "state / leaderboard / history 三个轮询（2.5s / 12s / 30s）与 queue、cancel、ready、bet、spectate、finish 全部保持原样；P3 只改了渲染结构，另在模式切换与开始匹配上补了 click / tab 音效反馈。"
+    },
+    {
+      "type": "checklist",
+      "lines": [56, 57, 58, 59, 60, 61],
+      "title": "验收清单"
+    }
+  ]
+}
