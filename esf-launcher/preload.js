@@ -41,6 +41,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     forgotReset: (token, password) => call('auth:forgot-reset', { token, password }),
     bindEmailCode: (email) => call('auth:email-code', { email }),
     bindEmail: (email, code) => call('auth:email-bind', { email, code }),
+    twoFactor: (challengeToken, code) => call('auth:2fa-verify', { challengeToken, code }),
+    totpSetup: () => call('auth:2fa-setup'),
+    totpEnable: (code) => call('auth:2fa-enable', { code }),
+    totpDisable: (password) => call('auth:2fa-disable', { password }),
+    sessions: () => call('auth:sessions'),
+    revokeSession: (id) => call('auth:revoke-session', { id }),
+    revokeOtherSessions: () => call('auth:revoke-others'),
   },
 
   presence: {

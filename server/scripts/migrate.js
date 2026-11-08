@@ -227,6 +227,38 @@ async function main() {
     );
     await ensureColumn(conn, env.db.name, 'users', 'locked_until', 'DATETIME NULL COMMENT "锁定截止时间"');
 
+    // 0.4.16 第二批安全：TOTP 两步验证 + 设备会话
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'users',
+      'totp_secret',
+      'VARCHAR(64) NULL COMMENT "TOTP 密钥（base32）" AFTER locked_until'
+    );
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'users',
+      'totp_enabled',
+      'TINYINT(1) NOT NULL DEFAULT 0 COMMENT "是否启用两步验证"'
+    );
+    await ensureColumn(conn, env.db.name, 'users', 'totp_backup_codes', 'TEXT NULL COMMENT "备用码哈希（JSON 数组）"');
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS user_sessions (
+         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+         user_id BIGINT UNSIGNED NOT NULL,
+         jti CHAR(32) NOT NULL,
+         user_agent VARCHAR(255) NULL,
+         ip VARCHAR(45) NULL,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         revoked_at DATETIME NULL,
+         UNIQUE KEY uk_jti (jti),
+         KEY idx_user (user_id, revoked_at),
+         CONSTRAINT fk_session_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    );
+
     const emailIndex = await conn.query(
       `SELECT 1 FROM information_schema.statistics
         WHERE table_schema = ? AND table_name = 'users' AND index_name = 'uk_email' LIMIT 1`,

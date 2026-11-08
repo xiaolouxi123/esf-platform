@@ -100,9 +100,19 @@ try {
     -RedirectStandardError $errFile
 
   $timedOut = $false
-  if (-not $proc.WaitForExit($timeoutSec * 1000)) {
-    $timedOut = $true
-    try { $proc.Kill() } catch { }
+  # Do not use WaitForExit(ms) here: with redirected stdout/stderr the call can
+  # block until the child's pipes close, which never happens if a grandchild
+  # inherits the handles. Poll instead and kill the whole tree on timeout.
+  $deadline = (Get-Date).AddSeconds($timeoutSec)
+  while (-not $proc.HasExited) {
+    if ((Get-Date) -gt $deadline) {
+      $timedOut = $true
+      try { & taskkill /pid $proc.Id /t /f 2>$null | Out-Null } catch { }
+      break
+    }
+    Start-Sleep -Milliseconds 500
+  }
+  if (-not $timedOut) {
     try { $proc.WaitForExit(5000) | Out-Null } catch { }
   }
 

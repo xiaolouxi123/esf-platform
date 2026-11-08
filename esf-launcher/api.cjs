@@ -96,6 +96,28 @@ const bindEmailCode = (settings, token, email) =>
 const bindEmail = (settings, token, email, code) =>
   request(settings, { method: 'POST', path: '/api/auth/email/bind', token, body: { email, code } });
 
+/* ---------------- 0.4.16 两步验证与设备会话 ---------------- */
+
+const twoFactorVerify = (settings, challengeToken, code) =>
+  request(settings, { method: 'POST', path: '/api/auth/2fa/verify', body: { challengeToken, code } });
+
+const totpSetup = (settings, token) =>
+  request(settings, { method: 'POST', path: '/api/auth/2fa/setup', token });
+
+const totpEnable = (settings, token, code) =>
+  request(settings, { method: 'POST', path: '/api/auth/2fa/enable', token, body: { code } });
+
+const totpDisable = (settings, token, password) =>
+  request(settings, { method: 'POST', path: '/api/auth/2fa/disable', token, body: { password } });
+
+const listSessions = (settings, token) => request(settings, { path: '/api/auth/sessions', token });
+
+const revokeSession = (settings, token, id) =>
+  request(settings, { method: 'DELETE', path: `/api/auth/sessions/${id}`, token });
+
+const revokeOtherSessions = (settings, token) =>
+  request(settings, { method: 'POST', path: '/api/auth/sessions/revoke-others', token });
+
 const stats = (settings, token) => request(settings, { path: '/api/me/stats', token });
 
 const servers = (settings, token) => request(settings, { path: '/api/servers', token });
@@ -387,6 +409,13 @@ module.exports = {
   forgotReset,
   bindEmailCode,
   bindEmail,
+  twoFactorVerify,
+  totpSetup,
+  totpEnable,
+  totpDisable,
+  listSessions,
+  revokeSession,
+  revokeOtherSessions,
   stats,
   servers,
   lookupServer,

@@ -8,6 +8,7 @@ const env = require('../env');
 const { q, one } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { unauthorized, badRequest, conflict } = require('../lib/errors');
+const { checkPassword } = require('../lib/password');
 const { getWallet } = require('../services/economy');
 
 const router = express.Router();
@@ -48,6 +49,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
           email: req.user.email || null,
           emailVerified: Boolean(req.user.email_verified_at),
           mustChangePassword: Number(req.user.must_change_password) === 1,
+    totpEnabled: Number(req.user.totp_enabled) === 1,
           avatar: req.user.avatar || '',
           avatarUrl: req.user.avatar_url || '',
           titleId: req.user.title_id ? Number(req.user.title_id) : null,
@@ -100,7 +102,7 @@ const patchSchema = z
     avatar: z.string().trim().max(8).optional(),
     avatarData: z.string().max(400000).optional(),
     oldPassword: z.string().min(1).max(72).optional(),
-    newPassword: z.string().min(8).max(72).optional(),
+    newPassword: z.string().min(10, '密码至少 10 位').max(72).optional(),
   })
   .refine((v) => !v.newPassword || v.oldPassword, {
     message: '修改密码需要提供旧密码',
@@ -169,6 +171,12 @@ router.patch('/me', requireAuth, async (req, res, next) => {
       const current = await one('SELECT password_hash FROM users WHERE id = ? LIMIT 1', [req.user.id]);
       const ok = await bcrypt.compare(body.oldPassword, current.password_hash);
       if (!ok) throw unauthorized('旧密码不正确');
+
+      const strength = checkPassword(body.newPassword, {
+        username: req.user.username,
+        email: req.user.email,
+      });
+      if (!strength.ok) throw badRequest(strength.message);
 
       const hash = await bcrypt.hash(body.newPassword, env.bcryptRounds);
       // 改密码同时踢掉所有旧登录态；临时密码标记也一并清掉

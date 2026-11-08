@@ -7,7 +7,12 @@ const { z } = require('zod');
 
 const env = require('../env');
 const { q, one } = require('../db');
-const { requireAuth, signAccessToken } = require('../middleware/auth');
+const {
+  requireAuth,
+  signAccessToken,
+  signChallengeToken,
+  verifyChallengeToken,
+} = require('../middleware/auth');
 const {
   loginLimiter,
   registerLimiter,
@@ -16,6 +21,9 @@ const {
 } = require('../middleware/rateLimit');
 const { conflict, unauthorized, forbidden, badRequest, notFound } = require('../lib/errors');
 const mail = require('../services/mail');
+const totp = require('../services/totp');
+const sessions = require('../services/sessions');
+const { checkPassword } = require('../lib/password');
 
 const router = express.Router();
 
@@ -24,7 +32,7 @@ const registerSchema = z.object({
     .string()
     .trim()
     .regex(/^[A-Za-z0-9_]{3,20}$/, '账号需 3~20 位字母/数字/下划线'),
-  password: z.string().min(8, '密码至少 8 位').max(72, '密码最长 72 位'),
+  password: z.string().min(10, '密码至少 10 位').max(72, '密码最长 72 位'),
   gameName: z
     .string()
     .trim()
@@ -52,6 +60,7 @@ function publicUser(row) {
     email: row.email || null,
     emailVerified: Boolean(row.email_verified_at),
     mustChangePassword: Number(row.must_change_password) === 1,
+    totpEnabled: Number(row.totp_enabled) === 1,
     avatar: row.avatar || '',
     avatarUrl: row.avatar_url || '',
     titleId: row.title_id ? Number(row.title_id) : null,
@@ -82,6 +91,28 @@ function hashCode(code) {
 
 function randomToken() {
   return crypto.randomBytes(32).toString('hex');
+}
+
+function parseBackupCodes(raw) {
+  try {
+    const list = JSON.parse(raw || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function makeBackupCodes(count = 10) {
+  const codes = [];
+  for (let i = 0; i < count; i += 1) {
+    const raw = crypto.randomBytes(5).toString('hex').toUpperCase().slice(0, 8);
+    codes.push(`${raw.slice(0, 4)}-${raw.slice(4)}`);
+  }
+  return codes;
+}
+
+function hashBackupCode(code) {
+  return crypto.createHash('sha256').update(String(code).toUpperCase()).digest('hex');
 }
 
 function sixDigits() {
@@ -148,6 +179,9 @@ async function consumeCode(email, purpose, code) {
 router.post('/register', registerLimiter, async (req, res, next) => {
   try {
     const body = registerSchema.parse(req.body);
+
+    const strength = checkPassword(body.password, { username: body.username, email: body.email });
+    if (!strength.ok) throw badRequest(strength.message);
 
     if (env.inviteCode && body.inviteCode !== env.inviteCode) {
       throw forbidden('邀请码不正确');
@@ -227,16 +261,30 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       throw forbidden('账号已被封禁');
     }
 
+    // 已开启两步验证：先发一张 5 分钟的中间票据，动态码校验通过后才发正式 token。
+    if (Number(user.totp_enabled) === 1) {
+      await logLogin(body.username, user.id, ip, true, 'TWO_FACTOR_REQUIRED');
+      return res.json({
+        ok: true,
+        data: {
+          twoFactorRequired: true,
+          challengeToken: signChallengeToken(user),
+          expiresInSeconds: 300,
+        },
+      });
+    }
+
     await q(
       'UPDATE users SET last_login_at = NOW(), failed_login_count = 0, locked_until = NULL WHERE id = ?',
       [user.id]
     );
     await logLogin(body.username, user.id, ip, true, null);
 
+    const jti = await sessions.createSession(user.id, req);
     res.json({
       ok: true,
       data: {
-        accessToken: signAccessToken(user),
+        accessToken: signAccessToken(user, jti),
         expiresIn: env.jwtTtlSeconds,
         user: publicUser(user),
       },
@@ -246,11 +294,158 @@ router.post('/login', loginLimiter, async (req, res, next) => {
   }
 });
 
-// 退出登录：token_version + 1，让该用户所有已签发的 JWT 立即失效
+/** 2FA 第二步：用中间票据 + 6 位动态码换正式 token；也接受备用码（一次性）。 */
+router.post('/2fa/verify', loginLimiter, async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const payload = verifyChallengeToken(String(body.challengeToken || ''));
+    if (!payload) throw unauthorized('验证已过期，请重新登录');
+
+    const user = await one('SELECT * FROM users WHERE id = ? LIMIT 1', [payload.sub]);
+    if (!user || user.status !== 'active') throw unauthorized('账号不可用');
+    if (Number(user.token_version) !== Number(payload.tv)) throw unauthorized('登录状态已失效，请重新登录');
+
+    const ip = clientIp(req);
+    const code = String(body.code || '').trim();
+    let ok = totp.verify(user.totp_secret, code);
+
+    if (!ok && /^[A-Za-z0-9-]{8,64}$/.test(code)) {
+      const hashes = parseBackupCodes(user.totp_backup_codes);
+      const digest = crypto.createHash('sha256').update(code.toUpperCase()).digest('hex');
+      const idx = hashes.indexOf(digest);
+      if (idx >= 0) {
+        hashes.splice(idx, 1);
+        await q('UPDATE users SET totp_backup_codes = ? WHERE id = ?', [JSON.stringify(hashes), user.id]);
+        ok = true;
+      }
+    }
+
+    if (!ok) {
+      await logLogin(user.username, user.id, ip, false, 'BAD_2FA');
+      throw unauthorized('动态验证码不正确');
+    }
+
+    await q('UPDATE users SET last_login_at = NOW(), failed_login_count = 0, locked_until = NULL WHERE id = ?', [
+      user.id,
+    ]);
+    await logLogin(user.username, user.id, ip, true, 'TWO_FACTOR');
+
+    const jti = await sessions.createSession(user.id, req);
+    res.json({
+      ok: true,
+      data: {
+        accessToken: signAccessToken(user, jti),
+        expiresIn: env.jwtTtlSeconds,
+        user: publicUser(user),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 退出登录：撤销当前会话并 token_version + 1，让该用户所有已签发的 JWT 立即失效
 router.post('/logout', requireAuth, async (req, res, next) => {
   try {
+    if (req.sessionId) {
+      await q('UPDATE user_sessions SET revoked_at = NOW() WHERE id = ?', [req.sessionId]);
+    }
     await q('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [req.user.id]);
     res.json({ ok: true, data: { loggedOut: true } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 两步验证：生成密钥（尚未启用） */
+router.post('/2fa/setup', requireAuth, async (req, res, next) => {
+  try {
+    const user = await one('SELECT * FROM users WHERE id = ? LIMIT 1', [req.user.id]);
+    if (Number(user.totp_enabled) === 1) throw conflict('两步验证已开启');
+
+    const secret = totp.generateSecret();
+    await q('UPDATE users SET totp_secret = ?, totp_enabled = 0 WHERE id = ?', [secret, user.id]);
+    res.json({
+      ok: true,
+      data: {
+        secret,
+        otpauth: totp.otpauthUrl(secret, user.username),
+        digits: 6,
+        period: 30,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 两步验证：校验一次动态码后开启，返回 10 个一次性备用码 */
+router.post('/2fa/enable', requireAuth, async (req, res, next) => {
+  try {
+    const code = String((req.body || {}).code || '').trim();
+    const user = await one('SELECT * FROM users WHERE id = ? LIMIT 1', [req.user.id]);
+    if (Number(user.totp_enabled) === 1) throw conflict('两步验证已开启');
+    if (!user.totp_secret) throw badRequest('请先生成密钥');
+    if (!totp.verify(user.totp_secret, code)) throw badRequest('动态验证码不正确');
+
+    const backupCodes = makeBackupCodes(10);
+    const hashes = backupCodes.map(hashBackupCode);
+    await q('UPDATE users SET totp_enabled = 1, totp_backup_codes = ? WHERE id = ?', [
+      JSON.stringify(hashes),
+      user.id,
+    ]);
+    res.json({ ok: true, data: { enabled: true, backupCodes } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 两步验证：关闭（需要当前密码） */
+router.post('/2fa/disable', requireAuth, async (req, res, next) => {
+  try {
+    const password = String((req.body || {}).password || '');
+    const user = await one('SELECT * FROM users WHERE id = ? LIMIT 1', [req.user.id]);
+    if (Number(user.totp_enabled) !== 1) throw badRequest('两步验证未开启');
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) throw forbidden('密码不正确');
+
+    await q('UPDATE users SET totp_secret = NULL, totp_enabled = 0, totp_backup_codes = NULL WHERE id = ?', [
+      user.id,
+    ]);
+    res.json({ ok: true, data: { enabled: false } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 当前账号的登录设备列表 */
+router.get('/sessions', requireAuth, async (req, res, next) => {
+  try {
+    const list = await sessions.listSessions(req.user.id, req.jti);
+    res.json({ ok: true, data: { sessions: list } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 撤销指定设备会话 */
+router.delete('/sessions/:id', requireAuth, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) throw badRequest('会话 ID 无效');
+    const ok = await sessions.revokeSession(req.user.id, id);
+    if (!ok) throw notFound('会话不存在或已失效');
+    res.json({ ok: true, data: { revoked: id } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 撤销除当前设备外的其它会话 */
+router.post('/sessions/revoke-others', requireAuth, async (req, res, next) => {
+  try {
+    await sessions.revokeAll(req.user.id, req.sessionId);
+    res.json({ ok: true, data: { revoked: true } });
   } catch (err) {
     next(err);
   }
@@ -351,7 +546,7 @@ router.post('/forgot/reset', forgotLimiter, async (req, res, next) => {
     const token = String(body.token || '').trim();
     const password = String(body.password || '');
     if (!/^[a-f0-9]{64}$/i.test(token)) throw badRequest('重置令牌无效');
-    if (password.length < 8 || password.length > 72) throw badRequest('密码需 8~72 位');
+    if (password.length < 10 || password.length > 72) throw badRequest('密码需 10~72 位');
 
     const row = await one(
       `SELECT * FROM password_reset_tokens
@@ -362,6 +557,10 @@ router.post('/forgot/reset', forgotLimiter, async (req, res, next) => {
     if (new Date(row.expires_at).getTime() < Date.now()) {
       throw badRequest('重置令牌已过期，请重新获取验证码');
     }
+
+    const target = await one('SELECT username, email FROM users WHERE id = ? LIMIT 1', [row.user_id]);
+    const strength = checkPassword(password, { username: target && target.username, email: target && target.email });
+    if (!strength.ok) throw badRequest(strength.message);
 
     const hash = await bcrypt.hash(password, env.bcryptRounds);
     await q(

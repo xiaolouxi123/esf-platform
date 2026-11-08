@@ -102,8 +102,11 @@ export default function App() {
     };
   }, [checkBackend]);
 
-  const handleLogin = async ({ username, password }) => {
-    const result = await window.electronAPI.auth.login(username, password);
+  const handleLogin = async ({ username, password, challengeToken, code }) => {
+    const result = challengeToken
+      ? await window.electronAPI.auth.twoFactor(challengeToken, code)
+      : await window.electronAPI.auth.login(username, password);
+    if (result?.twoFactorRequired) return result;
     let me = result.user;
     try {
       // 登录响应只带基础字段；再拉一次 /me 获取改名冷却等资料元数据。
@@ -114,7 +117,7 @@ export default function App() {
     }
     setUser(me);
     // 管理员重置过密码：登录后强制改密（旧密码就是他刚才输入的临时密码）
-    if (me.mustChangePassword) {
+    if (me.mustChangePassword && password) {
       setForcePwd({ oldPassword: password, next: '', confirm: '', busy: false });
     }
     showToast(`欢迎回来，${me.gameName || me.username}`, 'ok');

@@ -630,6 +630,10 @@ handle('dialog:pick-game-dir', async () => {
 // ---- 账号 ----
 handle('auth:login', async ({ username, password }) => {
   const data = await apiCall(api.login, getSettings(), username, password);
+  if (data.twoFactorRequired) {
+    log(`👤 需要两步验证: ${username}`);
+    return { twoFactorRequired: true, challengeToken: data.challengeToken };
+  }
   session = { token: data.accessToken, user: data.user, savedAt: Date.now() };
   store.saveSession(session);
   log(`👤 登录成功: ${data.user.username}`);
@@ -682,6 +686,35 @@ handle('auth:email-code', async ({ email }) =>
 
 handle('auth:email-bind', async ({ email, code }) =>
   apiCall(api.bindEmail, getSettings(), requireToken(), email, code)
+);
+
+// ---- 0.4.16 两步验证 / 设备会话 ----
+handle('auth:2fa-verify', async ({ challengeToken, code }) => {
+  const data = await apiCall(api.twoFactorVerify, getSettings(), challengeToken, code);
+  session = { token: data.accessToken, user: data.user, savedAt: Date.now() };
+  store.saveSession(session);
+  log(`👤 两步验证通过: ${data.user.username}`);
+  return { user: data.user, expiresIn: data.expiresIn };
+});
+
+handle('auth:2fa-setup', async () => apiCall(api.totpSetup, getSettings(), requireToken()));
+
+handle('auth:2fa-enable', async ({ code }) =>
+  apiCall(api.totpEnable, getSettings(), requireToken(), code)
+);
+
+handle('auth:2fa-disable', async ({ password }) =>
+  apiCall(api.totpDisable, getSettings(), requireToken(), password)
+);
+
+handle('auth:sessions', async () => apiCall(api.listSessions, getSettings(), requireToken()));
+
+handle('auth:revoke-session', async ({ id }) =>
+  apiCall(api.revokeSession, getSettings(), requireToken(), id)
+);
+
+handle('auth:revoke-others', async () =>
+  apiCall(api.revokeOtherSessions, getSettings(), requireToken())
 );
 
 handle('auth:update-profile', async (patch = {}) => {

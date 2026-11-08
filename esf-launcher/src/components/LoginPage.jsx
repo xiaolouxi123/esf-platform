@@ -14,6 +14,7 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, not
   const [forgotBusy, setForgotBusy] = useState(false);
   const [forgotError, setForgotError] = useState('');
   const [forgotInfo, setForgotInfo] = useState('');
+  const [two, setTwo] = useState(null);
   const noticeLong = String(notice || '').length > 46;
 
   const openForgot = () => {
@@ -72,11 +73,30 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, not
     setBusy(true);
     setError('');
     try {
-      await onLogin({ username: name, password });
+      const result = await onLogin({ username: name, password });
+      if (result?.twoFactorRequired) {
+        setTwo({ challengeToken: result.challengeToken, code: '', busy: false, error: '' });
+      }
     } catch (err) {
       setError(err.message || '登录失败');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const submitTwo = async (event) => {
+    event.preventDefault();
+    if (!two || two.busy) return;
+    if (!/^\d{6}$/.test(two.code) && !/^[A-Za-z0-9-]{8,}$/.test(two.code)) {
+      setTwo({ ...two, error: '请输入 6 位动态码或备用码' });
+      return;
+    }
+    setTwo({ ...two, busy: true, error: '' });
+    try {
+      await onLogin({ challengeToken: two.challengeToken, code: two.code });
+      setTwo(null);
+    } catch (err) {
+      setTwo({ ...two, busy: false, error: err.message || '验证失败' });
     }
   };
 
@@ -220,6 +240,50 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, not
             <p className="form-hint">
               <Icon name="check" size={14} /> {forgotInfo}
             </p>
+          ) : null}
+
+          {two ? (
+            <div className="auth-forgot">
+              <form className="auth-forgot-card" onSubmit={submitTwo}>
+                <header className="auth-forgot-head">
+                  <span className="eyebrow">两步验证</span>
+                  <h3>输入动态码</h3>
+                  <p>打开验证器 App，输入当前 6 位数字；也可以用备用码</p>
+                </header>
+                <label className="field">
+                  <span className="field-label">动态码 / 备用码</span>
+                  <div className="field-input">
+                    <Icon name="shield" size={16} />
+                    <input
+                      type="text"
+                      value={two.code}
+                      autoFocus
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="6 位数字，或 XXXX-XXXX"
+                      onChange={(event) => setTwo({ ...two, code: event.target.value.trim() })}
+                    />
+                  </div>
+                </label>
+                {two.error ? (
+                  <p className="form-error">
+                    <Icon name="alert" size={14} /> {two.error}
+                  </p>
+                ) : null}
+                <button type="submit" className="btn btn-primary btn-block" disabled={two.busy}>
+                  {two.busy ? <span className="spinner" /> : null}
+                  {two.busy ? '验证中…' : '完成登录'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-block"
+                  onClick={() => setTwo(null)}
+                  disabled={two.busy}
+                >
+                  返回账号密码登录
+                </button>
+              </form>
+            </div>
           ) : null}
 
           {forgot ? (

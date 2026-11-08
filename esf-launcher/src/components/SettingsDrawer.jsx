@@ -16,6 +16,19 @@ function nextNameChangeLabel(value) {
   return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
 }
 
+function deviceLabel(ua) {
+  const text = String(ua || '');
+  const os = /Windows/i.test(text)
+    ? 'Windows'
+    : /Mac OS/i.test(text)
+      ? 'macOS'
+      : /Linux/i.test(text)
+        ? 'Linux'
+        : '未知系统';
+  const app = /Electron/i.test(text) ? 'ESF 平台' : /Mozilla/i.test(text) ? '浏览器' : '客户端';
+  return `${os} · ${app}`;
+}
+
 function fileToAvatar(file) {
   return new Promise((resolve, reject) => {
     if (!file || !String(file.type).startsWith('image/')) {
@@ -78,6 +91,129 @@ export default function SettingsDrawer({
   const [mailBusy, setMailBusy] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [boundEmail, setBoundEmail] = useState(user?.email || '');
+
+  // ---- 0.4.16 两步验证 / 设备会话 ----
+  const [totp, setTotp] = useState({
+    enabled: Boolean(user?.totpEnabled),
+    setup: null,
+    code: '',
+    password: '',
+    busy: false,
+    backupCodes: [],
+  });
+  const [sessions, setSessions] = useState([]);
+  const [sessBusy, setSessBusy] = useState(false);
+
+  const loadSessions = async () => {
+    try {
+      const res = await window.electronAPI.auth.sessions();
+      setSessions((res?.data || res)?.sessions || []);
+    } catch {
+      /* 会话列表拉不到不影响设置页其它功能 */
+    }
+  };
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await window.electronAPI.auth.sessions();
+        if (alive) setSessions((res?.data || res)?.sessions || []);
+      } catch {
+        /* 会话列表拉不到不影响设置页其它功能 */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const startTotp = async () => {
+    if (totp.busy) return;
+    setTotp((prev) => ({ ...prev, busy: true }));
+    try {
+      const res = await window.electronAPI.auth.totpSetup();
+      const data = res?.data || res || {};
+      setTotp((prev) => ({
+        ...prev,
+        busy: false,
+        setup: { secret: data.secret, otpauthUrl: data.otpauthUrl },
+        code: '',
+      }));
+    } catch (err) {
+      setTotp((prev) => ({ ...prev, busy: false }));
+      toast?.(err.message || '生成密钥失败', 'error');
+    }
+  };
+
+  const confirmTotp = async () => {
+    if (totp.busy || !/^\d{6}$/.test(totp.code)) return toast?.('请输入 6 位动态码', 'error');
+    setTotp((prev) => ({ ...prev, busy: true }));
+    try {
+      const res = await window.electronAPI.auth.totpEnable(totp.code);
+      const data = res?.data || res || {};
+      setTotp((prev) => ({
+        ...prev,
+        busy: false,
+        enabled: true,
+        setup: null,
+        code: '',
+        backupCodes: data.backupCodes || [],
+      }));
+      toast?.('两步验证已开启', 'success');
+      loadSessions();
+    } catch (err) {
+      setTotp((prev) => ({ ...prev, busy: false }));
+      toast?.(err.message || '开启失败', 'error');
+    }
+  };
+
+  const disableTotp = async () => {
+    if (totp.busy || !totp.password) return toast?.('请输入密码以关闭两步验证', 'error');
+    setTotp((prev) => ({ ...prev, busy: true }));
+    try {
+      await window.electronAPI.auth.totpDisable(totp.password);
+      setTotp((prev) => ({
+        ...prev,
+        busy: false,
+        enabled: false,
+        password: '',
+        backupCodes: [],
+      }));
+      toast?.('两步验证已关闭', 'success');
+    } catch (err) {
+      setTotp((prev) => ({ ...prev, busy: false }));
+      toast?.(err.message || '关闭失败', 'error');
+    }
+  };
+
+  const revokeSession = async (id) => {
+    if (sessBusy) return;
+    setSessBusy(true);
+    try {
+      await window.electronAPI.auth.revokeSession(id);
+      await loadSessions();
+      toast?.('该设备已退出登录', 'success');
+    } catch (err) {
+      toast?.(err.message || '操作失败', 'error');
+    } finally {
+      setSessBusy(false);
+    }
+  };
+
+  const revokeOthers = async () => {
+    if (sessBusy) return;
+    setSessBusy(true);
+    try {
+      await window.electronAPI.auth.revokeOtherSessions();
+      await loadSessions();
+      toast?.('其它设备已全部退出', 'success');
+    } catch (err) {
+      toast?.(err.message || '操作失败', 'error');
+    } finally {
+      setSessBusy(false);
+    }
+  };
 
   const changePassword = async () => {
     if (pwdBusy) return;
@@ -462,6 +598,139 @@ export default function SettingsDrawer({
               disabled={pwdBusy || !pwd.old || !pwd.next}
             >
               {pwdBusy ? '修改中…' : '修改密码（改完需重新登录）'}
+            </button>
+
+            <h4 className="drawer-subhead">两步验证（2FA）</h4>
+            {totp.enabled ? (
+              <>
+                <p className="drawer-hint">
+                  已开启。登录时除了密码，还需要输入验证器 App 里的 6 位动态码。
+                </p>
+                {totp.backupCodes.length ? (
+                  <div className="path-box">
+                    <span className="path-label">备用码（只显示一次，请抄下来）</span>
+                    <code>{totp.backupCodes.join('  ')}</code>
+                  </div>
+                ) : null}
+                <label className="field">
+                  <span className="field-label">当前密码（用于关闭）</span>
+                  <div className="field-input">
+                    <Icon name="shield" size={16} />
+                    <input
+                      type="password"
+                      value={totp.password}
+                      autoComplete="current-password"
+                      onChange={(e) => setTotp({ ...totp, password: e.target.value })}
+                    />
+                  </div>
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm btn-block"
+                  onClick={disableTotp}
+                  disabled={totp.busy || !totp.password}
+                >
+                  {totp.busy ? '处理中…' : '关闭两步验证'}
+                </button>
+              </>
+            ) : totp.setup ? (
+              <>
+                <p className="drawer-hint">
+                  用验证器 App（Google Authenticator / Microsoft Authenticator）添加下面这串密钥，或手动输入：
+                </p>
+                <div className="path-box">
+                  <span className="path-label">密钥（Base32）</span>
+                  <code>{totp.setup.secret}</code>
+                </div>
+                <div className="path-box">
+                  <span className="path-label">otpauth 链接</span>
+                  <code>{totp.setup.otpauthUrl}</code>
+                </div>
+                <label className="field">
+                  <span className="field-label">输入 App 显示的 6 位码</span>
+                  <div className="field-input">
+                    <Icon name="shield" size={16} />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={totp.code}
+                      placeholder="123456"
+                      onChange={(e) =>
+                        setTotp({ ...totp, code: e.target.value.replace(/\D/g, '').slice(0, 6) })
+                      }
+                    />
+                  </div>
+                </label>
+                <div className="drawer-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={confirmTotp}
+                    disabled={totp.busy || totp.code.length !== 6}
+                  >
+                    {totp.busy ? '确认中…' : '确认开启'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setTotp({ ...totp, setup: null, code: '' })}
+                    disabled={totp.busy}
+                  >
+                    取消
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="drawer-hint">开启后，即使密码泄露，别人没有你的手机也无法登录。</p>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm btn-block"
+                  onClick={startTotp}
+                  disabled={totp.busy}
+                >
+                  {totp.busy ? '生成中…' : '开启两步验证'}
+                </button>
+              </>
+            )}
+
+            <h4 className="drawer-subhead">登录设备</h4>
+            <div className="session-list">
+              {sessions.length === 0 ? (
+                <p className="drawer-hint">暂无会话记录。</p>
+              ) : (
+                sessions.map((item) => (
+                  <div key={item.id} className={`session-row${item.current ? ' is-current' : ''}`}>
+                    <div className="session-main">
+                      <b>{item.current ? '本机（当前）' : deviceLabel(item.userAgent)}</b>
+                      <span>
+                        {item.ip || '-'} · {item.lastSeenAt ? String(item.lastSeenAt).slice(0, 10) : '-'}
+                      </span>
+                    </div>
+                    {item.current ? (
+                      <span className="session-tag">当前</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => revokeSession(item.id)}
+                        disabled={sessBusy}
+                      >
+                        退出
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm btn-block"
+              onClick={revokeOthers}
+              disabled={sessBusy || sessions.filter((s) => !s.current).length === 0}
+            >
+              {sessBusy ? '处理中…' : '退出其它所有设备'}
             </button>
           </section>
 

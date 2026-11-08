@@ -6,11 +6,13 @@ const path = require('path');
 
 const env = require('./env');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
+const securityHeaders = require('./middleware/securityHeaders');
 
 const app = express();
 
 app.disable('x-powered-by');
 app.set('trust proxy', 'loopback');
+app.use(securityHeaders);
 app.use(express.json({ limit: '32kb' }));
 
 app.use('/api', require('./routes/health'));
