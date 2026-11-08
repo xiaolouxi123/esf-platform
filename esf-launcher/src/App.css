@@ -8222,3 +8222,670 @@ select:focus {
     display: none;
   }
 }
+
+/* ============================ P3 · 排位 ============================ */
+/* 排位页与大厅共用同一套 hero / HUD / 卡片语言：
+   段位进度和匹配入口收进首屏，战绩与排行榜降到两列，规则留在右侧。 */
+.ranked-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.ranked-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 244px;
+  padding: 20px 24px 18px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(126, 168, 255, 0.22);
+  background: #0b0f17;
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.46), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.ranked-hero .hero-art {
+  /* 天空+举起的手：左侧留给信息，右侧留一点"赢下来的那一拳" */
+  background-size: 210% auto;
+  background-position: 100% 20%;
+  filter: saturate(1.16) brightness(0.62) contrast(1.06);
+}
+
+.ranked-hero .hero-mask {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(8, 10, 15, 0.96) 0%,
+      rgba(8, 10, 15, 0.84) 40%,
+      rgba(8, 10, 15, 0.3) 72%,
+      rgba(8, 10, 15, 0.58) 100%
+    ),
+    linear-gradient(0deg, rgba(6, 8, 12, 0.94) 0%, rgba(6, 8, 12, 0.2) 48%, transparent 100%),
+    radial-gradient(560px 320px at 84% 16%, rgba(84, 128, 255, 0.32), transparent 64%);
+}
+
+.ranked-hero-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ranked-hero .eyebrow {
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: rgba(174, 198, 255, 0.9);
+}
+
+.ranked-hero .eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 9px rgba(63, 208, 255, 0.85);
+}
+
+.ranked-hero .eyebrow b {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: #9fc2ff;
+}
+
+.ranked-hero .eyebrow-status.is-live {
+  background: rgba(255, 138, 31, 0.16);
+  color: #ffc48c;
+}
+
+.ranked-title {
+  margin: 2px 0 0;
+  font-size: 44px;
+  font-weight: 900;
+  line-height: 1.04;
+  letter-spacing: 0.01em;
+  background: linear-gradient(180deg, #ffffff 8%, #dde7ff 96%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 8px 26px rgba(84, 128, 255, 0.34));
+}
+
+.ranked-hero .hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 4px;
+}
+
+.ranked-hero .hero-tags .tag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.05);
+  color: #d6deee;
+  font-size: 11.5px;
+  backdrop-filter: blur(6px);
+}
+
+.ranked-hero .hero-tags .tag--rank {
+  font-weight: 700;
+  border-color: color-mix(in srgb, currentColor 55%, transparent);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ranked-hero .hero-tags .tag--code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: #b9c6e2;
+}
+
+.rank-tier-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  min-width: 0;
+}
+
+.ranked-hero .rank-tier-track {
+  flex: 1;
+  max-width: 520px;
+  margin: 0;
+  gap: 4px;
+}
+
+.ranked-hero .rank-tier-track span {
+  padding: 3px 0;
+  font-size: 9.5px;
+  background: rgba(8, 11, 17, 0.42);
+  backdrop-filter: blur(4px);
+}
+
+.rank-tier-line > span {
+  font-size: 11px;
+  color: rgba(190, 203, 226, 0.72);
+  white-space: nowrap;
+}
+
+.ranked-hero .rank-progress-bar {
+  max-width: 520px;
+  height: 4px;
+  margin-top: 5px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.ranked-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: rgba(180, 192, 214, 0.6);
+}
+
+.ranked-hero-foot {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: auto;
+}
+
+.ranked-hero .hud {
+  display: flex;
+  gap: 8px;
+}
+
+.ranked-hero .hud-cell {
+  min-width: 96px;
+  padding: 7px 12px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(6, 9, 14, 0.62);
+  backdrop-filter: blur(10px);
+}
+
+.ranked-hero .hud-cell span {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+}
+
+.ranked-hero .hud-cell b {
+  display: block;
+  margin-top: 2px;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.12;
+  font-variant-numeric: tabular-nums;
+}
+
+.ranked-hero .hud-cell b em {
+  font-style: normal;
+  margin: 0 3px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.ranked-hero .hud-cell--rank b {
+  color: #ffd166;
+}
+
+.ranked-hero .hud-cell--record b {
+  color: #9de8ff;
+}
+
+.ranked-hero .hud-cell--rate b {
+  color: #8ff0c0;
+}
+
+.rank-mode-switch {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 11, 17, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+.rank-mode-btn {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 7px;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-hover) var(--ease-out), box-shadow var(--dur-hover) var(--ease-out);
+}
+
+.rank-mode-btn i {
+  grid-row: 1 / span 2;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.rank-mode-btn:nth-child(1) i {
+  background: #ffb877;
+  box-shadow: 0 0 9px rgba(255, 140, 30, 0.8);
+}
+
+.rank-mode-btn:nth-child(2) i {
+  background: #7de6ff;
+  box-shadow: 0 0 9px rgba(63, 208, 255, 0.8);
+}
+
+.rank-mode-btn:focus {
+  outline: none;
+}
+
+.rank-mode-btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 138, 31, 0.55);
+}
+
+.rank-mode-btn b {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #e7edf9;
+  white-space: nowrap;
+}
+
+.rank-mode-btn small {
+  font-size: 10px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.rank-mode-btn.is-active:nth-child(1) {
+  background: linear-gradient(180deg, rgba(255, 184, 119, 0.24), rgba(255, 93, 31, 0.16));
+  box-shadow: inset 0 0 0 1px rgba(255, 150, 60, 0.42);
+}
+
+.rank-mode-btn.is-active:nth-child(2) {
+  background: linear-gradient(180deg, rgba(125, 230, 255, 0.22), rgba(34, 182, 238, 0.16));
+  box-shadow: inset 0 0 0 1px rgba(63, 208, 255, 0.42);
+}
+
+.rank-mode-btn.is-active b {
+  color: #fff;
+}
+
+.rank-mode-btn.is-active small {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.rank-queue-chip,
+.rank-live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 11, 17, 0.62);
+  color: #dbe4f5;
+  font-size: 12.5px;
+  backdrop-filter: blur(10px);
+}
+
+.rank-queue-chip i,
+.rank-live-chip i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 10px rgba(255, 200, 97, 0.9);
+  animation: rankChipPulse 1.3s ease-in-out infinite;
+}
+
+.rank-live-chip.is-live i {
+  background: var(--red);
+  box-shadow: 0 0 10px rgba(255, 95, 109, 0.9);
+}
+
+@keyframes rankChipPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.rank-cta {
+  height: 48px;
+  padding: 0 24px;
+}
+
+.ranked-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 292px;
+  gap: 14px;
+  align-items: start;
+}
+
+.ranked-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ranked-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* 匹配中：雷达收成横条，别在首屏占掉一半 */
+.rank-queue {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  min-height: 0;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: rgba(12, 16, 24, 0.58);
+  text-align: left;
+}
+
+
+.rank-queue-radar {
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+
+.rank-queue-radar i {
+  border-color: rgba(63, 208, 255, 0.42);
+}
+
+.rank-queue-radar .spinner {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+  border-color: rgba(63, 208, 255, 0.28);
+  border-top-color: #7de6ff;
+}
+
+.rank-queue h2 {
+  font-size: 16px;
+}
+
+.rank-queue p {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+/* 战绩 */
+.rank-history {
+  padding: 15px 16px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: rgba(12, 16, 24, 0.58);
+  gap: 3px;
+}
+
+.rank-history header {
+  margin-bottom: 6px;
+}
+
+.rank-history header h3 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.rank-history header span {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+.rank-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rank-history-row {
+  padding: 10px 8px;
+  border-radius: 10px;
+}
+
+.rank-history-tag {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.rank-history-main b {
+  font-size: 12.5px;
+  color: #e6edf9;
+}
+
+.rank-history-main small {
+  margin-top: 3px;
+  font-size: 10.5px;
+}
+
+.rank-history-rate b {
+  font-size: 13px;
+}
+
+.rank-history-rate small {
+  font-size: 10px;
+}
+
+/* 对局 / 竞猜 / 排行榜 / 规则：只提字号和层级，结构不动 */
+.rank-match {
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  border-color: rgba(255, 180, 90, 0.2);
+}
+
+.rank-match-head h2 {
+  font-size: 20px;
+}
+
+.rank-match-head p {
+  font-size: 11.5px;
+}
+
+.rank-server-strip {
+  font-size: 11px;
+  padding: 9px 12px;
+  border-radius: 10px;
+}
+
+.rank-server-strip code {
+  font-size: 10.5px;
+}
+
+.rank-team-head {
+  font-size: 11px;
+}
+
+.rank-seat {
+  min-height: 52px;
+  padding: 8px 9px;
+  border-radius: 11px;
+}
+
+.rank-seat-meta b {
+  font-size: 12px;
+}
+
+.rank-seat-meta small {
+  font-size: 10px;
+}
+
+.rank-vs-mark small {
+  font-size: 9.5px;
+}
+
+.rank-bet {
+  padding: 15px 17px;
+  border-radius: var(--radius);
+  background: rgba(12, 16, 24, 0.58);
+}
+
+.rank-bet h3 {
+  font-size: 15px;
+}
+
+.rank-bet p {
+  font-size: 11px;
+}
+
+.rank-pools {
+  font-size: 10.5px;
+}
+
+.rank-bet-sides button {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.rank-bet-sides button small {
+  font-size: 10px;
+}
+
+.rank-my-bet {
+  font-size: 11.5px;
+}
+
+.rank-board {
+  padding: 14px;
+  border-radius: var(--radius);
+  background: rgba(12, 16, 24, 0.58);
+}
+
+.rank-board h3 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.rank-board header span {
+  font-size: 10px;
+}
+
+.rank-board-row {
+  padding: 7px 5px;
+  border-radius: 9px;
+}
+
+.rank-board-name b {
+  font-size: 12px;
+}
+
+.rank-board-name small {
+  font-size: 10px;
+}
+
+.rank-board-row em {
+  font-size: 10.5px;
+}
+
+.rank-board-empty {
+  font-size: 11px;
+}
+
+.rank-tips {
+  padding: 14px;
+  border-radius: var(--radius);
+  background: rgba(12, 16, 24, 0.58);
+}
+
+.rank-tips h4 {
+  font-size: 12px;
+}
+
+.rank-tips p {
+  font-size: 10.5px;
+  line-height: 1.7;
+}
+
+.rank-flow {
+  gap: 10px;
+}
+
+.rank-flow > div {
+  padding: 13px;
+  border-radius: 12px;
+}
+
+.rank-flow b {
+  font-size: 12.5px;
+}
+
+.rank-flow p {
+  font-size: 10.5px;
+}
+
+@media (max-width: 1240px) {
+  .ranked-hero {
+    min-height: 228px;
+    padding: 18px 20px 16px;
+  }
+
+  .ranked-title {
+    font-size: 40px;
+  }
+
+  .ranked-hero .hud-cell {
+    min-width: 84px;
+    padding: 6px 10px 7px;
+  }
+
+  .ranked-hero .hud-cell b {
+    font-size: 21px;
+  }
+
+  .rank-mode-btn {
+    padding: 7px 11px;
+  }
+
+  .rank-cta {
+    padding: 0 18px;
+  }
+
+  .ranked-grid {
+    grid-template-columns: minmax(0, 1fr) 260px;
+  }
+}
