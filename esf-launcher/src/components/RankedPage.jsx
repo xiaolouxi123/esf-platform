@@ -72,28 +72,6 @@ function TierTrack({ index }) {
   );
 }
 
-function RankFlow() {
-  return (
-    <div className="rank-flow">
-      <div>
-        <em>01</em>
-        <b>快速匹配</b>
-        <p>按评分寻找相近的玩家，等待越久范围越大。</p>
-      </div>
-      <div>
-        <em>02</em>
-        <b>全员准备</b>
-        <p>人齐后进入座位，双方点击准备，3 秒倒计时。</p>
-      </div>
-      <div>
-        <em>03</em>
-        <b>锁服开赛</b>
-        <p>比赛服自动锁定，仅参赛玩家可进入，支持观战与竞猜。</p>
-      </div>
-    </div>
-  );
-}
-
 function SeatCard({ player, side }) {
   if (!player) {
     return (
@@ -685,8 +663,6 @@ export default function RankedPage({ user, toast }) {
           )}
 
           {state.state !== 'loading' && <HistoryPanel history={history} onOpen={(row) => setResult({ ...row, fromHistory: true })} />}
-
-          {state.state !== 'loading' && <RankFlow />}
         </div>
 
         <aside className="ranked-side">

@@ -72,7 +72,7 @@
 }
 
 .titlebar--minimal {
-  justify-content: space-between;
+
 }
 
 .brand {
@@ -259,7 +259,7 @@
 .side-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
 }
 
 .side-head h2 {
@@ -428,7 +428,7 @@
 .hero {
   position: relative;
   display: flex;
-  justify-content: space-between;
+
   gap: 20px;
   padding: 24px 26px;
   border-radius: var(--radius);
@@ -573,7 +573,7 @@
 .section-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
 }
 
 .section-head h2 {
@@ -1253,7 +1253,7 @@
 .hall-head {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+
   gap: 12px;
 }
 
@@ -1325,7 +1325,7 @@
 .srv-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 10px;
 }
 
@@ -1735,7 +1735,7 @@
 .drawer-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   padding: 16px;
   border-bottom: 1px solid var(--line);
 }
@@ -1820,7 +1820,7 @@
 
 .kv div {
   display: flex;
-  justify-content: space-between;
+
   gap: 10px;
   font-size: 11.5px;
 }
@@ -2109,7 +2109,7 @@ select:focus {
 .admin-head {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+
   gap: 12px;
 }
 
@@ -2187,7 +2187,7 @@ select:focus {
 .admin-section-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -2306,7 +2306,7 @@ select:focus {
 .review-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 10px;
   padding: 10px 12px;
   border-radius: 10px;
@@ -2368,7 +2368,7 @@ select:focus {
 
 .dev-kv div {
   display: flex;
-  justify-content: space-between;
+
   gap: 8px;
   font-size: 11.5px;
 }
@@ -2453,7 +2453,7 @@ select:focus {
 .assets-head {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+
   gap: 12px;
 }
 
@@ -2506,7 +2506,7 @@ select:focus {
 .asset-card-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
 }
 
 .asset-version {
@@ -2593,7 +2593,7 @@ select:focus {
 .upload-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 10px;
   margin-top: 4px;
 }
@@ -2618,7 +2618,7 @@ select:focus {
 .presence-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 8px;
 }
 
@@ -3427,7 +3427,7 @@ select:focus {
   border-top: 1px solid var(--line);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 8px;
   font-size: 10.5px;
   color: var(--dim);
@@ -4807,7 +4807,7 @@ select:focus {
 .member-admin-link {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   padding: 0 4px;
   border: 0;
   background: transparent;
@@ -4927,7 +4927,7 @@ select:focus {
 .radar-popover header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   padding-bottom: 8px;
   margin-bottom: 8px;
   border-bottom: 1px solid var(--line);
@@ -5257,7 +5257,7 @@ select:focus {
 .plugin-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 12px;
   padding: 10px 11px;
   margin-bottom: 8px;
@@ -5317,7 +5317,7 @@ select:focus {
 .ranked-hero {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 18px;
   padding: 20px 22px;
   border-radius: 16px;
@@ -5722,7 +5722,7 @@ select:focus {
 .lobby-command-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 12px;
   font-size: 11px;
   font-weight: 600;
@@ -5959,7 +5959,7 @@ select:focus {
 .update-modal-head {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+
   gap: 18px;
   padding: 24px 26px 16px;
 }
@@ -6054,7 +6054,7 @@ select:focus {
 .challenge-head {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+
   gap: 18px;
   padding: 4px 2px 0;
 }
@@ -6183,7 +6183,7 @@ select:focus {
 .challenge-room-top {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+
   gap: 18px;
   padding: 18px 20px 16px;
   border-bottom: 1px solid var(--line);
@@ -6262,7 +6262,7 @@ select:focus {
 .challenge-team-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   margin-bottom: 8px;
   font-size: 11px;
   font-weight: 700;
@@ -6435,7 +6435,7 @@ select:focus {
 .challenge-create-copy {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+
   gap: 16px;
   min-width: 0;
   padding: 4px 18px 4px 2px;
@@ -6486,7 +6486,7 @@ select:focus {
 .challenge-mode-switch button {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 8px;
   padding: 9px 11px;
   border-radius: 9px;
@@ -6724,7 +6724,7 @@ select:focus {
 .challenge-card-foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 10px;
   padding-top: 8px;
   border-top: 1px solid var(--line);
@@ -6765,7 +6765,7 @@ select:focus {
 .challenge-modal-head {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+
   gap: 12px;
 }
 
@@ -6905,7 +6905,7 @@ select:focus {
 .admin-server-form-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   margin-bottom: 10px;
 }
 
@@ -7315,7 +7315,7 @@ select:focus {
 .field--row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 12px;
 }
 
@@ -7518,7 +7518,7 @@ select:focus {
 .hero {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+
   gap: 20px;
   min-height: 250px;
   padding: 20px 24px 18px;
@@ -7695,7 +7695,7 @@ select:focus {
 .hero-foot {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+
   gap: 18px;
   margin-top: auto;
 }
@@ -7853,7 +7853,7 @@ select:focus {
 .quick-card {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+
   gap: 10px;
   min-width: 0;
   min-height: 92px;
@@ -7878,7 +7878,7 @@ select:focus {
 .quick-card-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: 10px;
   min-width: 0;
 }
@@ -8240,13 +8240,13 @@ select:focus {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  flex: none;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: space-between;
   gap: 14px;
   min-height: 244px;
+  max-height: 350px;
   padding: 20px 24px 18px;
   border-radius: var(--radius);
   border: 1px solid rgba(126, 168, 255, 0.22);
@@ -8403,7 +8403,7 @@ select:focus {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  justify-content: space-between;
+
   gap: 16px;
   margin-top: auto;
 }
@@ -8596,6 +8596,7 @@ select:focus {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  min-height: 0;
 }
 
 .ranked-side {
@@ -8603,6 +8604,7 @@ select:focus {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  min-height: 0;
 }
 
 /* 匹配中：雷达收成横条，别在首屏占掉一半 */
@@ -8840,24 +8842,6 @@ select:focus {
   font-size: 10.5px;
   line-height: 1.7;
 }
-
-.rank-flow {
-  gap: 10px;
-}
-
-.rank-flow > div {
-  padding: 13px;
-  border-radius: 12px;
-}
-
-.rank-flow b {
-  font-size: 12.5px;
-}
-
-.rank-flow p {
-  font-size: 10.5px;
-}
-
 @media (max-width: 1240px) {
   .ranked-hero {
     min-height: 228px;
@@ -8888,4 +8872,13 @@ select:focus {
   .ranked-grid {
     grid-template-columns: minmax(0, 1fr) 260px;
   }
+}
+
+/* keep the page centered when content is shorter than the viewport; auto margins collapse to 0 on overflow */
+.ranked-page > .ranked-hero {
+  margin-top: auto;
+}
+
+.ranked-page > .ranked-grid {
+  margin-bottom: auto;
 }

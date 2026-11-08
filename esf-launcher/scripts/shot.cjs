@@ -123,6 +123,47 @@ app.whenReady().then(async () => {
   }
 
   await new Promise((resolve) => setTimeout(resolve, 300));
+
+  if (argOf('dump', '') === '1') {
+    const metrics = await win.webContents.executeJavaScript(`
+      (() => {
+        const pick = (sel) => {
+          const el = document.querySelector(sel);
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return { h: Math.round(r.height), top: Math.round(r.top), bottom: Math.round(r.bottom) };
+        };
+        const center = document.querySelector('.center');
+        return {
+          viewport: { w: innerWidth, h: innerHeight },
+          center: center ? { clientH: center.clientHeight, scrollH: center.scrollHeight } : null,
+          children: center
+            ? Array.from(center.children).map((el) => {
+                const r = el.getBoundingClientRect();
+                return {
+                  cls: el.className,
+                  h: Math.round(r.height),
+                  top: Math.round(r.top),
+                };
+              })
+            : null,
+          hero: pick('.hero'),
+          quick: pick('.quick-cards'),
+          rooms: pick('.rooms'),
+          feed: pick('.feed'),
+          rankedPage: pick('.ranked-page'),
+          rankedHero: pick('.ranked-hero'),
+          rankedGrid: pick('.ranked-grid'),
+          rankedMain: pick('.ranked-main'),
+          rankHistory: pick('.rank-history'),
+          rankFlow: pick('.rank-flow'),
+          rankedSide: pick('.ranked-side'),
+        };
+      })()
+    `);
+    console.log('metrics', JSON.stringify(metrics));
+  }
+
   const image = await win.webContents.capturePage();
   const outDir = path.join(__dirname, '..', 'shots');
   fs.mkdirSync(outDir, { recursive: true });
