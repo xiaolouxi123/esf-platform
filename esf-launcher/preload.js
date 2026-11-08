@@ -36,6 +36,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     me: () => call('auth:me'),
     logout: () => call('auth:logout'),
     updateProfile: (patch) => call('auth:update-profile', patch),
+    forgotSend: (account) => call('auth:forgot-send', { account }),
+    forgotVerify: (account, code) => call('auth:forgot-verify', { account, code }),
+    forgotReset: (token, password) => call('auth:forgot-reset', { token, password }),
+    bindEmailCode: (email) => call('auth:email-code', { email }),
+    bindEmail: (email, code) => call('auth:email-bind', { email, code }),
   },
 
   presence: {
@@ -146,6 +151,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     users: (params) => call('admin:users', params),
     updateUser: (id, patch) => call('admin:update-user', { id, ...patch }),
     kickUser: (id) => call('admin:kick-user', { id }),
+    resetPassword: (id) => call('admin:reset-password', { id }),
     assets: (status) => call('admin:assets', { status }),
     setAssetStatus: (id, status) => call('admin:asset-status', { id, status }),
     audit: (params) => call('admin:audit', params),

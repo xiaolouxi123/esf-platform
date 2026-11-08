@@ -17,6 +17,8 @@ const express = require('express');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { pipeline } = require('stream/promises');
 const { z } = require('zod');
 
@@ -465,6 +467,42 @@ router.patch('/admin/users/:id', requireRole(...STAFF_ROLES), async (req, res, n
     );
 
     res.json({ ok: true, data: { user: publicUser(updated) } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 管理员重置密码：生成一次性临时密码，强制下次登录修改 */
+router.post('/admin/users/:id/reset-password', requireRole('admin', 'owner'), async (req, res, next) => {
+  try {
+    const target = await one('SELECT id, username, role FROM users WHERE id = ? LIMIT 1', [
+      req.params.id,
+    ]);
+    if (!target) throw notFound('账号不存在');
+    if (target.role === 'owner' && Number(target.id) !== Number(req.user.id)) {
+      throw forbidden('不能重置所有者的密码');
+    }
+
+    const tempPassword = `ESF-${crypto.randomBytes(6).toString('base64url')}`;
+    const hash = await bcrypt.hash(tempPassword, env.bcryptRounds);
+
+    await q(
+      `UPDATE users
+          SET password_hash = ?, must_change_password = 1,
+              token_version = token_version + 1,
+              failed_login_count = 0, locked_until = NULL
+        WHERE id = ?`,
+      [hash, target.id]
+    );
+
+    await logAction(req, {
+      action: 'user.reset_password',
+      targetType: 'user',
+      targetId: target.id,
+      detail: { username: target.username, self: Number(target.id) === Number(req.user.id) },
+    });
+
+    res.json({ ok: true, data: { tempPassword, mustChangePassword: true } });
   } catch (err) {
     next(err);
   }

@@ -45,6 +45,9 @@ router.get('/me', requireAuth, async (req, res, next) => {
           id: Number(req.user.id),
           username: req.user.username,
           gameName: req.user.game_name,
+          email: req.user.email || null,
+          emailVerified: Boolean(req.user.email_verified_at),
+          mustChangePassword: Number(req.user.must_change_password) === 1,
           avatar: req.user.avatar || '',
           avatarUrl: req.user.avatar_url || '',
           titleId: req.user.title_id ? Number(req.user.title_id) : null,
@@ -168,11 +171,14 @@ router.patch('/me', requireAuth, async (req, res, next) => {
       if (!ok) throw unauthorized('旧密码不正确');
 
       const hash = await bcrypt.hash(body.newPassword, env.bcryptRounds);
-      // 改密码同时踢掉所有旧登录态
-      await q('UPDATE users SET password_hash = ?, token_version = token_version + 1 WHERE id = ?', [
-        hash,
-        req.user.id,
-      ]);
+      // 改密码同时踢掉所有旧登录态；临时密码标记也一并清掉
+      await q(
+        `UPDATE users
+            SET password_hash = ?, token_version = token_version + 1,
+                must_change_password = 0, failed_login_count = 0, locked_until = NULL
+          WHERE id = ?`,
+        [hash, req.user.id]
+      );
     }
 
     res.json({ ok: true, data: { updated: true } });

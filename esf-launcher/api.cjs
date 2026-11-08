@@ -79,6 +79,23 @@ const logout = (settings, token) =>
 
 const me = (settings, token) => request(settings, { path: '/api/me', token });
 
+/* ---------------- 账号安全：邮箱绑定 / 忘记密码 ---------------- */
+
+const forgotSend = (settings, account) =>
+  request(settings, { method: 'POST', path: '/api/auth/forgot/send', body: { account } });
+
+const forgotVerify = (settings, account, code) =>
+  request(settings, { method: 'POST', path: '/api/auth/forgot/verify', body: { account, code } });
+
+const forgotReset = (settings, token, password) =>
+  request(settings, { method: 'POST', path: '/api/auth/forgot/reset', body: { token, password } });
+
+const bindEmailCode = (settings, token, email) =>
+  request(settings, { method: 'POST', path: '/api/auth/email/code', token, body: { email } });
+
+const bindEmail = (settings, token, email, code) =>
+  request(settings, { method: 'POST', path: '/api/auth/email/bind', token, body: { email, code } });
+
 const stats = (settings, token) => request(settings, { path: '/api/me/stats', token });
 
 const servers = (settings, token) => request(settings, { path: '/api/servers', token });
@@ -227,6 +244,9 @@ const adminUpdateUser = (settings, token, id, patch) =>
 const adminKickUser = (settings, token, id) =>
   request(settings, { method: 'POST', path: `/api/admin/users/${id}/kick`, token });
 
+const adminResetPassword = (settings, token, id) =>
+  request(settings, { method: 'POST', path: `/api/admin/users/${id}/reset-password`, token });
+
 const adminAssets = (settings, token, status) =>
   request(settings, { path: `/api/admin/assets${queryString({ status })}`, token });
 
@@ -362,6 +382,11 @@ module.exports = {
   login,
   logout,
   me,
+  forgotSend,
+  forgotVerify,
+  forgotReset,
+  bindEmailCode,
+  bindEmail,
   stats,
   servers,
   lookupServer,
@@ -380,6 +405,7 @@ module.exports = {
   adminUsers,
   adminUpdateUser,
   adminKickUser,
+  adminResetPassword,
   adminAssets,
   adminAudit,
   adminTransferOwner,

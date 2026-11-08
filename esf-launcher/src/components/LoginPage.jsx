@@ -9,6 +9,53 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, not
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [forgot, setForgot] = useState(null);
+  const [forgotBusy, setForgotBusy] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+  const [forgotInfo, setForgotInfo] = useState('');
+
+  const openForgot = () => {
+    setForgot({ step: 1, account: username.trim(), code: '', token: '', password: '', confirm: '' });
+    setForgotError('');
+    setForgotInfo('');
+  };
+
+  const runForgot = async (event) => {
+    event.preventDefault();
+    if (forgotBusy || !forgot) return;
+    const api = window.electronAPI?.auth;
+    setForgotBusy(true);
+    setForgotError('');
+    try {
+      if (forgot.step === 1) {
+        const account = String(forgot.account || '').trim();
+        if (!account) throw new Error('请输入账号或邮箱');
+        const res = await api.forgotSend(account);
+        const data = res?.data || res || {};
+        setForgotInfo(data.maskedEmail ? `验证码已发送到 ${data.maskedEmail}` : '如果该账号已绑定邮箱，验证码会在 1 分钟内送达');
+        setForgot({ ...forgot, step: 2 });
+      } else if (forgot.step === 2) {
+        if (!/^\d{6}$/.test(forgot.code)) throw new Error('请输入 6 位数字验证码');
+        const res = await api.forgotVerify(forgot.account.trim(), forgot.code);
+        const data = res?.data || res || {};
+        if (!data.resetToken) throw new Error('验证失败，请重新获取验证码');
+        setForgot({ ...forgot, step: 3, token: data.resetToken });
+        setForgotInfo('验证通过，请设置新密码');
+      } else {
+        if (forgot.password.length < 8) throw new Error('新密码至少 8 位');
+        if (forgot.password !== forgot.confirm) throw new Error('两次输入的密码不一致');
+        await api.forgotReset(forgot.token, forgot.password);
+        setForgot(null);
+        setPassword('');
+        setError('');
+        setForgotInfo('密码已重置，请用新密码登录');
+      }
+    } catch (err) {
+      setForgotError(err.message || '操作失败');
+    } finally {
+      setForgotBusy(false);
+    }
+  };
 
   const submit = async (event) => {
     event.preventDefault();
@@ -156,7 +203,122 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, not
             <button type="button" className="link" onClick={onGoRegister}>
               立即注册
             </button>
+            <span className="auth-switch-sep">·</span>
+            <button type="button" className="link" onClick={openForgot}>
+              忘记密码
+            </button>
           </p>
+
+          {forgotInfo ? (
+            <p className="form-hint">
+              <Icon name="check" size={14} /> {forgotInfo}
+            </p>
+          ) : null}
+
+          {forgot ? (
+            <div className="auth-forgot">
+              <form className="auth-forgot-card" onSubmit={runForgot}>
+                <header className="auth-forgot-head">
+                  <span className="eyebrow">找回密码</span>
+                  <h3>
+                    {forgot.step === 1 ? '确认账号' : forgot.step === 2 ? '输入验证码' : '设置新密码'}
+                  </h3>
+                  <p>第 {forgot.step} / 3 步</p>
+                </header>
+
+                {forgot.step === 1 ? (
+                  <label className="field">
+                    <span className="field-label">账号或已绑定邮箱</span>
+                    <div className="field-input">
+                      <Icon name="user" size={16} />
+                      <input
+                        type="text"
+                        value={forgot.account}
+                        autoFocus
+                        placeholder="例如 yun 或 you@qq.com"
+                        onChange={(e) => setForgot({ ...forgot, account: e.target.value })}
+                      />
+                    </div>
+                  </label>
+                ) : null}
+
+                {forgot.step === 2 ? (
+                  <label className="field">
+                    <span className="field-label">6 位验证码</span>
+                    <div className="field-input">
+                      <Icon name="shield" size={16} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={forgot.code}
+                        autoFocus
+                        placeholder="123456"
+                        onChange={(e) =>
+                          setForgot({ ...forgot, code: e.target.value.replace(/\D/g, '').slice(0, 6) })
+                        }
+                      />
+                    </div>
+                  </label>
+                ) : null}
+
+                {forgot.step === 3 ? (
+                  <>
+                    <label className="field">
+                      <span className="field-label">新密码</span>
+                      <div className="field-input">
+                        <Icon name="shield" size={16} />
+                        <input
+                          type="password"
+                          value={forgot.password}
+                          autoFocus
+                          placeholder="至少 8 位"
+                          onChange={(e) => setForgot({ ...forgot, password: e.target.value })}
+                        />
+                      </div>
+                    </label>
+                    <label className="field">
+                      <span className="field-label">再输一次</span>
+                      <div className="field-input">
+                        <Icon name="shield" size={16} />
+                        <input
+                          type="password"
+                          value={forgot.confirm}
+                          placeholder="确认新密码"
+                          onChange={(e) => setForgot({ ...forgot, confirm: e.target.value })}
+                        />
+                      </div>
+                    </label>
+                  </>
+                ) : null}
+
+                {forgotError ? (
+                  <p className="form-error">
+                    <Icon name="alert" size={14} /> {forgotError}
+                  </p>
+                ) : null}
+
+                <button type="submit" className="btn btn-primary btn-block" disabled={forgotBusy}>
+                  {forgotBusy ? <span className="spinner" /> : null}
+                  {forgotBusy
+                    ? '处理中…'
+                    : forgot.step === 1
+                      ? '发送验证码'
+                      : forgot.step === 2
+                        ? '验证'
+                        : '重置密码'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-block"
+                  onClick={() => setForgot(null)}
+                  disabled={forgotBusy}
+                >
+                  返回登录
+                </button>
+              </form>
+            </div>
+          ) : null}
 
           <footer className="auth-foot">
             <span className={`dot dot--${backend?.ok ? 'on' : 'off'}`} />

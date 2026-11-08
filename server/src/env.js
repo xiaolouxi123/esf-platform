@@ -32,6 +32,19 @@ const env = {
   launchTokenTtlSeconds: num(process.env.LAUNCH_TOKEN_TTL_SECONDS, 120),
   bcryptRounds: num(process.env.BCRYPT_ROUNDS, 10),
 
+  // 登录锁定：连续失败 N 次锁 M 分钟
+  loginMaxFailures: num(process.env.LOGIN_MAX_FAILURES, 10),
+  loginLockMinutes: num(process.env.LOGIN_LOCK_MINUTES, 15),
+
+  // 邮件（QQ 邮箱 SMTP）：邮箱绑定 + 自助找回密码
+  smtpHost: str(process.env.SMTP_HOST, 'smtp.qq.com'),
+  smtpPort: num(process.env.SMTP_PORT, 465),
+  smtpSecure: str(process.env.SMTP_SECURE, '1') !== '0',
+  smtpUser: str(process.env.SMTP_USER),
+  smtpPass: str(process.env.SMTP_PASS),
+  smtpFrom: str(process.env.SMTP_FROM),
+  resetCodeTtlMinutes: num(process.env.RESET_CODE_TTL_MINUTES, 15),
+
   // 启动器公告位（先留空，运营时填）
   notice: str(process.env.NOTICE),
   maintenance: str(process.env.MAINTENANCE, '0') === '1',
@@ -52,6 +65,9 @@ const env = {
 
   // 发布更新包用的一次性令牌（POST /api/admin/update-upload）
   updateUploadToken: str(process.env.UPDATE_UPLOAD_TOKEN),
+
+  // 游戏服维护通道：114 上的 agent 用这个 key 来领任务/回传结果（等价于该机 root 权限）
+  opsAgentKey: str(process.env.OPS_AGENT_KEY),
 
   db: {
     host: str(process.env.DB_HOST, '127.0.0.1'),

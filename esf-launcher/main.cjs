@@ -665,6 +665,25 @@ handle('auth:logout', async () => {
   return { loggedOut: true };
 });
 
+// ---- 忘记密码 / 邮箱绑定（不需要登录态）----
+handle('auth:forgot-send', async ({ account }) => apiCall(api.forgotSend, getSettings(), account));
+
+handle('auth:forgot-verify', async ({ account, code }) =>
+  apiCall(api.forgotVerify, getSettings(), account, code)
+);
+
+handle('auth:forgot-reset', async ({ token, password }) =>
+  apiCall(api.forgotReset, getSettings(), token, password)
+);
+
+handle('auth:email-code', async ({ email }) =>
+  apiCall(api.bindEmailCode, getSettings(), requireToken(), email)
+);
+
+handle('auth:email-bind', async ({ email, code }) =>
+  apiCall(api.bindEmail, getSettings(), requireToken(), email, code)
+);
+
 handle('auth:update-profile', async (patch = {}) => {
   await apiCall(api.updateProfile, getSettings(), requireToken(), patch);
   const data = await apiCall(api.me, getSettings(), requireToken());
@@ -1245,6 +1264,13 @@ handle('admin:kick-user', async ({ id } = {}) => {
   requireStaff();
   const data = await apiCall(api.adminKickUser, getSettings(), requireToken(), id);
   log(`🛡️ 账号 ${id} 已被强制下线`);
+  return data;
+});
+
+handle('admin:reset-password', async ({ id } = {}) => {
+  requireStaff();
+  const data = await apiCall(api.adminResetPassword, getSettings(), requireToken(), id);
+  log(`🛡️ 账号 ${id} 密码已重置为临时密码`);
   return data;
 });
 

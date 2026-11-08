@@ -34,6 +34,7 @@ export default function App() {
   const [inviteRequired, setInviteRequired] = useState(false);
   const [authPage, setAuthPage] = useState('login');
   const [toast, setToast] = useState(null);
+  const [forcePwd, setForcePwd] = useState(null);
 
   const showToast = useCallback((message, tone = 'ok') => {
     if (tone === 'error') playSfx('error');
@@ -112,8 +113,33 @@ export default function App() {
       /* 元数据拿不到时不影响登录 */
     }
     setUser(me);
+    // 管理员重置过密码：登录后强制改密（旧密码就是他刚才输入的临时密码）
+    if (me.mustChangePassword) {
+      setForcePwd({ oldPassword: password, next: '', confirm: '', busy: false });
+    }
     showToast(`欢迎回来，${me.gameName || me.username}`, 'ok');
     await checkBackend();
+  };
+
+  const submitForcePwd = async (event) => {
+    event.preventDefault();
+    if (!forcePwd || forcePwd.busy) return;
+    if (forcePwd.next.length < 8) return showToast('新密码至少 8 位', 'error');
+    if (forcePwd.next !== forcePwd.confirm) return showToast('两次输入的新密码不一致', 'error');
+
+    setForcePwd({ ...forcePwd, busy: true });
+    try {
+      await window.electronAPI.auth.updateProfile({
+        oldPassword: forcePwd.oldPassword,
+        newPassword: forcePwd.next,
+      });
+      setForcePwd(null);
+      showToast('密码已更新，请用新密码重新登录', 'ok');
+      await handleLogout();
+    } catch (err) {
+      setForcePwd({ ...forcePwd, busy: false });
+      showToast(err.message || '修改失败', 'error');
+    }
   };
 
   const handleGuest = async () => {
@@ -212,6 +238,44 @@ export default function App() {
           )}
         </div>
       )}
+
+      {forcePwd ? (
+        <div className="auth-forgot" style={{ position: 'fixed', zIndex: 60 }}>
+          <form className="auth-forgot-card" onSubmit={submitForcePwd}>
+            <header className="auth-forgot-head">
+              <span className="eyebrow">安全提醒</span>
+              <h3>请设置新密码</h3>
+              <p>管理员重置了你的密码，设置新密码后才能继续使用平台。</p>
+            </header>
+            <label className="field">
+              <span className="field-label">新密码</span>
+              <div className="field-input">
+                <input
+                  type="password"
+                  autoFocus
+                  value={forcePwd.next}
+                  placeholder="至少 8 位"
+                  onChange={(e) => setForcePwd({ ...forcePwd, next: e.target.value })}
+                />
+              </div>
+            </label>
+            <label className="field">
+              <span className="field-label">确认新密码</span>
+              <div className="field-input">
+                <input
+                  type="password"
+                  value={forcePwd.confirm}
+                  placeholder="再输一次"
+                  onChange={(e) => setForcePwd({ ...forcePwd, confirm: e.target.value })}
+                />
+              </div>
+            </label>
+            <button type="submit" className="btn btn-primary btn-block" disabled={forcePwd.busy}>
+              {forcePwd.busy ? '保存中…' : '保存并重新登录'}
+            </button>
+          </form>
+        </div>
+      ) : null}
 
       <Toast toast={toast} onDone={() => setToast(null)} />
     </div>

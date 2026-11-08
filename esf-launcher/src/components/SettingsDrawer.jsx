@@ -71,6 +71,65 @@ export default function SettingsDrawer({
   const [pluginBusy, setPluginBusy] = useState(false);
   const staff = isStaff(user?.role);
 
+  // ---- 账号安全：改密 + 绑定邮箱 ----
+  const [pwd, setPwd] = useState({ old: '', next: '', confirm: '' });
+  const [pwdBusy, setPwdBusy] = useState(false);
+  const [mail, setMail] = useState({ email: user?.email || '', code: '' });
+  const [mailBusy, setMailBusy] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
+  const [boundEmail, setBoundEmail] = useState(user?.email || '');
+
+  const changePassword = async () => {
+    if (pwdBusy) return;
+    if (pwd.next.length < 8) return toast?.('新密码至少 8 位', 'error');
+    if (pwd.next !== pwd.confirm) return toast?.('两次输入的新密码不一致', 'error');
+    setPwdBusy(true);
+    try {
+      await window.electronAPI.auth.updateProfile({ oldPassword: pwd.old, newPassword: pwd.next });
+      setPwd({ old: '', next: '', confirm: '' });
+      toast?.('密码已修改，请重新登录', 'success');
+      onLogout?.();
+    } catch (err) {
+      toast?.(err.message || '修改失败', 'error');
+    } finally {
+      setPwdBusy(false);
+    }
+  };
+
+  const sendEmailCode = async () => {
+    if (mailBusy) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail.email.trim())) {
+      return toast?.('请输入正确的邮箱地址', 'error');
+    }
+    setMailBusy(true);
+    try {
+      await window.electronAPI.auth.bindEmailCode(mail.email.trim());
+      setCodeSent(true);
+      toast?.('验证码已发送，请查收邮件（含垃圾箱）', 'success');
+    } catch (err) {
+      toast?.(err.message || '发送失败', 'error');
+    } finally {
+      setMailBusy(false);
+    }
+  };
+
+  const bindEmail = async () => {
+    if (mailBusy) return;
+    if (!/^\d{6}$/.test(mail.code)) return toast?.('请输入 6 位验证码', 'error');
+    setMailBusy(true);
+    try {
+      await window.electronAPI.auth.bindEmail(mail.email.trim(), mail.code);
+      setBoundEmail(mail.email.trim());
+      setMail({ email: mail.email.trim(), code: '' });
+      setCodeSent(false);
+      toast?.('邮箱绑定成功', 'success');
+    } catch (err) {
+      toast?.(err.message || '绑定失败', 'error');
+    } finally {
+      setMailBusy(false);
+    }
+  };
+
   const uploadAvatar = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -294,6 +353,116 @@ export default function SettingsDrawer({
                 <i />
               </button>
             </label>
+          </section>
+
+          <section className="drawer-section">
+            <h3>账号安全</h3>
+            <p className="drawer-hint">绑定邮箱后，忘记密码可以自助重置，不用再找管理员。</p>
+
+            <div className="path-box">
+              <span className="path-label">已绑定邮箱</span>
+              <code>{boundEmail || '未绑定'}</code>
+            </div>
+
+            <label className="field">
+              <span className="field-label">QQ 邮箱</span>
+              <div className="field-input">
+                <Icon name="shield" size={16} />
+                <input
+                  type="email"
+                  value={mail.email}
+                  placeholder="you@qq.com"
+                  onChange={(e) => setMail({ ...mail, email: e.target.value })}
+                />
+              </div>
+            </label>
+
+            {codeSent ? (
+              <label className="field">
+                <span className="field-label">6 位验证码</span>
+                <div className="field-input">
+                  <Icon name="shield" size={16} />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={mail.code}
+                    placeholder="123456"
+                    onChange={(e) =>
+                      setMail({ ...mail, code: e.target.value.replace(/\D/g, '').slice(0, 6) })
+                    }
+                  />
+                </div>
+              </label>
+            ) : null}
+
+            <div className="drawer-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={sendEmailCode}
+                disabled={mailBusy}
+              >
+                {codeSent ? '重新发送验证码' : '发送验证码'}
+              </button>
+              {codeSent ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={bindEmail}
+                  disabled={mailBusy}
+                >
+                  绑定邮箱
+                </button>
+              ) : null}
+            </div>
+
+            <h4 className="drawer-subhead">修改密码</h4>
+            <label className="field">
+              <span className="field-label">当前密码</span>
+              <div className="field-input">
+                <Icon name="shield" size={16} />
+                <input
+                  type="password"
+                  value={pwd.old}
+                  autoComplete="current-password"
+                  onChange={(e) => setPwd({ ...pwd, old: e.target.value })}
+                />
+              </div>
+            </label>
+            <label className="field">
+              <span className="field-label">新密码</span>
+              <div className="field-input">
+                <Icon name="shield" size={16} />
+                <input
+                  type="password"
+                  value={pwd.next}
+                  autoComplete="new-password"
+                  placeholder="至少 8 位"
+                  onChange={(e) => setPwd({ ...pwd, next: e.target.value })}
+                />
+              </div>
+            </label>
+            <label className="field">
+              <span className="field-label">确认新密码</span>
+              <div className="field-input">
+                <Icon name="shield" size={16} />
+                <input
+                  type="password"
+                  value={pwd.confirm}
+                  autoComplete="new-password"
+                  onChange={(e) => setPwd({ ...pwd, confirm: e.target.value })}
+                />
+              </div>
+            </label>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm btn-block"
+              onClick={changePassword}
+              disabled={pwdBusy || !pwd.old || !pwd.next}
+            >
+              {pwdBusy ? '修改中…' : '修改密码（改完需重新登录）'}
+            </button>
           </section>
 
           <section className="drawer-section">

@@ -34,4 +34,18 @@ const chatLimiter = makeLimiter({
   message: '发言太快了，请稍等一会儿',
 });
 
-module.exports = { loginLimiter, registerLimiter, chatLimiter };
+// 忘记密码：10 分钟内最多 5 次（含发码、验码、重置三步）
+const forgotLimiter = makeLimiter({
+  windowMs: 10 * 60_000,
+  limit: 5,
+  message: '操作过于频繁，请 10 分钟后再试',
+});
+
+// 邮箱验证码：10 分钟内最多 3 次，避免被用来刷邮件
+const emailCodeLimiter = makeLimiter({
+  windowMs: 10 * 60_000,
+  limit: 3,
+  message: '验证码发送过于频繁，请 10 分钟后再试',
+});
+
+module.exports = { loginLimiter, registerLimiter, chatLimiter, forgotLimiter, emailCodeLimiter };

@@ -202,6 +202,41 @@ async function main() {
       "TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '格斗等级，0=未定级' AFTER title_id"
     );
 
+    // 0.4.15 账号安全：邮箱绑定 / 登录锁定 / 强制改密
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'users',
+      'email',
+      'VARCHAR(190) NULL COMMENT "绑定邮箱（找回密码用）" AFTER username'
+    );
+    await ensureColumn(conn, env.db.name, 'users', 'email_verified_at', 'DATETIME NULL AFTER email');
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'users',
+      'must_change_password',
+      'TINYINT(1) NOT NULL DEFAULT 0 COMMENT "下次登录必须改密（管理员重置后置 1）"'
+    );
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'users',
+      'failed_login_count',
+      'INT UNSIGNED NOT NULL DEFAULT 0 COMMENT "连续登录失败次数"'
+    );
+    await ensureColumn(conn, env.db.name, 'users', 'locked_until', 'DATETIME NULL COMMENT "锁定截止时间"');
+
+    const emailIndex = await conn.query(
+      `SELECT 1 FROM information_schema.statistics
+        WHERE table_schema = ? AND table_name = 'users' AND index_name = 'uk_email' LIMIT 1`,
+      [env.db.name]
+    );
+    if (emailIndex[0].length === 0) {
+      await conn.query('ALTER TABLE users ADD UNIQUE KEY uk_email (email)');
+      log('已加索引: users.uk_email');
+    }
+
     // 金币钱包：在线/游戏时长按分钟结算
     await conn.query(
       `CREATE TABLE IF NOT EXISTS wallets (

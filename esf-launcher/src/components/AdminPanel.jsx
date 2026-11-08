@@ -251,6 +251,32 @@ export default function AdminPanel({
   const kick = (target) =>
     act(target.id, () => window.electronAPI.admin.kickUser(target.id), `已强制 ${target.gameName} 下线`);
 
+  // 重置密码：服务端生成一次性临时密码，复制到剪贴板给玩家
+  const resetPassword = async (target) => {
+    if (!window.confirm(`确定重置 ${target.gameName} 的密码？重置后对方会被强制下线，需用临时密码登录并改密。`)) {
+      return;
+    }
+    setBusyId(target.id);
+    try {
+      const data = await window.electronAPI.admin.resetPassword(target.id);
+      const temp = data?.tempPassword || data?.data?.tempPassword || '';
+      if (temp) {
+        try {
+          await navigator.clipboard.writeText(temp);
+        } catch {
+          /* 剪贴板被占用时忽略，密码仍显示在提示里 */
+        }
+      }
+      toast(`临时密码：${temp}${temp ? '（已复制）' : ''}`, 'ok');
+      await refresh();
+      if (canSeeAudit) await loadAudit();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const review = (asset, status) =>
     act(asset.id, () => window.electronAPI.admin.setAssetStatus(asset.id, status), status === 'approved' ? '已通过' : '已驳回');
 
@@ -531,6 +557,16 @@ export default function AdminPanel({
                             >
                               下线
                             </button>
+                            {canAssign ? (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-ghost"
+                                disabled={busyId === row.id || locked}
+                                onClick={() => resetPassword(row)}
+                              >
+                                重置密码
+                              </button>
+                            ) : null}
                           </div>
                         )}
                       </td>
