@@ -13,8 +13,17 @@ const fs = require('fs');
 const os = require('os');
 const { app, BrowserWindow } = require('electron');
 
-// 截图用独立 profile：别把 mock 场景写进真实客户端的 localStorage
-app.setPath('userData', path.join(os.tmpdir(), 'esf-shot-profile'));
+// 截图用独立 profile：别把 mock 场景写进真实客户端的 localStorage。
+// 每次进程单独一个目录，避免上一次没退干净时两个实例抢 GPU 缓存而卡死。
+const profileDir = path.join(os.tmpdir(), `esf-shot-${process.pid}`);
+app.setPath('userData', profileDir);
+app.on('will-quit', () => {
+  try {
+    fs.rmSync(profileDir, { recursive: true, force: true });
+  } catch {
+    /* 清理失败无所谓，临时目录会自己回收 */
+  }
+});
 
 function argOf(name, fallback) {
   const hit = process.argv.find((value) => value.startsWith(`--${name}=`));
@@ -126,7 +135,37 @@ app.whenReady().then(async () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
+  if (argOf('type', '')) {
+    // --type="选择器@@文本"：写入输入框并触发 input 事件（React 受控组件需要原生 setter）
+    const [selector, ...rest] = String(argOf('type', '')).split('@@');
+    const text = rest.join('@@');
+    const typed = await win.webContents.executeJavaScript(`
+      (() => {
+        const el = document.querySelector(${JSON.stringify(selector.trim())});
+        if (!el) return false;
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        setter.call(el, ${JSON.stringify(text)});
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      })()
+    `);
+    console.log('type', selector, 'matched =', typed);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
   await new Promise((resolve) => setTimeout(resolve, 300));
+
+  if (argOf('probe', '')) {
+    const probe = await win.webContents.executeJavaScript(`
+      ({
+        modal: !!document.querySelector('.release-modal'),
+        active: document.querySelector('.release-item.is-active b')?.textContent || '',
+        detail: document.querySelector('.release-detail-head h3')?.textContent || '',
+        focus: document.activeElement?.className || document.activeElement?.tagName || ''
+      })
+    `);
+    console.log('probe', JSON.stringify(probe));
+  }
 
   if (argOf('dump', '') === '1') {
     const metrics = await win.webContents.executeJavaScript(`
@@ -175,5 +214,6 @@ app.whenReady().then(async () => {
   const file = path.join(outDir, `${state}.png`);
   fs.writeFileSync(file, image.toPNG());
   console.log('saved', file);
-  app.quit();
+  // 直接退出：Windows 上 app.quit() / app.exit() 偶尔会被渲染进程收尾拖住，脚本会挂起
+  setTimeout(() => process.exit(0), 50);
 });

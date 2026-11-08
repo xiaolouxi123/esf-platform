@@ -41,6 +41,43 @@ async function main() {
   await send('Runtime.enable');
   await send('Page.enable');
 
+  const steps = (args.find((a) => a.startsWith('--do=')) || '').slice(5);
+  if (steps) {
+    // --do="click:.status-version@@type:.release-search input:排位@@click:.release-item:nth-child(3)"
+    for (const step of steps.split('@@')) {
+      const [kind, ...restRaw] = step.split(':');
+      const rest = restRaw.join(':');
+      if (kind === 'click') {
+        const r = await send('Runtime.evaluate', {
+          expression: `(() => { const el = document.querySelector(${JSON.stringify(rest)}); if (!el) return 'missing'; el.click(); return 'ok'; })()`,
+          returnByValue: true,
+        });
+        console.log('click', rest, '=', r.result.value);
+      } else if (kind === 'type') {
+        const splitAt = rest.lastIndexOf('|');
+        const selector = rest.slice(0, splitAt);
+        const text = rest.slice(splitAt + 1);
+        const r = await send('Runtime.evaluate', {
+          expression: `(() => {
+            const el = document.querySelector(${JSON.stringify(selector)});
+            if (!el) return 'missing';
+            const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            setter.call(el, ${JSON.stringify(text)});
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            return 'ok';
+          })()`,
+          returnByValue: true,
+        });
+        console.log('type', selector, '=', r.result.value);
+      } else if (kind === 'key') {
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: rest, windowsVirtualKeyCode: 27 });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: rest, windowsVirtualKeyCode: 27 });
+        console.log('key', rest);
+      }
+      await new Promise((r2) => setTimeout(r2, 700));
+    }
+  }
+
   if (click) {
     const r = await send('Runtime.evaluate', {
       expression: `(() => { const el = document.querySelector(${JSON.stringify(click)}); if (!el) return 'missing'; el.click(); return 'ok'; })()`,

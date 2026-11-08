@@ -11,6 +11,7 @@ import RadarBadge from './RadarBadge';
 import RankedPage from './RankedPage';
 import ChallengePage from './ChallengePage';
 import ChallengeResultModal from './ChallengeResultModal';
+import ReleasesModal from './ReleasesModal';
 import ServerRoomList from './ServerRoomList';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import { DEFAULT_RANKS, normalizeRanks, rankLabel } from '../lib/ranks';
@@ -64,6 +65,7 @@ export default function Lobby({
   const [localBusy, setLocalBusy] = useState(false);
   const [joinBusyKey, setJoinBusyKey] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [releasesOpen, setReleasesOpen] = useState(false);
   const [favServers, setFavServers] = useState(() => loadFavoriteSet(FAV_SERVERS));
   const [favMaps, setFavMaps] = useState(() => loadFavoriteSet(FAV_MAPS));
   const [combatRanks, setCombatRanks] = useState(DEFAULT_RANKS);
@@ -1412,6 +1414,16 @@ export default function Lobby({
                   <div className="section-head">
                     <h2>平台公告</h2>
                     <span className="tag">{platformState.notice ? '管理员发布' : '公开'}</span>
+                    <button
+                      type="button"
+                      className="feed-history"
+                      onClick={() => {
+                        playSfx('tab');
+                        setReleasesOpen(true);
+                      }}
+                    >
+                      版本记录 <Icon name="chevronRight" size={11} />
+                    </button>
                     {noticeExpandable && (
                       <button
                         type="button"
@@ -1527,8 +1539,25 @@ export default function Lobby({
         >
           <Icon name="help" size={12} /> 帮助中心
         </button>
-        <span className="status-item">v{appInfo?.version || '0.0.0'}</span>
+        <button
+          type="button"
+          className="status-version"
+          title="查看版本记录"
+          onClick={() => {
+            playSfx('tab');
+            setReleasesOpen(true);
+          }}
+        >
+          v{appInfo?.version || '0.0.0'}
+        </button>
       </footer>
+
+      {releasesOpen && (
+        <ReleasesModal
+          currentVersion={appInfo?.version || ''}
+          onClose={() => setReleasesOpen(false)}
+        />
+      )}
 
       <ChallengeResultModal
         result={challengeResult}

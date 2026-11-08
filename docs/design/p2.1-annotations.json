@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "title": "P2.1 · 标签与版本记录",
+    "author": "ESF 平台",
+    "date": "2026.11.08",
+    "reading_time": "约 4 分钟",
+    "tags": ["设计系统", "P2.1", "标签", "版本记录"],
+    "subtitle": "一条标签规则收住颜色；一个查得到每次改了什么的地方",
+    "lang": null,
+    "hero_image": "hero-grid.svg",
+    "theme": "ikb",
+    "brand": "#ff8a1f",
+    "type": "design-note",
+    "status": "final"
+  },
+  "upgrades": [
+    { "type": "aside", "line": 29, "title": "为什么是覆盖层", "text": "大厅已经压到一屏（1320×900 无滚动），版本记录再占一块版面就会破功。做成覆盖层，打开时大厅不动，关掉立刻回到刚才的位置。" },
+    { "type": "aside", "line": 65, "title": "版本条目怎么维护", "text": "改 src/data/releases.json，一行一版；页面按 compareVersion 排序，最新的自动排最前，不用动组件代码。" },
+    { "type": "checklist", "lines": [68, 69, 70, 71, 72, 73, 74] }
+  ]
+}
