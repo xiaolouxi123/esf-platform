@@ -58,8 +58,13 @@ app.whenReady().then(async () => {
       contextIsolation: true,
       sandbox: false,
       nodeIntegration: false,
+      // 窗口被别的窗口挡住时 Chromium 会停掉合成，capturePage 只能拿到旧帧
+      backgroundThrottling: false,
     },
   });
+
+  win.setAlwaysOnTop(true, 'screen-saver');
+  win.moveTop();
 
 
   await win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
@@ -81,10 +86,16 @@ app.whenReady().then(async () => {
       .map((item) => item.trim())
       .filter(Boolean);
     for (const selector of selectors) {
+      // 支持 "nth:2:.nav-item" 按下标点击（nth-child 在动态列表里不稳）
+      let expr = `document.querySelector(${JSON.stringify(selector)})`;
+      const nth = selector.match(/^nth:(\d+):(.+)$/);
+      if (nth) {
+        expr = `document.querySelectorAll(${JSON.stringify(nth[2])})[${Number(nth[1])}]`;
+      }
       const clicked = await win.webContents.executeJavaScript(`
         (() => {
           let el = null;
-          try { el = document.querySelector(${JSON.stringify(selector)}); } catch (err) { return 'bad-selector'; }
+          try { el = ${expr}; } catch (err) { return 'bad-selector'; }
           if (!el) return false;
           el.click();
           return true;
@@ -167,6 +178,20 @@ app.whenReady().then(async () => {
     console.log('probe', JSON.stringify(probe));
   }
 
+  if (argOf('trace', '')) {
+    const trace = await win.webContents.executeJavaScript(`
+      ({
+        nav: document.querySelector('.nav-item.is-active')?.textContent?.trim() || null,
+        heading: document.querySelector('.hero-title, .workspace h1')?.textContent?.trim() || null,
+        challenge: !!document.querySelector('.challenge-page'),
+        table: !!document.querySelector('.challenge-table'),
+        rows: document.querySelectorAll('.challenge-row').length,
+        page: location.hash || ''
+      })
+    `);
+    console.log('trace', JSON.stringify(trace));
+  }
+
   if (argOf('dump', '') === '1') {
     const metrics = await win.webContents.executeJavaScript(`
       (() => {
@@ -206,6 +231,11 @@ app.whenReady().then(async () => {
     `);
     console.log('metrics', JSON.stringify(metrics));
   }
+
+  // 切页/展开后合成层可能还是旧帧：先丢弃一帧，再等一拍重画
+  win.webContents.invalidate();
+  await win.webContents.capturePage();
+  await new Promise((resolve) => setTimeout(resolve, 350));
 
   const image = await win.webContents.capturePage();
   const outDir = path.join(__dirname, '..', 'shots');

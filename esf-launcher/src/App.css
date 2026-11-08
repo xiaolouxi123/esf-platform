@@ -9744,3 +9744,623 @@ select:focus {
   font-weight: 600;
   color: #a4adc2;
 }
+
+/* ==========================================================================
+   P4 · 约战页：hero 提要 + 开房卡 + 房间表 + 房内面板
+   叠在 6046 起的旧 .challenge-* 之上，只改视觉，不动交互
+   ========================================================================== */
+
+.challenge-page {
+  flex: 1 1 auto;
+  gap: 12px;
+  padding-bottom: 0;
+}
+
+.center > .challenge-page {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ---------- hero：和大厅/排位同一套骨架，压低到 200px 让房间表留在首屏 ---------- */
+
+.challenge-hero {
+  flex: 1 1 auto;
+  min-height: 200px;
+  max-height: 320px;
+  padding: 18px 22px 16px;
+}
+
+.challenge-hero .hero-content {
+  gap: 4px;
+}
+
+.challenge-hero .hero-title {
+  font-size: 42px;
+  letter-spacing: -0.035em;
+}
+
+.challenge-hero .hero-tags {
+  margin-top: 8px;
+}
+
+.challenge-hero .hero-foot {
+  margin-top: auto;
+}
+
+.challenge-hero .hud-cell {
+  min-width: 92px;
+  padding: 6px 11px 7px;
+}
+
+.challenge-hero .hud-cell b {
+  font-size: 21px;
+}
+
+.challenge-hero .hud-cell--text b {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: #cfe6ff;
+}
+
+.challenge-hero .hero-actions .challenge-refresh {
+  gap: 7px;
+  height: 42px;
+  padding: 0 15px;
+  font-size: 12.5px;
+}
+
+.challenge-hero .hero-cta {
+  height: 42px;
+  gap: 7px;
+  padding: 0 20px;
+  font-size: 13.5px;
+}
+
+/* ---------- 开房卡 ---------- */
+
+.challenge-create {
+  display: block;
+  flex: none;
+  padding: 14px 18px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  background-image: var(--surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.challenge-create > .section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.challenge-create > .section-head h2 {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.challenge-create > .section-head .tag {
+  height: 20px;
+  padding: 0 8px;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  color: #ffc08a;
+  border-color: rgba(255, 138, 31, 0.32);
+  background: rgba(255, 138, 31, 0.1);
+}
+
+.challenge-create > .section-head .challenge-muted {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.challenge-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.challenge-mode-switch {
+  gap: 8px;
+}
+
+.challenge-mode-switch button {
+  align-items: baseline;
+  gap: 9px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  transition: border-color var(--dur-hover) var(--ease-out), background var(--dur-hover) var(--ease-out);
+}
+
+.challenge-mode-switch button b {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.challenge-mode-switch button small {
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.challenge-mode-switch button.is-active {
+  border-color: var(--accent-line);
+  background: linear-gradient(120deg, rgba(255, 138, 31, 0.16), rgba(255, 93, 31, 0.06));
+  color: var(--text);
+}
+
+.challenge-mode-switch button.is-active b {
+  color: #ffd0a3;
+}
+
+.challenge-field {
+  gap: 5px;
+}
+
+.challenge-field--wide {
+  grid-column: auto;
+}
+
+.challenge-field > span {
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  color: var(--dim);
+}
+
+.challenge-field input,
+.challenge-field select,
+.challenge-victory-row select,
+.challenge-victory-row input {
+  height: 36px;
+  padding: 0 11px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: rgba(6, 9, 14, 0.62);
+  color: var(--text);
+  font-size: 12px;
+  transition: border-color var(--dur-hover) var(--ease-out), box-shadow var(--dur-hover) var(--ease-out);
+}
+
+.challenge-field input::placeholder {
+  color: rgba(122, 131, 153, 0.72);
+}
+
+.challenge-field input:focus,
+.challenge-field select:focus,
+.challenge-victory-row select:focus,
+.challenge-victory-row input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.12);
+}
+
+.challenge-victory-field {
+  grid-column: span 2;
+  gap: 9px;
+  padding: 11px 13px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.challenge-victory-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: #ffc48c;
+}
+
+.challenge-victory-head b {
+  font-size: 12px;
+}
+
+.challenge-victory-head small {
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.challenge-victory-row select {
+  flex: 1;
+  height: 32px;
+}
+
+.challenge-victory-row input {
+  width: 74px;
+  height: 32px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.challenge-victory-row em {
+  font-size: 11px;
+  font-style: normal;
+  color: var(--dim);
+}
+
+.challenge-victory-hint {
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.challenge-form-foot {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.challenge-form-foot .challenge-muted {
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.challenge-form-foot .challenge-create-btn {
+  margin-left: 0;
+  width: 100%;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 12.5px;
+}
+
+/* ---------- 房间表 ---------- */
+
+.challenge-list-section {
+  flex: none;
+}
+
+.challenge-list-section .section-head .challenge-muted {
+  margin-left: auto;
+}
+
+.challenge-table {
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: rgba(12, 16, 24, 0.58);
+}
+
+.challenge-table-head,
+.challenge-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 74px 92px 148px 112px;
+  gap: 12px;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.challenge-table-head {
+  height: 32px;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  border-bottom: 1px solid var(--line);
+}
+
+.challenge-table-head span:last-child {
+  text-align: right;
+}
+
+.challenge-row {
+  min-height: 50px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background var(--dur-hover) var(--ease-out);
+}
+
+.challenge-row:last-child {
+  border-bottom: 0;
+}
+
+.challenge-row:hover {
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.challenge-row-mode {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1px solid var(--line-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.challenge-row-mode--1 {
+  color: #9fe6ff;
+  border-color: rgba(63, 208, 255, 0.34);
+  background: rgba(63, 208, 255, 0.1);
+}
+
+.challenge-row-mode--2 {
+  color: #ffc49a;
+  border-color: rgba(255, 138, 31, 0.34);
+  background: rgba(255, 138, 31, 0.1);
+}
+
+.challenge-row-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.challenge-row-title b {
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.challenge-row-title small {
+  overflow: hidden;
+  font-size: 10.5px;
+  color: var(--dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.challenge-row.is-full .challenge-row-title b {
+  color: var(--muted);
+}
+
+.challenge-row-count {
+  font-size: 13.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.challenge-row-count em {
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--dim);
+}
+
+.challenge-row-ready {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.challenge-row-host {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.challenge-row-host > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.challenge-row-ops {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.challenge-row-ops .btn {
+  min-width: 68px;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 11.5px;
+}
+
+/* 表格里的「加入」是一行里的次要动作：描边版，别和页首 CTA 抢 */
+.challenge-row-ops .btn-primary {
+  border: 1px solid rgba(255, 138, 31, 0.34);
+  background: rgba(255, 138, 31, 0.1);
+  color: #ffc995;
+  box-shadow: none;
+}
+
+.challenge-row-ops .btn-primary:hover:not(:disabled) {
+  border-color: rgba(255, 168, 74, 0.55);
+  background: rgba(255, 138, 31, 0.16);
+  color: #ffe0bd;
+}
+
+.challenge-row-ops .btn-primary::after {
+  content: none;
+}
+
+/* ---------- 房内面板 ---------- */
+
+.challenge-room {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  background-image: var(--surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.challenge-room.is-live {
+  border-color: rgba(63, 208, 255, 0.24);
+}
+
+.challenge-room-top {
+  gap: 16px;
+  padding: 15px 18px 13px;
+}
+
+.challenge-room-top > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.challenge-room-tools {
+  margin-left: auto;
+}
+
+.challenge-room-top h2 {
+  margin-top: 7px;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+}
+
+.challenge-room-top p {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.challenge-room-badges {
+  gap: 6px;
+}
+
+.challenge-room-tools .btn {
+  height: 28px;
+  font-size: 11px;
+}
+
+.challenge-teams {
+  position: relative;
+  display: grid;
+  flex: 1;
+  grid-template-columns: 1fr 1fr;
+  gap: 46px;
+  align-items: start;
+  align-content: center;
+  min-height: 0;
+  padding: 14px 18px 15px;
+}
+
+.challenge-teams::before {
+  content: 'VS';
+  position: absolute;
+  grid-column: auto;
+  grid-row: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  font-style: normal;
+}
+
+.challenge-team {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 9px 11px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.challenge-team--a {
+  border-color: rgba(63, 208, 255, 0.26);
+  background: linear-gradient(160deg, rgba(63, 208, 255, 0.08), rgba(255, 255, 255, 0.015));
+}
+
+.challenge-team--b {
+  border-color: rgba(255, 93, 31, 0.26);
+  background: linear-gradient(160deg, rgba(255, 93, 31, 0.08), rgba(255, 255, 255, 0.015));
+}
+
+.challenge-team-head span {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.challenge-seats {
+  flex: 1;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.challenge-seat {
+  gap: 9px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: rgba(9, 12, 18, 0.5);
+  border: 1px solid transparent;
+}
+
+.challenge-seat--empty {
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.challenge-seat-text b {
+  font-size: 12px;
+}
+
+.challenge-seat-text small {
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.challenge-room-foot {
+  gap: 9px;
+  margin-top: 0;
+  padding: 11px 18px 13px;
+}
+
+.challenge-invite-strip {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.challenge-invited {
+  font-size: 10.5px;
+}
+
+.challenge-room-actions .btn {
+  height: 32px;
+  font-size: 11.5px;
+}
+
+.challenge-room-actions .challenge-muted {
+  font-size: 11px;
+}
+
+@media (max-width: 1240px) {
+  .challenge-hero {
+    min-height: 190px;
+    padding: 16px 18px 14px;
+  }
+
+  .challenge-hero .hero-title {
+    font-size: 38px;
+  }
+
+  .challenge-table-head,
+  .challenge-row {
+    grid-template-columns: 50px minmax(0, 1fr) 66px 84px 132px 100px;
+    gap: 10px;
+    padding: 0 14px;
+  }
+
+  .challenge-create {
+    padding: 13px 15px 14px;
+  }
+}

@@ -219,6 +219,132 @@ const api = {
     setCombatLevel: async (id, combatLevel) => ({ id, combatLevel }),
   },
 
+  challenges: {
+    state: async () => {
+      const hostYun = { id: 6, username: 'yun', gameName: 'yun', avatar: '🥋', combatLevel: 4 };
+      const hostGoku = { id: 10, username: 'goku', gameName: '悟空', avatar: '🐒', combatLevel: 3 };
+      const hostKrillin = { id: 9, username: 'krillin', gameName: '克林', avatar: '', combatLevel: 0 };
+      const rooms = [
+        {
+          id: 301,
+          displayNo: 12,
+          mode: '2v2',
+          title: '周末 2v2 友谊赛',
+          host: hostYun,
+          playerCount: 3,
+          maxPlayers: 4,
+          readyCount: 2,
+          createdAt: new Date(Date.now() - 4 * 60000).toISOString(),
+          map: 'esf_cell_games2',
+          server: { name: '[ESF-FCX]单挑房[1]', serverKey: 'fcx-1v1-1' },
+          full: false,
+        },
+        {
+          id: 302,
+          displayNo: 13,
+          mode: '1v1',
+          title: '单挑练枪 · 先到先进',
+          host: hostGoku,
+          playerCount: 1,
+          maxPlayers: 2,
+          readyCount: 1,
+          createdAt: new Date(Date.now() - 42 * 60000).toISOString(),
+          map: 'ape_foreshadow',
+          server: { name: '[ESF-FCX]单挑房[2]', serverKey: 'fcx-1v1-2' },
+          full: false,
+        },
+        {
+          id: 303,
+          displayNo: 14,
+          mode: '2v2',
+          title: '新手局 · 随便玩',
+          host: hostKrillin,
+          playerCount: 4,
+          maxPlayers: 4,
+          readyCount: 4,
+          createdAt: new Date(Date.now() - 12 * 60000).toISOString(),
+          map: 'esf_city',
+          server: { name: '[ESF-FCX]组队服', serverKey: 'fcx-team' },
+          full: true,
+        },
+      ];
+
+      const me = { id: 2, username: 'demo', gameName: '测试玩家', avatar: '🐉', combatLevel: 2 };
+      const waitingRoom = {
+        id: 401,
+        displayNo: 21,
+        mode: '2v2',
+        title: '测试玩家的小房间',
+        host: me,
+        isHost: true,
+        status: 'waiting',
+        playerCount: 2,
+        maxPlayers: 4,
+        readyCount: 1,
+        allReady: false,
+        full: false,
+        map: 'esf_cell_games2',
+        victoryLimit: 10,
+        victoryLabel: '击杀 10 次',
+        server: { name: '[ESF-FCX]单挑房[1]', serverKey: 'fcx-1v1-1', ip: '114.132.84.150', port: 27016 },
+        createdAt: new Date(Date.now() - 2 * 60000).toISOString(),
+        members: [me, hostYun],
+        teams: {
+          a: [{ ...me, ready: true }],
+          b: [{ ...hostYun, ready: false }],
+        },
+        pendingInvites: [{ id: 91, user: hostGoku }],
+        result: null,
+      };
+
+      const liveRoom = {
+        ...waitingRoom,
+        status: 'live',
+        map: 'ape_foreshadow',
+        server: { name: '[ESF-FCX]单挑房[1]', serverKey: 'fcx-1v1-1', ip: '114.132.84.150', port: 27016, map: 'ape_foreshadow' },
+        teams: {
+          a: [{ ...me, ready: true }],
+          b: [{ ...hostYun, ready: true }, { ...hostGoku, ready: true }],
+        },
+        playerCount: 3,
+        readyCount: 3,
+        allReady: true,
+        full: false,
+      };
+
+      const myRoom =
+        scenario === 'challenge-room'
+          ? waitingRoom
+          : scenario === 'challenge-live'
+            ? liveRoom
+            : null;
+
+      return {
+        myRoom,
+        rooms,
+        invites:
+          scenario === 'challenge-invite'
+            ? [
+                {
+                  id: 71,
+                  from: hostGoku,
+                  room: { title: '周末 2v2 友谊赛', mode: '2v2', playerCount: 3, maxPlayers: 4 },
+                },
+              ]
+            : [],
+        lastResult: null,
+      };
+    },
+    create: async () => ({ ok: true }),
+    join: async () => ({ ok: true }),
+    leave: async () => ({ ok: true }),
+    close: async () => ({ ok: true }),
+    ready: async () => ({ ok: true }),
+    start: async () => ({ ok: true }),
+    respond: async () => ({ ok: true }),
+    invite: async () => ({ ok: true }),
+  },
+
   economy: {
     summary: async () => ({
       wallet: { coins: 128, totalEarned: 328, lastEarnedAt: new Date().toISOString() },

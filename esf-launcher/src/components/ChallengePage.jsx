@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Icon from './Icon';
 import Avatar from './Avatar';
 import { DEFAULT_RANKS, rankFor } from '../lib/ranks';
@@ -230,6 +230,15 @@ export default function ChallengePage({
   const me = myRoom?.members?.find((member) => Number(member.id) === Number(user?.id));
   const isLive = myRoom?.status === 'live';
 
+  const createRef = useRef(null);
+  const openRooms = state.rooms.length;
+  const waitingRooms = state.rooms.filter((room) => !room.full).length;
+
+  const focusCreate = () => {
+    createRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    createRef.current?.querySelector('input')?.focus({ preventScroll: true });
+  };
+
   return (
     <div className="challenge-page">
       <datalist id="challenge-maps">
@@ -238,19 +247,60 @@ export default function ChallengePage({
         ))}
       </datalist>
 
-      <header className="challenge-head">
-        <div>
+      <header className="hero challenge-hero">
+        <span className="hero-art" />
+        <span className="hero-mask" />
+        <div className="hero-content">
           <span className="eyebrow">
             <Icon name="swords" size={13} />
-            PLAYER CHALLENGE
+            <b>PLAYER CHALLENGE</b>
+            <span className={`eyebrow-status${isLive ? ' is-live' : ''}`}>
+              {myRoom ? (isLive ? '进行中' : '等待中') : '开放中'}
+            </span>
+            <span className="eyebrow-note">邀请好友进房 · 不计分不锁服</span>
           </span>
-          <h1>约战大厅</h1>
-          <p>自己定模式、地图和服务器，邀请好友进房。约战不计分、不锁服。</p>
+          <h1 className="hero-title">约战大厅</h1>
+          <div className="hero-tags">
+            <span className="tag tag--code">custom</span>
+            <span className="tag">不限段位</span>
+            <span className="tag tag--mode tag--challenge">
+              <i />
+              {myRoom ? `${myRoom.mode} 约战` : '自由约战'}
+            </span>
+            <span className="tag">3 秒刷新</span>
+          </div>
         </div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => refresh()} disabled={loading}>
-          <Icon name="refresh" size={14} />
-          刷新
-        </button>
+        <div className="hero-foot">
+          <div className="hud">
+            <div className="hud-cell hud-cell--rooms">
+              <span>开放房间</span>
+              <b>{openRooms}</b>
+            </div>
+            <div className="hud-cell hud-cell--players">
+              <span>可加入</span>
+              <b>{waitingRooms}</b>
+            </div>
+            <div className="hud-cell hud-cell--state hud-cell--text">
+              <span>我的状态</span>
+              <b>{myRoom ? (isLive ? '进行中' : '等待中') : '未进房'}</b>
+            </div>
+          </div>
+          <div className="hero-actions">
+            <button
+              type="button"
+              className="btn btn-ghost btn-lg challenge-refresh"
+              onClick={() => refresh()}
+              disabled={loading}
+            >
+              <Icon name="refresh" size={15} />
+              刷新
+            </button>
+            {!myRoom && <button type="button" className="btn btn-primary btn-lg hero-cta" onClick={focusCreate}>
+              <Icon name="plus" size={15} />
+              开一间房
+            </button>}
+          </div>
+        </div>
       </header>
 
       {state.invites.length > 0 && !myRoom && (
@@ -471,13 +521,11 @@ export default function ChallengePage({
         </section>
       ) : (
         <>
-          <section className="challenge-create">
-            <div className="challenge-create-copy">
-              <span className="eyebrow">
-                <Icon name="plus" size={12} /> NEW ROOM
-              </span>
+          <section className="challenge-create" ref={createRef}>
+            <div className="section-head">
               <h2>开一间房</h2>
-              <p>选好模式和地图，房间创建后把邀请发给队友。</p>
+              <span className="tag">NEW ROOM</span>
+              <span className="challenge-muted">选好模式和地图，房间创建后把邀请发给队友</span>
             </div>
             <div className="challenge-form">
               <div className="challenge-mode-switch" role="group" aria-label="约战模式">
@@ -566,15 +614,20 @@ export default function ChallengePage({
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="btn btn-primary challenge-create-btn"
-                onClick={createRoom}
-                disabled={Boolean(busy) || !form.serverKey}
-              >
-                {busy === 'create' ? <span className="spinner" /> : <Icon name="plus" size={15} />}
-                创建约战房间
-              </button>
+              <div className="challenge-form-foot">
+                <span className="challenge-muted">
+                  创建后可以邀请玩家、准备和换图；开赛前随时能关闭房间
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-primary challenge-create-btn"
+                  onClick={createRoom}
+                  disabled={Boolean(busy) || !form.serverKey}
+                >
+                  {busy === 'create' ? <span className="spinner" /> : <Icon name="plus" size={15} />}
+                  创建约战房间
+                </button>
+              </div>
             </div>
           </section>
 
@@ -597,48 +650,50 @@ export default function ChallengePage({
                 <p>还没有约战房间，开第一间等朋友来。</p>
               </div>
             ) : (
-              <div className="challenge-grid">
+              <div className="challenge-table">
+                <div className="challenge-table-head">
+                  <span>模式</span>
+                  <span>房间</span>
+                  <span>人数</span>
+                  <span>准备</span>
+                  <span>房主</span>
+                  <span />
+                </div>
                 {state.rooms.map((room) => (
-                  <article key={room.id} className="challenge-card">
-                    <div className="challenge-card-top">
-                      <span className="challenge-card-mode">{room.mode}</span>
-                      <span className={`challenge-state${room.full ? ' is-full' : ''}`}>
-                        {room.full ? '已满员' : '等待中'}
-                      </span>
-                      <span className="challenge-card-time">{timeLabel(room.createdAt)}</span>
-                    </div>
-                    <h3>{room.title}</h3>
-                    <div className="challenge-card-host">
+                  <div key={room.id} className={`challenge-row${room.full ? ' is-full' : ''}`}>
+                    <span className={`challenge-row-mode challenge-row-mode--${room.mode.replace('v', '')}`}>
+                      {room.mode}
+                    </span>
+                    <span className="challenge-row-title">
+                      <b>{room.title}</b>
+                      <small>
+                        {timeLabel(room.createdAt)} · {room.map || '未指定地图'} ·{' '}
+                        {room.server?.name || '未指定服务器'}
+                      </small>
+                    </span>
+                    <span className="challenge-row-count">
+                      {room.playerCount}
+                      <em>/{room.maxPlayers}</em>
+                    </span>
+                    <span className="challenge-row-ready">
+                      <span className={`challenge-ready-dot${room.readyCount > 0 ? ' is-ready' : ''}`} />
+                      {room.readyCount}/{room.playerCount}
+                    </span>
+                    <span className="challenge-row-host">
                       <Avatar user={room.host} size="xs" />
-                      <span>{playerLabel(room.host)}</span>
-                      <small>房主</small>
-                    </div>
-                    <div className="challenge-card-meta">
-                      <span>
-                        <Icon name="users" size={12} /> {room.playerCount}/{room.maxPlayers}
-                      </span>
-                      <span>
-                        <Icon name="map" size={12} /> {room.map || '未指定地图'}
-                      </span>
-                      <span>
-                        <Icon name="server" size={12} /> {room.server?.name || '未指定服务器'}
-                      </span>
-                    </div>
-                    <div className="challenge-card-foot">
-                      <div className="challenge-card-ready">
-                        <span className="challenge-ready-dot is-ready" />
-                        {room.readyCount}/{room.playerCount} 已准备
-                      </div>
+                      {playerLabel(room.host)}
+                    </span>
+                    <span className="challenge-row-ops">
                       <button
                         type="button"
                         className="btn btn-sm btn-primary"
                         onClick={() => joinRoom(room)}
                         disabled={room.full || Boolean(busy)}
                       >
-                        {busy === `join-${room.id}` ? '加入中…' : room.full ? '已满员' : '加入房间'}
+                        {busy === `join-${room.id}` ? '加入中…' : room.full ? '已满员' : '加入'}
                       </button>
-                    </div>
-                  </article>
+                    </span>
+                  </div>
                 ))}
               </div>
             )}

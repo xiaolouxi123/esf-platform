@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "title": "P4 · 约战页",
+    "author": "ESF 平台",
+    "date": "2026.11.08",
+    "reading_time": "约 4 分钟",
+    "tags": ["设计系统", "P4", "约战", "房间表"],
+    "subtitle": "从一张表单到一间房：先能开房，再看得见谁在等你",
+    "lang": null,
+    "hero_image": "hero-grid.svg",
+    "theme": "ikb",
+    "brand": "#ff8a1f",
+    "type": "design-note",
+    "status": "final"
+  },
+  "upgrades": [
+    {
+      "type": "aside",
+      "line": 31,
+      "title": "为什么让 hero 长高",
+      "text": "房间态内容只有一屏的一半，与其在底部留一块空洞，不如让 hero 吸收余量——它本来就是这一页的门面，最高 320px 就停，再高就变成拿背景占面积了。"
+    },
+    {
+      "type": "aside",
+      "line": 40,
+      "title": "截图脚本的三个修",
+      "text": "按下标点击、切页后先丢一帧、窗口置顶并关掉后台节流。三处都是同一个症状：DOM 已经切了，capturePage 拿到的还是旧帧。"
+    },
+    {
+      "type": "checklist",
+      "lines": [64, 65, 66, 67, 68, 69, 70]
+    }
+  ]
+}
