@@ -24,12 +24,18 @@ async function getPlatformSettings() {
       notice: map.notice ?? env.notice ?? DEFAULTS.notice,
       maintenance: String(map.maintenance ?? '') === '1' || Boolean(env.maintenance),
       maintenanceText: map.maintenance_text || DEFAULTS.maintenanceText,
+      latestVersion: map.release_latest_version || env.latestVersion,
+      releaseNotes: map.release_notes || env.releaseNotes,
+      downloadUrl: map.release_download_url || env.downloadUrl,
     };
   } catch {
     return {
       notice: env.notice || DEFAULTS.notice,
       maintenance: Boolean(env.maintenance),
       maintenanceText: DEFAULTS.maintenanceText,
+      latestVersion: env.latestVersion,
+      releaseNotes: env.releaseNotes,
+      downloadUrl: env.downloadUrl,
     };
   }
 }
@@ -41,6 +47,15 @@ async function updatePlatformSettings(patch) {
   if (patch.maintenance !== undefined) entries.push(['maintenance', patch.maintenance ? '1' : '0']);
   if (patch.maintenanceText !== undefined) {
     entries.push(['maintenance_text', String(patch.maintenanceText)]);
+  }
+  if (patch.latestVersion !== undefined) {
+    entries.push(['release_latest_version', String(patch.latestVersion)]);
+  }
+  if (patch.releaseNotes !== undefined) {
+    entries.push(['release_notes', String(patch.releaseNotes)]);
+  }
+  if (patch.downloadUrl !== undefined) {
+    entries.push(['release_download_url', String(patch.downloadUrl)]);
   }
 
   for (const [key, value] of entries) {

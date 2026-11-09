@@ -70,6 +70,12 @@ export default function ChallengePage({
   const [state, setState] = useState({ myRoom: null, rooms: [], invites: [], lastResult: null });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [members, setMembers] = useState([]);
   const [memberQuery, setMemberQuery] = useState('');
@@ -78,7 +84,7 @@ export default function ChallengePage({
     mode: '1v1',
     title: '',
     map: '',
-    serverKey: '',
+    serverKey: 'fcx-1v1-1',
     victoryType: 'kills',
     victoryLimit: 10,
   });
@@ -229,6 +235,15 @@ export default function ChallengePage({
 
   const me = myRoom?.members?.find((member) => Number(member.id) === Number(user?.id));
   const isLive = myRoom?.status === 'live';
+  const remainMinutes = useMemo(() => {
+    if (!myRoom?.endsAt || !now) return null;
+    const left = new Date(myRoom.endsAt).getTime() - now;
+    return Math.max(0, Math.ceil(left / 60000));
+  }, [myRoom, now]);
+  const challengeServers = useMemo(
+    () => servers.filter((server) => server.serverKey === 'fcx-1v1-1'),
+    [servers]
+  );
 
   const createRef = useRef(null);
   const openRooms = state.rooms.length;
@@ -355,6 +370,10 @@ export default function ChallengePage({
                   {isLive ? '进行中' : '等待中'}
                 </span>
                 <span className="tag">{myRoom.mode}</span>
+                <span className="tag">限时 {Math.round((myRoom.timeLimitSec || 900) / 60)} 分钟</span>
+                {isLive && remainMinutes !== null && (
+                  <span className="tag">剩余 {remainMinutes} 分钟</span>
+                )}
                 <span className="tag">{myRoom.victoryLabel || `击杀 ${myRoom.victoryLimit} 次`}</span>
                 <span className="tag">房间 #{myRoom.displayNo ?? myRoom.id}</span>
                 {myRoom.map && (
@@ -563,14 +582,14 @@ export default function ChallengePage({
                 />
               </label>
               <label className="challenge-field challenge-field--wide">
-                <span>比赛服务器（开赛后自动锁服）</span>
+                <span>比赛服务器（目前只开放「单挑 1」）</span>
                 <select
                   value={form.serverKey}
                   onChange={(event) => setForm((prev) => ({ ...prev, serverKey: event.target.value }))}
                   required
                 >
                   <option value="">选择一台服务器</option>
-                  {servers.map((server) => (
+                  {challengeServers.map((server) => (
                     <option key={server.serverKey} value={server.serverKey}>
                       {server.name}
                       {server.online ? ` · ${server.players}/${server.maxPlayers}` : ' · 离线'}

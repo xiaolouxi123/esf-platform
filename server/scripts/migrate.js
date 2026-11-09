@@ -246,6 +246,15 @@ async function main() {
 
     // 0.5.22 注销账号：软删除标记，列表与统计都排除
     await ensureColumn(conn, env.db.name, 'users', 'deleted_at', 'DATETIME NULL COMMENT "注销时间（软删除）"');
+
+    // 0.5.23 约战限时：默认 15 分钟一局
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'challenge_rooms',
+      'time_limit_sec',
+      'INT UNSIGNED NOT NULL DEFAULT 900 COMMENT "单局时长上限（秒）"'
+    );
     await conn.query(
       `CREATE TABLE IF NOT EXISTS user_sessions (
          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

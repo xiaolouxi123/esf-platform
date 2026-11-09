@@ -16,6 +16,9 @@ const { badRequest, forbidden, notFound, conflict } = require('../lib/errors');
 const MODE_SLOTS = { '1v1': 1, '2v2': 2 };
 const MODES = Object.keys(MODE_SLOTS);
 const VICTORY_TYPES = ['kills', 'deaths'];
+const CHALLENGE_SERVER_KEY = 'fcx-1v1-1';
+const CHALLENGE_TIME_LIMIT_SEC = 900;
+const CHALLENGE_TIME_GRACE_SEC = 180;
 const STALE_HOURS = 6;
 
 function publicUser(row) {
@@ -170,6 +173,11 @@ function roomBase(row) {
       : null,
     createdAt: row.created_at,
     startedAt: row.started_at || null,
+    timeLimitSec: Number(row.time_limit_sec || CHALLENGE_TIME_LIMIT_SEC),
+    endsAt:
+      row.started_at && row.status === 'live'
+        ? new Date(new Date(row.started_at).getTime() + Number(row.time_limit_sec || CHALLENGE_TIME_LIMIT_SEC) * 1000)
+        : null,
     closedAt: row.closed_at || null,
     host: publicUser({
       id: row.host_id,
@@ -207,7 +215,23 @@ async function getRoom(roomId, viewerId) {
   };
 }
 
+async function expireStaleRooms() {
+  try {
+    await q(
+      `UPDATE challenge_rooms
+          SET status = 'closed', closed_at = NOW()
+        WHERE status = 'live'
+          AND started_at IS NOT NULL
+          AND started_at < DATE_SUB(NOW(), INTERVAL time_limit_sec + ? SECOND)`,
+      [CHALLENGE_TIME_GRACE_SEC]
+    );
+  } catch {
+    /* 非关键路径，失败不阻塞主流程 */
+  }
+}
+
 async function listRooms() {
+  await expireStaleRooms();
   const rows = await q(
     `SELECT r.*, u.username AS host_username, u.game_name AS host_game_name,
             u.avatar AS host_avatar, u.avatar_url AS host_avatar_url,
@@ -413,7 +437,10 @@ async function createRoom(user, fields = {}) {
   const maxPlayers = MODE_SLOTS[mode] * 2;
   const title = normalizeTitle(fields.title, `${user.game_name || user.username} 的约战`);
   const map = normalizeMap(fields.map);
-  const serverKey = String(fields.serverKey || '').trim() || null;
+  const serverKey = String(fields.serverKey || '').trim() || CHALLENGE_SERVER_KEY;
+  if (serverKey !== CHALLENGE_SERVER_KEY) {
+    throw badRequest('目前约战只开放「单挑 1」服务器');
+  }
   const victoryType = normalizeVictoryType(fields.victoryType);
   const victoryLimit = normalizeVictoryLimit(fields.victoryLimit);
 
@@ -426,6 +453,7 @@ async function createRoom(user, fields = {}) {
     if (!server) throw badRequest('指定的服务器不存在或已停用');
   }
 
+  await expireStaleRooms();
   const roomId = await withTransaction(async (conn) => {
     const [active] = await conn.query(
       `SELECT r.id FROM challenge_room_players p
@@ -448,9 +476,9 @@ async function createRoom(user, fields = {}) {
       const daySeq = seqRows.length > 0 ? Number(seqRows[0].day_seq) + 1 : 1;
       try {
         const [inserted] = await conn.query(
-          `INSERT INTO challenge_rooms (host_id, day_date, day_seq, title, mode, map, server_key, max_players)
-           VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?)`,
-          [user.id, daySeq, title, mode, map, serverKey, maxPlayers]
+          `INSERT INTO challenge_rooms (host_id, day_date, day_seq, title, mode, map, server_key, max_players, time_limit_sec)
+           VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, ?)`,
+          [user.id, daySeq, title, mode, map, serverKey, maxPlayers, CHALLENGE_TIME_LIMIT_SEC]
         );
         result = inserted;
       } catch (err) {

@@ -227,12 +227,15 @@ $notesPath = Join-Path $env:TEMP "esf-notes-$Version.txt"
 [System.IO.File]::WriteAllText($notesPath, $Notes, (New-Object System.Text.UTF8Encoding($false)))
 $notesB64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($notesPath))
 
-# generic notice updater, copied to each box
-$noticeJs = @'
+# release settings writer: writes version/notes/download URL into the shared DB,
+# so both API boxes serve the new release without touching the old box.
+$releaseJs = @'
 const dotenv = require('C:\\esf\\server\\node_modules\\dotenv');
 dotenv.config({ path: 'C:\\esf\\server\\.env' });
 const mysql = require('C:\\esf\\server\\node_modules\\mysql2\\promise');
 (async () => {
+  const [version, notesB64, downloadUrl] = process.argv.slice(2);
+  const notes = Buffer.from(notesB64, 'base64').toString('utf8').trim();
   const conn = await mysql.createConnection({
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT || 3306),
@@ -241,22 +244,33 @@ const mysql = require('C:\\esf\\server\\node_modules\\mysql2\\promise');
     database: process.env.DB_NAME,
     charset: 'utf8mb4',
   });
-  await conn.execute("UPDATE platform_settings SET setting_value = ? WHERE setting_key = 'notice'", [process.env.RELEASE_NOTES]);
+  const rows = [
+    ['release_latest_version', version],
+    ['release_notes', notes],
+    ['release_download_url', downloadUrl],
+    ['notice', notes],
+  ];
+  for (const [key, value] of rows) {
+    await conn.execute(
+      "INSERT INTO platform_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
+      [key, value]
+    );
+  }
   await conn.end();
-  console.log('notice updated');
+  console.log('release settings updated');
 })().catch((err) => { console.error(err.message); process.exit(1); });
 '@
-$noticePath = Join-Path $env:TEMP "esf-release-notice-$Version.js"
-[System.IO.File]::WriteAllText($noticePath, $noticeJs, (New-Object System.Text.UTF8Encoding($false)))
+$releasePath = Join-Path $env:TEMP "esf-release-settings-$Version.js"
+[System.IO.File]::WriteAllText($releasePath, $releaseJs, (New-Object System.Text.UTF8Encoding($false)))
 
-function Deploy-Box {
+function Deploy-NewBox {
   param($Computer, $Credential, $Label)
   $s = New-PSSession -ComputerName $Computer -Credential $Credential -Authentication Negotiate
   try {
     foreach ($name in @("ESF-Platform-Setup-$Version.exe", "ESF-Platform-Setup-$Version.exe.blockmap", 'latest.yml')) {
       Copy-Item -ToSession $s -Path (Join-Path $out $name) -Destination "C:\esf\updates\$name" -Force
     }
-    Copy-Item -ToSession $s -Path $noticePath -Destination 'C:\esf\server\scripts\release-notice.js' -Force
+    Copy-Item -ToSession $s -Path $releasePath -Destination 'C:\esf\server\scripts\release-settings.js' -Force
 
     $text = Invoke-Command -Session $s -ArgumentList $notesB64, $Version -ScriptBlock {
       param($b64, $ver)
@@ -285,12 +299,14 @@ function Deploy-Box {
         } catch { }
       }
       if (-not $h) { throw 'API did not become healthy within 40s' }
-      $c = Invoke-RestMethod 'http://127.0.0.1:3000/api/config' -TimeoutSec 10
+
       $nodeExe = if (Test-Path 'C:\esf\node\node.exe') { 'C:\esf\node\node.exe' } else { (Get-Command node.exe).Source }
-      $noticeOut = & $nodeExe 'C:\esf\server\scripts\release-notice.js' 2>&1
+      $dl = "https://119.29.82.217/updates/ESF-Platform-Setup-$ver.exe"
+      $settingsOut = & $nodeExe 'C:\esf\server\scripts\release-settings.js' $ver $b64 $dl 2>&1
+      $c = Invoke-RestMethod 'http://127.0.0.1:3000/api/config' -TimeoutSec 10
       "health ok=$($h.ok) db=$($h.data.db) up=$($h.data.uptimeSec)"
-      "config latest=$($c.data.latestVersion)"
-      "notice: $($noticeOut | Select-Object -Last 1)"
+      "config latest=$($c.data.latestVersion) notes=$($c.data.releaseNotes.Length)chars"
+      "settings: $($settingsOut | Select-Object -Last 1)"
     }
     $text | Where-Object { $_ } | ForEach-Object { "$Label $_" }
   } finally {
@@ -298,14 +314,10 @@ function Deploy-Box {
   }
 }
 
-Step "deploy to both boxes"
+Step "deploy assets + release settings to new box (old box reads shared DB)"
 $newPwd = (Get-Content "$env:TEMP\esf-newbox.pwd" -Raw).Trim()
 $newCred = New-Object System.Management.Automation.PSCredential('administrator', (ConvertTo-SecureString $newPwd -AsPlainText -Force))
-Deploy-Box -Computer '119.29.82.217' -Credential $newCred -Label 'new:'
-
-$oldPwd = (Get-Content "$env:TEMP\esf-jump\esfops.pwd" -Raw).Trim()
-$oldCred = New-Object System.Management.Automation.PSCredential('esfops', (ConvertTo-SecureString $oldPwd -AsPlainText -Force))
-Deploy-Box -Computer '119.91.99.176' -Credential $oldCred -Label 'old:'
+Deploy-NewBox -Computer '119.29.82.217' -Credential $newCred -Label 'new:'
 
 # ---------------------------------------------------------------- 6. verify
 Step "verify public endpoints"

@@ -51,9 +51,9 @@ router.get('/config', async (req, res, next) => {
         version: env.version,
         db: dbUp ? 'up' : 'down',
         inviteRequired: Boolean(env.inviteCode),
-        latestVersion: env.latestVersion,
-        releaseNotes: env.releaseNotes,
-        downloadUrl: env.downloadUrl,
+        latestVersion: platform.latestVersion,
+        releaseNotes: platform.releaseNotes,
+        downloadUrl: platform.downloadUrl,
         updateFeedUrl: resolveFeedUrl(req),
       },
     });
