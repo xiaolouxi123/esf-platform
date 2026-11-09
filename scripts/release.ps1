@@ -41,6 +41,10 @@ Push-Location $launcher
 node -e "const fs=require('fs');const v=process.argv[1];if(!v)throw new Error('no version');for(const f of ['package.json','package-lock.json']){const p=JSON.parse(fs.readFileSync(f,'utf8'));p.version=v;if(p.packages&&p.packages['']){p.packages[''].version=v}fs.writeFileSync(f,JSON.stringify(p,null,2)+'\n')}" "$Version"
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "bump failed" }
 
+# 同步客户端「版本记录」（历史版本），保证每个版本都有说明
+node "..\scripts\update-releases.js" "$Version" "$Notes"
+if ($LASTEXITCODE -ne 0) { Pop-Location; throw "update releases.json failed" }
+
 # ---------------------------------------------------------------- 2. checks
 Step "lint + tests + build"
 npx.cmd eslint src main.cjs api.cjs preload.js store.cjs launcher-core.cjs
