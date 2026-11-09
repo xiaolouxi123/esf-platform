@@ -523,6 +523,7 @@ async function main() {
       `GRANT SELECT ON ${db}.\`challenge_room_players\` TO ?@?`,
       `GRANT SELECT ON ${db}.\`challenge_configs\` TO ?@?`,
       `GRANT SELECT, INSERT, UPDATE ON ${db}.\`challenge_player_stats\` TO ?@?`,
+      `GRANT SELECT, INSERT, UPDATE, DELETE ON ${db}.\`amxx_builds\` TO ?@?`,
       `GRANT EXECUTE ON PROCEDURE ${db}.settle_challenge_match TO ?@?`,
     ];
     // 游戏服务器可能早于本次迁移创建过 'esf_amxx'@'<公网IP>' 账号；

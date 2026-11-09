@@ -132,6 +132,13 @@ const lookupServer = (settings, token, address) =>
 const serverDetail = (settings, token, params) =>
   request(settings, { path: `/api/servers/detail${queryString(params)}`, token });
 
+/** 插件可观测性：本地文件由主进程读，这里只取服务端心跳与服务器状态 */
+const pluginObservability = (settings, token, serverKey) =>
+  request(settings, {
+    path: `/api/plugins/observability${queryString({ serverKey })}`,
+    token,
+  });
+
 const launchToken = (settings, token, serverKey, options = {}) =>
   request(settings, {
     method: 'POST',
@@ -420,6 +427,7 @@ module.exports = {
   servers,
   lookupServer,
   serverDetail,
+  pluginObservability,
   launchToken,
   favoritesList,
   favoritesSet,

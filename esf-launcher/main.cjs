@@ -1089,27 +1089,184 @@ handle('launch:stop', async () => {
 });
 
 // ---- 本地 AMXX 插件 ----
+const LOCAL_AMXX_PLUGINS = [
+  {
+    id: 'platform_auth',
+    file: 'esf_platform_auth.amxx',
+    label: '身份 / 心跳',
+    expected: '0.47',
+    sha256: '7eef5125ce11c1f606fe5b864f8bcf0e70e6b3208a53855efc283c2e7e004f01',
+  },
+  {
+    id: 'ranked_lock',
+    file: 'esf_ranked_lock.amxx',
+    label: '排位 / 约战锁服',
+    expected: '1.3.0',
+    sha256: 'd11cd63308d96464dba5a854195182036ff3a30cb5eeb7f9c607b24bd93fc5f0',
+  },
+  {
+    id: 'test_ranked',
+    file: 'test_ranked.amxx',
+    label: '排位 / 约战流程',
+    expected: '1.2.1-teamtest',
+    sha256: '45842a11a8fd21695069b15bfeddddb3a4bcc9774a6001c5efd9b6bdf1308d6d',
+  },
+  {
+    id: 'gamemode',
+    file: 'esf_gamemode.amxx',
+    label: '模式守卫',
+    expected: '1.0.0',
+    sha256: 'c878f71d86cb8286348fcd4bfc62b23ecdc4c874158471c36f649efccdee6a2c',
+  },
+];
+
+const LOCAL_AMXX_CVARS = [
+  'platform_enforce',
+  'platform_allow_guest',
+  'platform_server_key',
+  'ranked_auto_team',
+  'ranked_lock',
+];
+
 function findPluginConfig() {
   const mod = getSettings().esfModDir;
   if (!mod || !fs.existsSync(mod)) return '';
   const candidates = [
+    path.join(mod, 'addons', 'amxmodx', 'configs', 'amxx.cfg'),
     path.join(mod, 'addons', 'amxx', 'configs', 'amxx.cfg'),
     path.join(mod, 'amxx', 'configs', 'amxx.cfg'),
   ];
   return candidates.find((file) => fs.existsSync(file)) || '';
 }
 
-handle('plugins:status', async () => {
+function pluginRootFromConfig(cfg) {
+  // <mod>/addons/amxx/configs/amxx.cfg -> <mod>/addons/amxx
+  return path.dirname(path.dirname(cfg));
+}
+
+function parseAmxxCvars(text) {
+  const out = {};
+  for (const name of LOCAL_AMXX_CVARS) {
+    const matched = new RegExp(`^\\s*${name}\\s+"?([^"\\r\\n]*)"?`, 'im').exec(text);
+    out[name] = matched ? matched[1].trim() : null;
+  }
+  return out;
+}
+
+/** AMXX 编译产物里版本字符串是明文；只在命中已知版本时返回，避免误报。 */
+function detectAmxxVersion(buffer, expected) {
+  if (!expected) return null;
+  return buffer.includes(Buffer.from(expected, 'latin1')) ? expected : null;
+}
+
+function readLocalPluginState() {
   const cfg = findPluginConfig();
-  if (!cfg) return { found: false, path: '', enforce: true };
-  const text = fs.readFileSync(cfg, 'utf8');
-  const matched = /^\s*platform_enforce\s+"?(\d+)"?/im.exec(text);
+  const mod = getSettings().esfModDir;
+  const dir = cfg ? pluginRootFromConfig(cfg) : mod ? path.join(mod, 'addons', 'amxx') : '';
+  let text = '';
+  if (cfg) {
+    try {
+      text = fs.readFileSync(cfg, 'utf8');
+    } catch {
+      text = '';
+    }
+  }
+
+  const plugins = LOCAL_AMXX_PLUGINS.map((item) => {
+    const file = dir ? path.join(dir, 'plugins', item.file) : '';
+    let stat = null;
+    let sha256 = null;
+    let version = null;
+    let versionSource = 'unknown';
+    if (file) {
+      try {
+        stat = fs.statSync(file);
+        if (stat.isFile()) {
+          const buffer = fs.readFileSync(file);
+          sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
+          if (item.sha256 && sha256 === item.sha256) {
+            version = item.expected;
+            versionSource = 'known-build';
+          } else {
+            version = detectAmxxVersion(buffer, item.expected);
+            if (version) versionSource = 'binary-string';
+          }
+        }
+      } catch {
+        stat = null;
+      }
+    }
+    return {
+      id: item.id,
+      file: item.file,
+      label: item.label,
+      expected: item.expected,
+      path: file,
+      present: Boolean(stat && stat.isFile()),
+      size: stat && stat.isFile() ? stat.size : null,
+      mtime: stat && stat.isFile() ? stat.mtime.toISOString() : null,
+      sha256,
+      version,
+      versionSource,
+      versionMatch: Boolean(version && version === item.expected),
+    };
+  });
+
+  const enforceMatch = /^\s*platform_enforce\s+"?(\d+)"?/im.exec(text);
   return {
-    found: true,
+    found: Boolean(cfg),
     path: cfg,
-    enforce: matched ? matched[1] === '1' : true,
-    dir: path.dirname(path.dirname(cfg)),
+    dir,
+    pluginsDir: dir ? path.join(dir, 'plugins') : '',
+    enforce: enforceMatch ? enforceMatch[1] === '1' : true,
+    cvars: parseAmxxCvars(text),
+    plugins,
+    scannedAt: new Date().toISOString(),
   };
+}
+
+function newestAmxxLog(dir) {
+  if (!dir) return null;
+  const logsDir = path.join(dir, 'logs');
+  if (!fs.existsSync(logsDir)) return null;
+  let best = null;
+  let bestDay = '';
+  for (const name of fs.readdirSync(logsDir)) {
+    if (!/\.log$/i.test(name)) continue;
+    const file = path.join(logsDir, name);
+    try {
+      const stat = fs.statSync(file);
+      if (!stat.isFile()) continue;
+      // 优先按 LYYYYMMDD.log 的日期取“最新一天”，mtime 只做兜底。
+      // 整合包里的旧日志可能被复制成新 mtime，按 mtime 会读到 2022 年的日志。
+      const day = (/^L(\d{8})\.log$/i.exec(name) || [])[1] || '';
+      if (day > bestDay || (day === bestDay && (!best || stat.mtimeMs > best.mtimeMs))) {
+        best = { file, stat };
+        bestDay = day;
+      } else if (!day && !bestDay && (!best || stat.mtimeMs > best.mtimeMs)) {
+        best = { file, stat };
+      }
+    } catch {
+      /* ignore unreadable log */
+    }
+  }
+  return best;
+}
+
+handle('plugins:status', async () => readLocalPluginState());
+
+handle('plugins:observe', async ({ serverKey } = {}) => {
+  const local = readLocalPluginState();
+  let server = null;
+  let serverError = '';
+  try {
+    const key = serverKey || getSettings().localServerKey || '';
+    server = await apiCall(api.pluginObservability, getSettings(), requireToken(), key);
+  } catch (err) {
+    // 服务端不可达不能拖垮本地面板；登录过期仍由 apiCall 统一清 session。
+    serverError = err && err.message ? err.message : String(err);
+  }
+  return { ...local, server, serverError };
 });
 
 handle('plugins:set-enforce', async ({ enforce } = {}) => {
@@ -1129,10 +1286,28 @@ handle('plugins:set-enforce', async ({ enforce } = {}) => {
 handle('plugins:open-dir', async () => {
   const cfg = findPluginConfig();
   if (!cfg) throw new Error('没有找到本地 AMXX 插件目录');
-  const dir = path.dirname(path.dirname(cfg));
+  const dir = pluginRootFromConfig(cfg);
   const error = await shell.openPath(dir);
   if (error) throw new Error(`打开目录失败：${error}`);
   return { dir };
+});
+
+handle('plugins:open-logs', async () => {
+  const status = readLocalPluginState();
+  const logsDir = status.dir ? path.join(status.dir, 'logs') : '';
+  if (!logsDir || !fs.existsSync(logsDir)) throw new Error('没有找到 AMXX 日志目录（addons/amxx/logs）');
+  const error = await shell.openPath(logsDir);
+  if (error) throw new Error(`打开日志目录失败：${error}`);
+  return { dir: logsDir };
+});
+
+handle('plugins:tail-log', async () => {
+  const status = readLocalPluginState();
+  const newest = newestAmxxLog(status.dir);
+  if (!newest) return { found: false, path: '', name: '', lines: [] };
+  const raw = fs.readFileSync(newest.file, 'utf8');
+  const lines = raw.split(/\r?\n/).filter(Boolean).slice(-40);
+  return { found: true, path: newest.file, name: path.basename(newest.file), lines };
 });
 
 // ---- 打开目录（只允许这两个受控路径，不接受渲染层传任意路径）----

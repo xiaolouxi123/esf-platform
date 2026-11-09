@@ -21,6 +21,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api', require('./routes/me'));
 app.use('/api', require('./routes/launch'));
 app.use('/api', require('./routes/servers'));
+app.use('/api', require('./routes/plugins'));
 app.use('/api', require('./routes/assets'));
 app.use('/api', require('./routes/admin'));
 app.use('/api', require('./routes/presence'));

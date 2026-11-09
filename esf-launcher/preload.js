@@ -185,8 +185,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   plugins: {
     status: () => call('plugins:status'),
+    observe: (serverKey) => call('plugins:observe', { serverKey }),
     setEnforce: (enforce) => call('plugins:set-enforce', { enforce }),
     openDir: () => call('plugins:open-dir'),
+    openLogs: () => call('plugins:open-logs'),
+    tailLog: () => call('plugins:tail-log'),
   },
 
   shell: {
