@@ -336,7 +336,15 @@ async function stopGameForSwitch() {
   if (pids.size === 0 && !isGameRunning()) return false;
 
   log(`🛑 强杀游戏进程: ${[...pids].join(', ')}`);
-  for (const pid of pids) {
+  // 先杀壳（hl.exe）的整棵进程树，避免子进程被杀后壳又把它拉起来。
+  const ordered = [...pids].sort((a, b) => {
+    const imageA = String((processes.find((p) => p.pid === a) || {}).image || '').toLowerCase();
+    const imageB = String((processes.find((p) => p.pid === b) || {}).image || '').toLowerCase();
+    const shellA = imageA === 'hl.exe' ? 0 : 1;
+    const shellB = imageB === 'hl.exe' ? 0 : 1;
+    return shellA - shellB;
+  });
+  for (const pid of ordered) {
     try {
       spawnSync('taskkill', ['/PID', String(pid), '/F', '/T'], {
         windowsHide: true,
@@ -344,13 +352,6 @@ async function stopGameForSwitch() {
       });
     } catch {
       /* 继续用下面的兜底 */
-    }
-  }
-  for (const name of gameProcessNames()) {
-    try {
-      spawnSync('taskkill', ['/IM', name, '/F', '/T'], { windowsHide: true, timeout: 5000 });
-    } catch {
-      /* ignore */
     }
   }
 
@@ -1165,8 +1166,8 @@ const LOCAL_AMXX_PLUGINS = [
     id: 'test_ranked',
     file: 'test_ranked.amxx',
     label: '排位 / 约战流程',
-    expected: '1.3.3-teamtest',
-    sha256: '72b1d673d6e63ab17d30953937b49d75db63714d834b73443fcd14b51fd57409',
+    expected: '1.3.4-teamtest',
+    sha256: '5466b626c64ee06a10b746e79d36d5606669f7beff9cc7d939af2df4cfb09cef',
   },
   {
     id: 'gamemode',

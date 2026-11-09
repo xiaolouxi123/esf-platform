@@ -22,7 +22,7 @@ const PLUGIN_LABELS = {
 };
 
 // 这些插件会写心跳；其余插件只做本地文件观测，避免把“未实现心跳”误报成故障。
-const HEARTBEAT_PLUGINS = new Set(['platform_auth', 'ranked_lock']);
+const HEARTBEAT_PLUGINS = new Set(['platform_auth', 'ranked_lock', 'test_ranked']);
 
 function heartbeatState(row, expected, staleSeconds) {
   if (!row) {
