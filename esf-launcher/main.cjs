@@ -1165,8 +1165,8 @@ const LOCAL_AMXX_PLUGINS = [
     id: 'test_ranked',
     file: 'test_ranked.amxx',
     label: '排位 / 约战流程',
-    expected: '1.3.2-teamtest',
-    sha256: 'b0679be55256a0ae5bf19bb088542fd7ad17c3812a8c0df20bed0d2b150a1812',
+    expected: '1.3.3-teamtest',
+    sha256: '72b1d673d6e63ab17d30953937b49d75db63714d834b73443fcd14b51fd57409',
   },
   {
     id: 'gamemode',
