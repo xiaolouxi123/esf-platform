@@ -243,6 +243,9 @@ async function main() {
       'TINYINT(1) NOT NULL DEFAULT 0 COMMENT "是否启用两步验证"'
     );
     await ensureColumn(conn, env.db.name, 'users', 'totp_backup_codes', 'TEXT NULL COMMENT "备用码哈希（JSON 数组）"');
+
+    // 0.5.22 注销账号：软删除标记，列表与统计都排除
+    await ensureColumn(conn, env.db.name, 'users', 'deleted_at', 'DATETIME NULL COMMENT "注销时间（软删除）"');
     await conn.query(
       `CREATE TABLE IF NOT EXISTS user_sessions (
          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

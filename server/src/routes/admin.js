@@ -100,7 +100,8 @@ router.get('/admin/overview', requireRole(...STAFF_ROLES), async (req, res, next
               SUM(role = 'admin')    AS admins,
               SUM(role = 'ops')      AS ops,
               SUM(role = 'creator')  AS creators
-         FROM users`
+         FROM users
+        WHERE deleted_at IS NULL`
     );
 
     const assets = await one(
@@ -349,7 +350,7 @@ router.get('/admin/users', requireRole(...STAFF_ROLES), async (req, res, next) =
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
     const offset = Math.max(0, Number(req.query.offset) || 0);
 
-    const where = ['1 = 1'];
+    const where = ['u.deleted_at IS NULL'];
     const params = [];
 
     if (keyword) {
@@ -526,6 +527,7 @@ router.delete('/admin/users/:id', requireRole('owner'), async (req, res, next) =
       `UPDATE users
           SET status = 'banned', role = 'user', title_id = NULL,
               username = CONCAT('deleted_', id, '_', ?),
+        deleted_at = NOW(),
               game_name = '已注销账号',
               email = NULL, email_verified_at = NULL, status_text = NULL,
               must_change_password = 0, failed_login_count = 0, locked_until = NULL,
