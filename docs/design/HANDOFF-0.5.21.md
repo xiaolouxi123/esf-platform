@@ -67,3 +67,22 @@
 
 - 代码已合入 `main`，0.5.21 发布由 `scripts/release.ps1` 执行
 - 插件包 1.3.4 已打 test15；未自动发布到游戏服，需单独走 `publish-amxx.ps1`
+
+### 发布结果（2026-11-10 03:56 +08:00）
+
+- GitHub Release `v0.5.21` 已发布，Actions run #20 成功；资产
+  `ESF-Platform-Setup-0.5.21.exe`（128,763,862 B，SHA256
+  `150d62d4d71c8bd8dcc1a7d7e83f49c33cab2946aac4e7c0446c30ed86156af9`）、
+  `.blockmap`、`latest.yml` 均存在。
+- 新平台 `119.29.82.217`：API `/api/config` = `0.5.21`；
+  `https://119.29.82.217/updates/latest.yml` 200，exe HEAD 200，Range 请求 206。
+- 旧平台 `119.91.99.176`：API `/api/config` = `0.5.21`，公告已更新；
+  安装包由旧机从新平台下载并校验 SHA256（`150d62d4...`）。
+  旧机 HTTPS `/updates/latest.yml` 当前返回 000（证书/反代异常），
+  旧客户端自动更新可能受影响，需单独修旧机 Caddy 证书。
+- `release.ps1` 的 GitHub API 等待被 403 限流，首次卡住；已 kill 并用
+  `-SkipWait` 重跑。旧机 WinRM 复制 128MB 过慢，最终改为旧机 server-side
+  `curl -k` 下载 + SHA256 校验后部署。
+- 生产安装版与正式 `settings.json` 未动；测试 profile 仍在
+  `C:\Users\esf-launcher-test`。
+
