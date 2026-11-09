@@ -115,25 +115,98 @@ if (-not $SkipWait) {
 
 Step "download + verify assets"
 $base = "https://github.com/xiaolouxi123/esf-platform/releases/download/v$Version"
-foreach ($name in @("ESF-Platform-Setup-$Version.exe", "ESF-Platform-Setup-$Version.exe.blockmap", 'latest.yml')) {
+$mirrorBase = "https://ghfast.top/$base"
+$exeName = "ESF-Platform-Setup-$Version.exe"
+
+# small files first (fast), then the exe in parallel chunks through a mirror
+foreach ($name in @("ESF-Platform-Setup-$Version.exe.blockmap", 'latest.yml')) {
   $dest = Join-Path $out $name
   $ok = $false
-  for ($try = 1; $try -le 8; $try++) {
-    if (Test-Path $dest) { $ok = $true; break }
-    try {
-      Invoke-WebRequest -Uri "$base/$name" -OutFile $dest -UseBasicParsing -TimeoutSec 600
-      $ok = $true; break
-    } catch {
-      Write-Host "retry $try for $name : $($_.Exception.Message)"
-      Start-Sleep -Seconds 5
-    }
+  for ($try = 1; $try -le 6; $try++) {
+    & curl.exe -sL --retry 2 --max-time 60 -o $dest "$mirrorBase/$name" | Out-Null
+    if ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 0)) { $ok = $true; break }
+    Start-Sleep -Seconds 2
   }
   if (-not $ok) {
-    & curl.exe -sL --retry 3 --max-time 600 -o $dest "$base/$name"
+    & curl.exe -sL --retry 3 --max-time 120 -o $dest "$base/$name"
     if ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 0)) { $ok = $true }
   }
   if (-not $ok) { throw "download failed: $name" }
   Write-Host "asset $name $((Get-Item $dest).Length)"
+}
+
+$yml = Get-Content (Join-Path $out 'latest.yml') -Raw
+$expected = ([regex]::Match($yml, 'sha512:\s*(\S+)')).Groups[1].Value
+$size = [int64]([regex]::Match($yml, 'size:\s*(\d+)')).Groups[1].Value
+
+$exe = Join-Path $out $exeName
+$needDownload = $true
+if (Test-Path $exe) {
+  $have = (Get-Item $exe).Length
+  if ($have -eq $size) {
+    $h = [Convert]::ToBase64String([System.Security.Cryptography.SHA512]::Create().ComputeHash([System.IO.File]::ReadAllBytes($exe)))
+    if ($h -eq $expected) { $needDownload = $false; Write-Host "asset $exeName already present and verified" }
+  }
+}
+
+if ($needDownload) {
+  $tmp = Join-Path $env:TEMP "esf-rel-chunks-$Version"
+  Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+  New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+
+  $n = 12
+  $chunk = [int64][math]::Ceiling($size / $n)
+  $mirrors = @("$mirrorBase/$exeName", "https://gh-proxy.com/$base/$exeName", "$base/$exeName")
+
+  $block = {
+    param($u1, $u2, $u3, $start, $end, $dest)
+    $urls = @($u1, $u2, $u3)
+    $want = $end - $start + 1
+    foreach ($pass in 1..3) {
+      foreach ($u in $urls) {
+        & curl.exe -sL --retry 2 --retry-delay 2 --max-time 300 -r "$start-$end" -o $dest $u | Out-Null
+        if ((Test-Path $dest) -and ((Get-Item $dest).Length -eq $want)) { return $want }
+        Start-Sleep -Seconds 2
+      }
+    }
+    if (Test-Path $dest) { return (Get-Item $dest).Length } else { return 0 }
+  }
+
+  $pair = 0
+  while (($pair * 2) -lt $n) {
+    $jobs = @()
+    for ($k = 0; $k -lt 2; $k++) {
+      $idx = $pair * 2 + $k
+      if ($idx -ge $n) { break }
+      $start = $idx * $chunk
+      $end = [math]::Min($start + $chunk - 1, $size - 1)
+      $want = $end - $start + 1
+      $dest = Join-Path $tmp "part$idx"
+      if ((Test-Path $dest) -and ((Get-Item $dest).Length -eq $want)) { continue }
+      $jobs += Start-Job -ScriptBlock $block -ArgumentList "$mirrorBase/$exeName", "https://gh-proxy.com/$base/$exeName", "$base/$exeName", $start, $end, $dest
+    }
+    if ($jobs.Count -gt 0) {
+      $jobs | Wait-Job -Timeout 600 | Out-Null
+      $jobs | Remove-Job -Force
+    }
+    $pair++
+  }
+
+  $fs = [IO.File]::Create($exe)
+  for ($idx = 0; $idx -lt $n; $idx++) {
+    $start = $idx * $chunk
+    $end = [math]::Min($start + $chunk - 1, $size - 1)
+    $want = $end - $start + 1
+    $dest = Join-Path $tmp "part$idx"
+    $have = 0
+    if (Test-Path $dest) { $have = (Get-Item $dest).Length }
+    if ($have -ne $want) { $fs.Close(); throw "chunk $idx incomplete ($have/$want)" }
+    $b = [IO.File]::ReadAllBytes($dest)
+    $fs.Write($b, 0, $b.Length)
+  }
+  $fs.Close()
+  Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+  Write-Host "asset $exeName $((Get-Item $exe).Length)"
 }
 
 $exe = Join-Path $out "ESF-Platform-Setup-$Version.exe"
