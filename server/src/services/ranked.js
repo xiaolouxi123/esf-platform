@@ -48,7 +48,7 @@ async function getProfile(userId) {
 
 async function playerRows(matchId) {
   const rows = await q(
-    `SELECT p.team, p.slot, p.ready, p.rating_before, p.rating_after,
+    `SELECT p.team, p.slot, p.ready, p.rating_before, p.rating_after, p.afk,
             u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.role
        FROM ranked_match_players p
        JOIN users u ON u.id = p.user_id
@@ -68,6 +68,7 @@ async function playerRows(matchId) {
     ready: Boolean(row.ready),
     rating: Number(row.rating_before || 1000),
     ratingAfter: row.rating_after === null ? null : Number(row.rating_after),
+    afk: Number(row.afk) === 1,
   }));
 }
 
@@ -196,6 +197,7 @@ async function history(userId, limit = 10) {
       ratingBefore: me.rating,
       ratingAfter: me.ratingAfter,
       ratingDelta: me.ratingAfter === null ? null : me.ratingAfter - me.rating,
+      afk: Boolean(me.afk),
       finishedAt: match.finishedAt,
       server: match.server,
       players: match.players,

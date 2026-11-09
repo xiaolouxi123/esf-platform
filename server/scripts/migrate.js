@@ -246,6 +246,8 @@ async function main() {
 
     // 0.5.22 注销账号：软删除标记，列表与统计都排除
     await ensureColumn(conn, env.db.name, 'users', 'deleted_at', 'DATETIME NULL COMMENT "注销时间（软删除）"');
+    await ensureColumn(conn, env.db.name, 'ranked_match_players', 'afk', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await ensureColumn(conn, env.db.name, 'challenge_player_stats', 'afk', 'TINYINT(1) NOT NULL DEFAULT 0');
 
     // 0.5.23 约战限时：默认 15 分钟一局
     await ensureColumn(
@@ -392,10 +394,11 @@ async function main() {
         DECLARE v_team VARCHAR(1);
         DECLARE v_rating INT;
         DECLARE v_after INT;
+        DECLARE v_afk TINYINT DEFAULT 0;
         DECLARE total_pool INT DEFAULT 0;
         DECLARE winning_pool INT DEFAULT 0;
         DECLARE cur CURSOR FOR
-          SELECT user_id, team, rating_before FROM ranked_match_players WHERE match_id = p_match_id;
+          SELECT user_id, team, rating_before, afk FROM ranked_match_players WHERE match_id = p_match_id;
         DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
 
         UPDATE ranked_matches
@@ -404,10 +407,12 @@ async function main() {
 
         OPEN cur;
         player_loop: LOOP
-          FETCH cur INTO v_user, v_team, v_rating;
+          FETCH cur INTO v_user, v_team, v_rating, v_afk;
           IF done THEN LEAVE player_loop; END IF;
           IF v_team = p_winner THEN
             SET v_after = v_rating + 25;
+          ELSEIF v_afk = 1 THEN
+            SET v_after = GREATEST(0, v_rating - 30);
           ELSE
             SET v_after = GREATEST(0, v_rating - 20);
           END IF;

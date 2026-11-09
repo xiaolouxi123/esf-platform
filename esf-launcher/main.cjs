@@ -432,18 +432,19 @@ function hideToTrayForGame() {
       }
       if (fresh) {
         stopGameWatcher();
-        log('🏁 检测到比赛结束标记，强制关闭游戏进程');
-        stopGameForSwitch()
-          .then((killed) => {
-            clearMatchEndFlag();
-            showMainWindow();
-            log(killed ? '🛑 已强制结束游戏进程' : '⚠️ 未找到可结束的游戏进程');
-          })
-          .catch((err) => {
-            clearMatchEndFlag();
-            showMainWindow();
-            log('❌ 强制结束游戏进程失败:', err.message);
-          });
+        log('🏁 检测到比赛结束标记，10 秒后关闭游戏进程');
+        clearMatchEndFlag();
+        setTimeout(() => {
+          stopGameForSwitch()
+            .then((killed) => {
+              showMainWindow();
+              log(killed ? '🛑 已强制结束游戏进程' : '⚠️ 未找到可结束的游戏进程');
+            })
+            .catch((err) => {
+              showMainWindow();
+              log('❌ 强制结束游戏进程失败:', err.message);
+            });
+        }, 10000);
         return;
       }
     }

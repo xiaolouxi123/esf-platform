@@ -85,8 +85,8 @@ const env = {
     // 心跳表 amxx_builds 里的 build 标签（不是插件 VERSION）；
     // auth/lock 共用线上套件构建号 0.47，发版时随插件一起改这里。
     expected: {
-      platform_auth: str(process.env.AMXX_EXPECTED_PLATFORM_AUTH, '0.47'),
-      ranked_lock: str(process.env.AMXX_EXPECTED_RANKED_LOCK, '0.47'),
+      platform_auth: str(process.env.AMXX_EXPECTED_PLATFORM_AUTH, '0.50'),
+      ranked_lock: str(process.env.AMXX_EXPECTED_RANKED_LOCK, '0.50'),
       test_ranked: str(process.env.AMXX_EXPECTED_TEST_RANKED, '1.3.4-teamtest'),
       gamemode: str(process.env.AMXX_EXPECTED_GAMEMODE, '1.0.0'),
     },
