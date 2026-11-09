@@ -2,13 +2,15 @@
 title: 变更日志
 category: log
 tags: [log]
-updated: 2026-11-09T06:45:00+08:00
+updated: 2026-11-09T07:55:00+08:00
 ---
 
 # 变更日志
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-09 · 插件 0.48 审计修正：线上 `fix/amxx-ascii-logs`（dd3a868）包含 r14 提交 c333c33 + 0.48 修复，r14 的 R1/R5/R7/R8/R10 修复已在线上；main 306cd47 早于线上，不能作为现状基线。剩余功能缺口是自动分边。另发现源码 `BUILD 0.47` / `lock VERSION 1.3.0` 与包 `0.48` / README `1.2.0` 不一致，0.48 发布物不能由当前分支构建脚本直接复现；已记入 `current-state` 的版本一致性行与 `known-issues` 第 8 条。
+- 2026-11-09 · 插件待办：记录“开局不会自动分配队伍”——`autoPlayerStart()` 只统计 `Get_Team()`，全文件无 `jointeam` 下发；ESF 切队有 8 秒冷却。候选方案（engclient_cmd + 8.2s 重试 + 校验 / 逆向 ESF.dll 找冷却 cvar / 启动器预选）写入 `debugging/known-issues` 第 8 条，并挂到 `current-state` 待办 9。
 - 2026-11-09 · 启动器 0.5.0（UI Beta 冻结）：P0–P9 全站界面重做（令牌/外壳/大厅/排位/约战/服务器/资源库/管理台/设置/登录/频道），提交 0238202，tag v0.5.0；差量 0.4.16→0.5.0 下载 3,480,839 B。修复 `release.ps1` 的 bump 未传版本参数导致 `package.json` 丢 `version` 键的旧 bug。交接单 `docs/design/HANDOFF-ui-redesign.md` 已补齐各阶段提交号。
 - 2026-11-09 · 启动器 0.4.16：TOTP 两步验证（10 个一次性备用码）、登录设备列表与撤销、密码强度（≥10 位且 ≥3 类）、接口安全响应头。提交 7f4ea11，tag v0.4.16；差量 0.4.15→0.4.16 下载 7,357,162 B。新增 `decision/account-security` 的 0.4.16 段。
 

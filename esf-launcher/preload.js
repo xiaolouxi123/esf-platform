@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   app: {
     info: () => call('app:info'),
     config: () => call('config:get'),
+    exportDiagnosis: () => call('app:export-diagnosis'),
   },
 
   settings: {

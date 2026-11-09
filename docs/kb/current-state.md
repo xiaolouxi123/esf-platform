@@ -2,7 +2,7 @@
 title: 线上现状
 category: state
 tags: [state, versions, deployment]
-updated: 2026-11-09T06:10:00+08:00
+updated: 2026-11-09T07:55:00+08:00
 ---
 
 # 线上现状（2026-11-09）
@@ -44,7 +44,9 @@ updated: 2026-11-09T06:10:00+08:00
 | 114 更新任务 | `ESFAmxxUpdate`，SYSTEM，每 10 分钟 |
 | 114 更新脚本 | `C:\esf-agent\amxx-updater.ps1`，版本记录 `C:\esf-agent\amxx-version.txt` |
 | 线上构建心跳 | 表 `amxx_builds`；fcx-1v1-1 于 2026-11-07 10:07 上报 0.48 |
-| 源码分支 | `fix/amxx-ascii-logs`（提交 dd3a868） |
+| 源码分支 | `fix/amxx-ascii-logs`（提交 dd3a868）；含 r14 提交 c333c33 + 0.48 修复，main 306cd47 早于线上，不能作为现状基线 |
+| 版本一致性 | 线上源码 `esf_platform_auth.sma` 的 `BUILD` 仍是 `0.47`、`esf_ranked_lock.sma` 的 `VERSION` 是 `1.3.0`，与包 `0.48` / README `1.2.0` 不一致；0.48 发布物不能由当前分支的构建脚本直接复现，待复核 |
+| 功能缺口 | 开局不会自动分边：`autoPlayerStart()` 只统计引擎队伍，未下发 `jointeam`；平台队伍已在 `g_challengeTeam` / `g_rankedTeam`，但未写回引擎。见待办 9 |
 
 ## 游戏服配置
 
@@ -61,3 +63,4 @@ updated: 2026-11-09T06:10:00+08:00
 6. ops agent 任务输出的中文乱码（cmd 以 UTF-8 输出、agent 按 GBK 读回），改 `[IO.File]::ReadAllText(..., UTF8)`。
 7. 老 114 仍有 0.2.1 版本残留，待与现网版本对齐。
 8. 发布提速：`release.ps1` 仍用 PSSession 逐机拷 125 MB 安装包（约 4–5 分钟/台）；下一步改成两台机自行从 `https://119.29.82.217/updates/` 下载并校验 sha512。
+9. 插件开局不会自动分边：`autoPlayerStart()` 只统计队伍，未下发 `jointeam`；ESF 切队有 8 秒冷却。方案与验证项见 [[known-issues]] 第 8 条，等插件下一轮修改时处理。
