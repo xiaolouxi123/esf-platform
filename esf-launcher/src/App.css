@@ -11403,3 +11403,13 @@ select:focus {
 .admin-hero .hero-art { display: none; }
 .admin-hero .hero-title { font-size: 30px; }
 .admin-hero .hero-foot { margin-top: 12px; }
+
+/* =====================================================================
+   0.5.2 修版：管理台页面可滚动 + hero 不再被压缩裁切
+   - .center > .admin 原本 flex:1，高度被锁死，子内容超出后被裁掉且不滚动
+   - .hero 自带 overflow:hidden + .admin-hero max-height，会被压到 < 内容高度
+   ===================================================================== */
+.center > .admin { flex: none; }
+.admin { min-height: 0; }
+.admin-hero { flex: 0 0 auto; max-height: none; min-height: 0; }
+.admin-stack { flex: 0 0 auto; }
