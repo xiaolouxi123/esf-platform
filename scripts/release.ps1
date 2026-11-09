@@ -63,7 +63,6 @@ $files = @(
   'CHANGELOG.md',
   'esf-launcher/package.json',
   'esf-launcher/package-lock.json',
-  'esf-launcher/dist',
   'esf-launcher/api.cjs',
   'esf-launcher/main.cjs',
   'esf-launcher/preload.js',
