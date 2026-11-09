@@ -335,6 +335,7 @@ async function stopGameForSwitch() {
   }
   if (pids.size === 0 && !isGameRunning()) return false;
 
+  log(`🛑 强杀游戏进程: ${[...pids].join(', ')}`);
   for (const pid of pids) {
     try {
       spawnSync('taskkill', ['/PID', String(pid), '/F', '/T'], {
@@ -384,6 +385,23 @@ function stopGameWatcher() {
   }
 }
 
+const MATCH_END_FLAG = 'esf_match_end.flag';
+
+function matchEndFlagPath() {
+  const modDir = settings && settings.esfModDir;
+  return modDir ? path.join(modDir, 'addons', 'amxmodx', 'logs', MATCH_END_FLAG) : '';
+}
+
+function clearMatchEndFlag() {
+  const flag = matchEndFlagPath();
+  if (!flag) return;
+  try {
+    fs.rmSync(flag, { force: true });
+  } catch {
+    /* ignore */
+  }
+}
+
 /** 游戏启动后收进托盘，等 hl.exe 退出再自动弹回来 */
 function hideToTrayForGame() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -401,6 +419,34 @@ function hideToTrayForGame() {
     }
     // 给 hl.exe 一点启动时间，避免刚拉起就误判为已退出
     if (Date.now() - startedAt < 7000) return;
+
+    // 比赛结束标记由 AMXX 插件写入；客户端 quit 被 ESF 拦截，只能由启动器强杀。
+    const flag = matchEndFlagPath();
+    if (flag && fs.existsSync(flag)) {
+      let fresh = false;
+      try {
+        fresh = fs.statSync(flag).mtimeMs >= startedAt - 2000;
+      } catch {
+        /* ignore */
+      }
+      if (fresh) {
+        stopGameWatcher();
+        log('🏁 检测到比赛结束标记，强制关闭游戏进程');
+        stopGameForSwitch()
+          .then((killed) => {
+            clearMatchEndFlag();
+            showMainWindow();
+            log(killed ? '🛑 已强制结束游戏进程' : '⚠️ 未找到可结束的游戏进程');
+          })
+          .catch((err) => {
+            clearMatchEndFlag();
+            showMainWindow();
+            log('❌ 强制结束游戏进程失败:', err.message);
+          });
+        return;
+      }
+    }
+
     if (!isGameRunning()) {
       stopGameWatcher();
       showMainWindow();
@@ -488,6 +534,7 @@ let activeEngineCfg = '';
 function spawnGame(args) {
   const current = getSettings();
   const gameDir = path.dirname(current.hlPath);
+  clearMatchEndFlag();
 
   // 新引擎（ESF Engine 1.0）：ESF.exe 只认 engine.cfg，命令行参数会被丢弃
   let spawnArgs = args;
@@ -1118,8 +1165,8 @@ const LOCAL_AMXX_PLUGINS = [
     id: 'test_ranked',
     file: 'test_ranked.amxx',
     label: '排位 / 约战流程',
-    expected: '1.3.0-teamtest',
-    sha256: '9c22431e2ec28470582e06b4f876014e4282b5ed1a27c41160cb52863571f393',
+    expected: '1.3.2-teamtest',
+    sha256: 'b0679be55256a0ae5bf19bb088542fd7ad17c3812a8c0df20bed0d2b150a1812',
   },
   {
     id: 'gamemode',
