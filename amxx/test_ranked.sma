@@ -1,4 +1,4 @@
-﻿#include <amxmodx>
+#include <amxmodx>
 #include <amxmisc>
 #include <fun>
 #include <hlsdk_const>
@@ -41,6 +41,8 @@
 #define TASK_CHALLENGE_SETTLE 4900
 #define TASK_CHALLENGE_QUORUM 4930
 #define TASK_CHALLENGE_SPECTATE 4940
+#define TASK_AFK_TICK 4960
+#define TASK_MATCH_END_COUNT 4961
 #define TASK_RANKED_END 4800
 #define TASK_QUIT   4300
 #define esf_get_advancedmelee(%1) get_pdata_int(%1, 298)
@@ -94,6 +96,7 @@ new g_rankedKnown = 0;
 new g_rankedSeenA = 0;
 new g_rankedSeenB = 0;
 new g_rankedTeam[33];
+new g_rankedUserId[33];
 new bool:g_rankedSettled = false;
 
 // 约战（challenge）平台模式：独立于排位，不写 ELO
@@ -112,6 +115,11 @@ new g_challengeWinner[2];
 new g_challengeScoreA = 0;
 new g_challengeScoreB = 0;
 new g_challengeRemaining = 0;
+new Float:g_lastActivity[33];
+new bool:g_afkWarned[33];
+new bool:g_afkMarked[33];
+new bool:g_challengeAfk[33];
+new g_matchEndLeft = 0;
 new g_challengeSettleQuery[320];
 new g_challengeStatsQuery[1100];
 new g_challengeSlots = 0;
@@ -437,7 +445,7 @@ public taskRankedIdentify(taskid) {
 
     new query[640];
     formatex(query, charsmax(query),
-        "SELECT m.id, p.team \
+        "SELECT m.id, p.team, t.user_id \
            FROM launch_tokens t \
            JOIN ranked_match_players p ON p.user_id = t.user_id \
            JOIN ranked_matches m ON m.id = p.match_id \
@@ -464,6 +472,7 @@ public OnRankedIdentify(failstate, Handle:query, error[], errnum, data[], dataSi
     SQL_ReadResult(query, 1, team, 1);
     g_rankedMatchId = SQL_ReadResult(query, 0);
     g_rankedTeam[id] = (team[0] == 'a') ? 1 : 2;
+    g_rankedUserId[id] = SQL_ReadResult(query, 2);
     g_rankedKnown++;
     if (g_rankedTeam[id] == 1) g_rankedSeenA++;
     else g_rankedSeenB++;
@@ -705,15 +714,15 @@ beginChallengeSettlement(const winner[], scoreA, scoreB) {
             stats[len] = 0;
         }
         len += formatex(stats[len], charsmax(stats) - len, "(%d,%d,'%s',%d,%d)",
-            g_challengeRoomId, g_challengeUserId[i], teamChar, kills, deaths);
+            g_challengeRoomId, g_challengeUserId[i], teamChar, kills, deaths, g_challengeAfk[i] ? 1 : 0);
         count++;
     }
 
     g_challengeStatsQuery[0] = 0;
     if (count > 0) {
         formatex(g_challengeStatsQuery, charsmax(g_challengeStatsQuery),
-            "INSERT INTO challenge_player_stats (room_id,user_id,team,kills,deaths) VALUES %s \
-             ON DUPLICATE KEY UPDATE team=VALUES(team), kills=VALUES(kills), deaths=VALUES(deaths)",
+            "INSERT INTO challenge_player_stats (room_id,user_id,team,kills,deaths,afk) VALUES %s \
+             ON DUPLICATE KEY UPDATE team=VALUES(team), kills=VALUES(kills), deaths=VALUES(deaths), afk=VALUES(afk)",
             stats);
     }
 
@@ -2108,6 +2117,10 @@ public PlayerPreThink(id)
 {
     if(g_BattleState == false ) return FMRES_IGNORED;
 
+    new Float:afkVel[3];
+    pev(id, pev_velocity, afkVel);
+    if (get_user_button(id) != 0 || vector_length(afkVel) > 30.0) g_lastActivity[id] = halflife_time();
+
     // 约战优先：按击杀/死亡阈值结算；排位则按队伍全灭结算
     // 约战必须先等异步战绩/结果落库，不能立即 resetAll 排 5 秒 quit，
     // 否则数据库慢时客户端已经退出，平台拿不到结果。
@@ -2835,7 +2848,7 @@ resetAll()
     g_rankedSeenA=0;
     g_rankedSeenB=0;
     g_rankedSettled=false;
-    for(new i = 1; i <= get_maxplayers(); i++) g_rankedTeam[i]=0;
+    for(new i = 1; i <= get_maxplayers(); i++) { g_rankedTeam[i]=0; g_rankedUserId[i]=0; }
 
     remove_task(TASK_CHALLENGE_TIMEOUT);
     g_challengeRemaining = 0;
@@ -3039,6 +3052,109 @@ public plugin_end()
         SQL_FreeHandle(g_sqlTuple);
 }
 
+
+// ===== AFK detection (0.50) =====
+stock bool:afkMatchActive()
+{
+    if (g_challengeActive && !g_challengeSettled) return true;
+    if (g_rankedMatchId != 0 && !g_rankedSettled && g_rankedKnown > 0) return true;
+    return false;
+}
+
+stock writeMatchEndFlag(const reason[])
+{
+    new fp = fopen("addons/amxmodx/logs/esf_match_end.flag", "wt");
+    if (!fp) return;
+    fprintf(fp, "reason=%s%stime=%d%s", reason, "^n", get_systime(), "^n");
+    fclose(fp);
+}
+
+public taskMatchEndTick()
+{
+    if (g_matchEndLeft <= 0)
+    {
+        client_print(0, print_chat, "[平台] 正在退出游戏…");
+        return;
+    }
+    client_print(0, print_chat, "[平台] 比赛已结束，%d 秒后自动退出游戏", g_matchEndLeft);
+    g_matchEndLeft--;
+    set_task(1.0, "taskMatchEndTick", TASK_MATCH_END_COUNT);
+}
+
+stock startMatchEndCountdown()
+{
+    if (g_matchEndLeft > 0) return;
+    g_matchEndLeft = 10;
+    set_task(1.0, "taskMatchEndTick", TASK_MATCH_END_COUNT);
+}
+
+public taskAfkTick()
+{
+    if (!afkMatchActive())
+    {
+        for (new i = 1; i <= get_maxplayers(); i++) g_afkWarned[i] = false;
+        return;
+    }
+    new warnSec = get_cvar_num("esf_afk_warn");
+    new limitSec = get_cvar_num("esf_afk_limit");
+    new Float:now = halflife_time();
+    for (new i = 1; i <= get_maxplayers(); i++)
+    {
+        if (!is_user_connected(i) || is_user_bot(i)) continue;
+        if (g_challengeActive && g_challengeTeam[i] == 0) continue;
+        if (!g_challengeActive && g_rankedTeam[i] == 0) continue;
+        new Float:idle = now - g_lastActivity[i];
+        if (idle >= float(limitSec))
+        {
+            markAfk(i);
+        }
+        else if (idle >= float(warnSec) && !g_afkWarned[i])
+        {
+            g_afkWarned[i] = true;
+            new name[32];
+            get_user_name(i, name, charsmax(name));
+            client_print(0, print_chat, "[AFK] %s 已挂机 %d 秒，%d 秒后判负", name, warnSec, limitSec - warnSec);
+            log_amx("[AFK] warn id=%d idle=%d", i, warnSec);
+        }
+    }
+}
+
+markAfk(id)
+{
+    if (g_afkMarked[id]) return;
+    g_afkMarked[id] = true;
+
+    new name[32];
+    get_user_name(id, name, charsmax(name));
+    log_amx("[AFK] marked id=%d name=%s", id, name);
+    client_print(0, print_chat, "[AFK] %s 挂机超过限制，本局判对手获胜", name);
+    writeMatchEndFlag("afk");
+
+    if (g_rankedMatchId != 0 && g_rankedTeam[id] != 0 && !g_rankedSettled)
+    {
+        new winner = (g_rankedTeam[id] == 1) ? 'b' : 'a';
+        new query[320];
+        formatex(query, charsmax(query),
+            "UPDATE ranked_match_players SET afk=1 WHERE match_id=%d AND user_id=%d",
+            g_rankedMatchId, g_rankedUserId[id]);
+        SQL_ThreadQuery(g_rankedTuple, "OnAfkMarked", query);
+        formatex(query, charsmax(query), "CALL settle_ranked_match(%d, '%c')", g_rankedMatchId, winner);
+        SQL_ThreadQuery(g_rankedTuple, "OnRankedSettled", query);
+        g_rankedSettled = true;
+        log_amx("[AFK] ranked match=%d winner=%c", g_rankedMatchId, winner);
+    }
+    else if (g_challengeActive && !g_challengeSettled && g_challengeTeam[id] != 0)
+    {
+        g_challengeAfk[id] = true;
+        new w[2];
+        w[0] = (g_challengeTeam[id] == 1) ? 'b' : 'a';
+        w[1] = 0;
+        beginChallengeSettlement(w, g_challengeScoreA, g_challengeScoreB);
+        log_amx("[AFK] challenge room=%d winner=%c", g_challengeRoomId, w[0]);
+    }
+    startMatchEndCountdown();
+}
+
 public plugin_init()
 {
     register_plugin("FCX_BATTLE", "1.2.0-r14", "CLOUD / ESF Platform");
@@ -3060,6 +3176,9 @@ public plugin_init()
 
 //----------------Register_Cvar-----------------
     register_cvar("BattleLimt","10");
+    register_cvar("esf_afk_warn","180");
+    register_cvar("esf_afk_limit","300");
+    set_task(5.0, "taskAfkTick", TASK_AFK_TICK, _, _, "b");
 
     g_pcRankedHost      = register_cvar("ranked_sql_host", "");
     g_pcRankedUser      = register_cvar("ranked_sql_user", "esf_amxx");
