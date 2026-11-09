@@ -433,6 +433,9 @@ function hideToTrayForGame() {
       if (fresh) {
         stopGameWatcher();
         log('🏁 检测到比赛结束标记，10 秒后关闭游戏进程');
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('game:match-end', { seconds: 10 });
+        }
         clearMatchEndFlag();
         setTimeout(() => {
           stopGameForSwitch()
@@ -1701,6 +1704,11 @@ handle('assets:install', async ({ id }) => {
 handle('admin:overview', async () => {
   requireStaff();
   return apiCall(api.adminOverview, getSettings(), requireToken());
+});
+
+handle('admin:occupancy', async () => {
+  requireStaff();
+  return apiCall(api.adminOccupancy, getSettings(), requireToken());
 });
 
 handle('admin:users', async (params = {}) => {

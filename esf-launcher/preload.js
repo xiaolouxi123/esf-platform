@@ -160,6 +160,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   admin: {
     overview: () => call('admin:overview'),
+    occupancy: () => call('admin:occupancy'),
     users: (params) => call('admin:users', params),
     updateUser: (id, patch) => call('admin:update-user', { id, ...patch }),
     kickUser: (id) => call('admin:kick-user', { id }),
@@ -187,6 +188,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     local: (map, mode) => call('launch:local', { map, mode }),
     guest: () => call('launch:guest'),
     stop: () => call('launch:stop'),
+  },
+
+  game: {
+    onMatchEnd: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on('game:match-end', handler);
+      return () => ipcRenderer.removeListener('game:match-end', handler);
+    },
   },
 
   plugins: {

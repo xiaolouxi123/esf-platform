@@ -81,6 +81,9 @@ export default function AdminPanel({
   const [auditAction, setAuditAction] = useState('');
   const [auditLoading, setAuditLoading] = useState(false);
 
+  const [occupancy, setOccupancy] = useState(null);
+  const [occupancyLoading, setOccupancyLoading] = useState(false);
+
   const [platform, setPlatform] = useState(null);
   const [platformForm, setPlatformForm] = useState({ notice: '', maintenance: false, maintenanceText: '' });
   const [platformSaving, setPlatformSaving] = useState(false);
@@ -150,6 +153,29 @@ export default function AdminPanel({
     const timer = setTimeout(() => loadAudit(), 200);
     return () => clearTimeout(timer);
   }, [loadAudit]);
+
+  const loadOccupancy = useCallback(async () => {
+    if (!staff) return;
+    setOccupancyLoading(true);
+    try {
+      const data = await window.electronAPI.admin.occupancy();
+      setOccupancy(data);
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setOccupancyLoading(false);
+    }
+  }, [staff, toast]);
+
+  useEffect(() => {
+    if (openSection !== 'occupancy') return undefined;
+    const timer = setTimeout(() => loadOccupancy(), 0);
+    const interval = setInterval(loadOccupancy, 15000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, [openSection, loadOccupancy]);
 
   useEffect(() => {
     if (!staff) return undefined;
@@ -847,6 +873,93 @@ export default function AdminPanel({
           </div>
         )}
       </section>
+
+      {canSeeAudit && (
+        <section className="admin-section" data-key="occupancy" data-open={openSection === 'occupancy'}>
+          <div className="admin-section-head">
+            <h3>
+              <Icon name="signal" size={15} /> 占用看板
+              {occupancy ? (
+                <span className="pill">
+                  {occupancy.rooms.length} 房 · {occupancy.queue.length} 排队
+                </span>
+              ) : null}
+            </h3>
+
+            <div className="admin-filters">
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost"
+                onClick={loadOccupancy}
+                disabled={occupancyLoading}
+              >
+                {occupancyLoading ? <span className="spinner" /> : <Icon name="refresh" size={13} />} 刷新
+              </button>
+            </div>
+          </div>
+
+          <div className="occupancy-grid">
+            <div className="occupancy-col">
+              <h4>
+                进行中约战 <span className="pill">{occupancy?.rooms.length ?? 0}</span>
+              </h4>
+              {occupancy?.rooms?.length ? (
+                occupancy.rooms.map((room) => (
+                  <div className="occupancy-row" key={room.id}>
+                    <b>#{room.id} {room.title}</b>
+                    <small>
+                      {room.mode} · {room.serverKey || '未锁定'} · {room.players}/{room.maxPlayers} 人
+                      {room.spectators ? ` · 观战 ${room.spectators}` : ''}
+                      {room.status === 'live' ? ' · 比赛中' : ' · 等待'}
+                    </small>
+                  </div>
+                ))
+              ) : (
+                <p className="rank-board-empty">当前没有进行中的约战。</p>
+              )}
+            </div>
+
+            <div className="occupancy-col">
+              <h4>
+                锁服排队 <span className="pill">{occupancy?.queue.length ?? 0}</span>
+              </h4>
+              {occupancy?.queue?.length ? (
+                occupancy.queue.map((entry, index) => (
+                  <div className="occupancy-row" key={`${entry.serverKey}:${entry.username}:${index}`}>
+                    <b>
+                      {index + 1}. {entry.username}
+                      {entry.priority === 'ranked' ? <span className="tag is-ranked-priority">排位优先</span> : null}
+                    </b>
+                    <small>
+                      {entry.serverKey} · {entry.kind === 'ranked' ? '排位' : '约战'} · 等待中
+                    </small>
+                  </div>
+                ))
+              ) : (
+                <p className="rank-board-empty">当前没有排队。</p>
+              )}
+            </div>
+
+            <div className="occupancy-col">
+              <h4>
+                实时排位 <span className="pill">{occupancy?.matches.length ?? 0}</span>
+              </h4>
+              {occupancy?.matches?.length ? (
+                occupancy.matches.map((match) => (
+                  <div className="occupancy-row" key={match.id}>
+                    <b>#{match.id} {match.mode} 排位</b>
+                    <small>
+                      {match.serverKey} · {match.players} 人 · 进行中
+                    </small>
+                  </div>
+                ))
+              ) : (
+                <p className="rank-board-empty">当前没有实时排位对局。</p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {canSeeAudit && (
         <section className="admin-section" data-key="audit" data-open={openSection === 'audit'}>

@@ -60,6 +60,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const off = window.electronAPI?.game?.onMatchEnd?.(({ seconds } = {}) => {
+      showToast(`比赛已结束，${seconds || 10} 秒后自动退出游戏`, 'ok');
+    });
+    return () => {
+      if (typeof off === 'function') off();
+    };
+  }, [showToast]);
+
+  useEffect(() => {
     let alive = true;
 
     (async () => {

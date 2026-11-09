@@ -228,6 +228,7 @@ function HistoryPanel({ history, onOpen }) {
               <span className={`rank-history-tag${row.result === 'win' ? ' is-win' : ' is-loss'}`}>
                 {row.result === 'win' ? '胜' : '负'}
               </span>
+              {row.afk ? <span className="rank-history-afk" title="离开比赛被判负，固定扣 30 分">AFK</span> : null}
               <span className="rank-history-main">
                 <b>{row.mode} 排位</b>
                 <small>

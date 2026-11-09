@@ -12290,3 +12290,61 @@ select:focus {
 .room-queue-btn.is-challenge:hover { background:rgba(255,200,97,.14); }
 
 .tag.is-warn { color:#ffc861; border-color:rgba(255,200,97,.36); background:rgba(255,200,97,.08); }
+
+/* 0.6 · AFK 战绩标记 */
+.rank-history-afk {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #ffc861;
+  border: 1px solid rgba(255, 200, 97, 0.36);
+  background: rgba(255, 200, 97, 0.08);
+}
+
+/* 0.6 · 管理台占用看板 */
+.occupancy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  padding: 4px 0 2px;
+}
+.occupancy-col h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--tx-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.occupancy-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  margin-bottom: 6px;
+}
+.occupancy-row b {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.occupancy-row small {
+  font-size: 11.5px;
+  color: var(--tx-3);
+}
+.tag.is-ranked-priority {
+  font-size: 10px;
+  padding: 2px 6px;
+  color: #b79dff;
+  border-color: rgba(183, 157, 255, 0.4);
+  background: rgba(183, 157, 255, 0.12);
+}

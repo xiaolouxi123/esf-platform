@@ -263,6 +263,7 @@ async function downloadAsset(settings, token, id) {
 /* ---------------- 管理台 ---------------- */
 
 const adminOverview = (settings, token) => request(settings, { path: '/api/admin/overview', token });
+const adminOccupancy = (settings, token) => request(settings, { path: '/api/admin/occupancy', token });
 
 const adminUsers = (settings, token, params) =>
   request(settings, { path: `/api/admin/users${queryString(params)}`, token });
@@ -450,6 +451,7 @@ module.exports = {
   uploadAsset,
   downloadAsset,
   adminOverview,
+  adminOccupancy,
   adminUsers,
   adminUpdateUser,
   adminKickUser,

@@ -659,4 +659,75 @@ router.patch('/admin/platform', requireRole('ops', 'admin', 'owner'), async (req
   }
 });
 
+/** 0.6 占用看板：正在进行的约战房间、锁服队列、排位实时对局 */
+router.get('/admin/occupancy', requireRole('admin', 'owner'), async (req, res, next) => {
+  try {
+    const rooms = await q(
+      `SELECT r.id, r.title, r.mode, r.map, r.server_key, r.status, r.max_players,
+              r.created_at, r.started_at, r.time_limit_sec,
+              u.username AS host,
+              (SELECT COUNT(*) FROM challenge_room_players p WHERE p.room_id = r.id) AS players,
+              (SELECT COUNT(*) FROM challenge_room_players p WHERE p.room_id = r.id AND p.ready = 1) AS ready,
+              (SELECT COUNT(*) FROM challenge_spectators s WHERE s.room_id = r.id) AS spectators
+         FROM challenge_rooms r
+         LEFT JOIN users u ON u.id = r.host_id
+        WHERE r.status IN ('waiting', 'live')
+        ORDER BY r.id DESC`
+    );
+    const queue = await q(
+      `SELECT cq.server_key, cq.kind, cq.created_at, u.username,
+              EXISTS(SELECT 1 FROM ranked_queue rq WHERE rq.user_id = cq.user_id) AS ranked_waiting
+         FROM challenge_queue cq
+         JOIN users u ON u.id = cq.user_id
+        ORDER BY cq.server_key ASC, ranked_waiting DESC, cq.created_at ASC`
+    );
+    const matches = await q(
+      `SELECT m.id, m.server_key, m.mode, m.status, m.started_at,
+              (SELECT COUNT(*) FROM ranked_match_players p WHERE p.match_id = m.id) AS players
+         FROM ranked_matches m
+        WHERE m.status = 'live'
+        ORDER BY m.id DESC`
+    );
+    res.json({
+      ok: true,
+      data: {
+        rooms: rooms.map((row) => ({
+          id: Number(row.id),
+          title: row.title,
+          mode: row.mode,
+          map: row.map,
+          serverKey: row.server_key,
+          status: row.status,
+          host: row.host,
+          maxPlayers: Number(row.max_players),
+          players: Number(row.players),
+          ready: Number(row.ready),
+          spectators: Number(row.spectators),
+          createdAt: row.created_at,
+          startedAt: row.started_at,
+          timeLimitSec: Number(row.time_limit_sec) || 900,
+        })),
+        queue: queue.map((row) => ({
+          serverKey: row.server_key,
+          username: row.username,
+          kind: row.kind,
+          priority: Number(row.ranked_waiting) === 1 ? 'ranked' : 'challenge',
+          createdAt: row.created_at,
+        })),
+        matches: matches.map((row) => ({
+          id: Number(row.id),
+          serverKey: row.server_key,
+          mode: row.mode,
+          status: row.status,
+          players: Number(row.players),
+          startedAt: row.started_at,
+        })),
+        generatedAt: new Date().toISOString(),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
