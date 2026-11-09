@@ -72,6 +72,7 @@ $files = @(
   'server',
   'deploy/ops-agent',
   'scripts/release.ps1',
+  'scripts/update-releases.js',
   'docs/kb',
   'docs/design'
 )
