@@ -1,5 +1,15 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell, Tray, nativeImage } = require('electron');
 const path = require('path');
+
+// 测试版必须在 Chromium 启动前切走 userData，否则 localStorage 里的正式账号
+// 仍会被测试版读到（仅切 settings/session 文件不够）。
+const IS_TEST_PROFILE = process.argv.includes('--test-profile');
+if (IS_TEST_PROFILE) {
+  const testUserData = path.join(app.getPath('appData'), 'esf-launcher-test');
+  app.setPath('userData', testUserData);
+  app.commandLine.appendSwitch('user-data-dir', testUserData);
+}
+
 const fs = require('fs');
 const zlib = require('zlib');
 const crypto = require('crypto');
