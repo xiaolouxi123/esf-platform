@@ -87,7 +87,7 @@ const env = {
     expected: {
       platform_auth: str(process.env.AMXX_EXPECTED_PLATFORM_AUTH, '0.47'),
       ranked_lock: str(process.env.AMXX_EXPECTED_RANKED_LOCK, '0.47'),
-      test_ranked: str(process.env.AMXX_EXPECTED_TEST_RANKED, '1.2.3-teamtest'),
+      test_ranked: str(process.env.AMXX_EXPECTED_TEST_RANKED, '1.3.0-teamtest'),
       gamemode: str(process.env.AMXX_EXPECTED_GAMEMODE, '1.0.0'),
     },
     heartbeatStaleSeconds: num(process.env.AMXX_HEARTBEAT_STALE_SECONDS, 15 * 60),
