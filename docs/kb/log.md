@@ -2,12 +2,14 @@
 title: 变更日志
 category: log
 tags: [log]
-updated: 2026-11-09T07:55:00+08:00
+updated: 2026-11-09T20:20:00+08:00
 ---
 
 # 变更日志
 
 新在上。一行一条：日期 · 改了什么 · 依据。
+
+- 2026-11-09 · 启动器 0.5.1（启动兼容包）：启动失败自动重试 2 次；15s/25s 窗口检测，无窗口可一键直接启动 `no_hl.exe`；设置 → 启动兼容 新增兼容模式（窗口化 800×600 + `-gl` + `-heapsize 262144`）；新增 `launcher.log` 与一键诊断包。提交 8d3a2fd，tag v0.5.1；差量 0.5.0→0.5.1 下载 1,685,174 B。新增 `decision/launch-compat`。
 
 - 2026-11-09 · 插件 0.48 审计修正：线上 `fix/amxx-ascii-logs`（dd3a868）包含 r14 提交 c333c33 + 0.48 修复，r14 的 R1/R5/R7/R8/R10 修复已在线上；main 306cd47 早于线上，不能作为现状基线。剩余功能缺口是自动分边。另发现源码 `BUILD 0.47` / `lock VERSION 1.3.0` 与包 `0.48` / README `1.2.0` 不一致，0.48 发布物不能由当前分支构建脚本直接复现；已记入 `current-state` 的版本一致性行与 `known-issues` 第 8 条。
 - 2026-11-09 · 插件待办：记录“开局不会自动分配队伍”——`autoPlayerStart()` 只统计 `Get_Team()`，全文件无 `jointeam` 下发；ESF 切队有 8 秒冷却。候选方案（engclient_cmd + 8.2s 重试 + 校验 / 逆向 ESF.dll 找冷却 cvar / 启动器预选）写入 `debugging/known-issues` 第 8 条，并挂到 `current-state` 待办 9。
