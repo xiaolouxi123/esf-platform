@@ -87,3 +87,11 @@ QQ 邮箱授权码获取：QQ 邮箱网页 → 设置 → 账户 → POP3/IMAP/S
 - 端到端验证（2026-11-09）：开启 → 登录要求 2FA → TOTP 通过 → 会话列表含当前设备 → 备用码登录成功且二次使用 401 → 关闭成功；弱密码注册 400。
 - 已知边界：未做 2FA 重置（丢手机只能靠管理员改库/重置密码流程再关闭）；未做设备指纹，UA 可能被伪造；限流仍按 IP。
 - 注意：备用码是 9 字符（`XXXX-XXXX`），校验正则必须是 `{8,}` 而不是 `{10,}`（0.4.16 修复的一条实际 bug）。
+
+## 注销账号（0.5.2）
+
+- 仅**所有者**可调用：`DELETE /api/admin/users/:id`（`requireRole('owner')`），不能注销自己，不能注销其他 owner。
+- 语义是**软删除**，不物理删行：`status='banned'`、`role='user'`、`title_id=NULL`、`username=CONCAT('deleted_',id,'_',随机)`、`game_name='已注销账号'`、清空 `email/email_verified_at/status_text`、`token_version+1`；同时删 `user_sessions`/`email_codes`/`password_reset_tokens`。
+- 历史对局与 `ranked_matches`/`ranked_match_players` 保留（外键与统计需要），因此注销后仍能在旧战绩里看到原用户名历史；如果以后要匿名化，需要单独迁移。
+- 管理台行为：用户行「注销」按钮 `confirm` 后调用，成功后刷新列表；不可撤销，只能重新注册。
+- 边界：软删除后 `username` 仍占唯一索引（改成 `deleted_<id>_<随机>` 释放原用户名）；同一账号再次登录会被 `status != active` 拒绝。

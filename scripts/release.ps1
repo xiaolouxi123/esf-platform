@@ -275,8 +275,15 @@ function Deploy-Box {
         ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
       Start-Sleep -Seconds 1
       schtasks /run /tn ESFAPI | Out-Null
-      Start-Sleep -Seconds 6
-      $h = Invoke-RestMethod 'http://127.0.0.1:3000/api/health' -TimeoutSec 10
+      $h = $null
+      for ($i = 0; $i -lt 20; $i++) {
+        Start-Sleep -Seconds 2
+        try {
+          $probe = Invoke-RestMethod 'http://127.0.0.1:3000/api/health' -TimeoutSec 5
+          if ($probe.ok) { $h = $probe; break }
+        } catch { }
+      }
+      if (-not $h) { throw 'API did not become healthy within 40s' }
       $c = Invoke-RestMethod 'http://127.0.0.1:3000/api/config' -TimeoutSec 10
       $nodeExe = if (Test-Path 'C:\esf\node\node.exe') { 'C:\esf\node\node.exe' } else { (Get-Command node.exe).Source }
       $noticeOut = & $nodeExe 'C:\esf\server\scripts\release-notice.js' 2>&1
