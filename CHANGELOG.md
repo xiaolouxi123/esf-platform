@@ -2,6 +2,30 @@
 
 所有重要变更记录在这里。格式参考 Keep a Changelog。
 
+## [0.5.21] - 2026-11-10
+
+插件中心与本地测试修复包。
+
+### Added
+
+- 插件中心独立页：从设置抽屉移到左侧栏，集中展示本地 `.amxx`、cvar、平台心跳和 AMXX 日志
+- 测试 profile：`--test-profile` 使用独立 Chromium `userData` / settings / 登录态，不碰正式账号
+- 服务端插件可观测性：`GET /api/plugins/observability` + `amxx_builds` 心跳，支持 ok/drift/stale/missing 状态
+- 比赛结束强杀：AMXX 写 `esf_match_end.flag`，启动器轮询后只结束本次启动捕获的游戏 PID
+
+### Fixed
+
+- 恢复首次进服/选队原始流程：`jointeam`、`change_class`、`spectate` 不再加全局门禁
+- 比赛期 V 换队：`change_team` 在 `g_iBattle` 时全部拦截，不再依赖 `g_iWarrior`
+- 强杀不再按镜像名全杀，避免 `hl.exe` 壳与 `no_hl.exe` 重启窗口互相误杀
+- `test_ranked` 心跳改到 `OnRankedPing` 成功后写入，面板能读到 1.3.4 心跳
+- HUD 非 ASCII 队名回退为 `GOOD` / `EVIL`
+
+### Changed
+
+- `test_ranked` 版本 `1.3.4-teamtest`；面板 expected/hash 同步
+- 插件中心入口使用左侧栏独立导航，不再挤占设置页
+
 ## [0.5.2] - 2026-11-10
 
 地图记忆、账号注销与管理台精简。
