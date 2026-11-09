@@ -36,6 +36,7 @@
 #define TASK_CHALLENGE_END 4700
 #define TASK_CHALLENGE_STATS 4750
 #define TASK_CHALLENGE_PARTIAL 4760
+#define TASK_CHALLENGE_TIMEOUT 4950
 #define TASK_CHALLENGE_FORFEIT 4920
 #define TASK_CHALLENGE_SETTLE 4900
 #define TASK_CHALLENGE_QUORUM 4930
@@ -110,6 +111,7 @@ new g_challengeVictory[16];
 new g_challengeWinner[2];
 new g_challengeScoreA = 0;
 new g_challengeScoreB = 0;
+new g_challengeRemaining = 0;
 new g_challengeSettleQuery[320];
 new g_challengeStatsQuery[1100];
 new g_challengeSlots = 0;
@@ -502,7 +504,7 @@ public taskChallengeIdentify(taskid) {
 
     new query[1024];
     formatex(query, charsmax(query),
-        "SELECT r.id, p.team, COALESCE(c.victory_type, 'kills'), COALESCE(c.victory_limit, 10), t.user_id, r.mode \
+        "SELECT r.id, p.team, COALESCE(c.victory_type, 'kills'), COALESCE(c.victory_limit, 10), t.user_id, r.time_limit_sec, TIMESTAMPDIFF(SECOND, r.started_at, NOW()), r.mode \
            FROM launch_tokens t \
            JOIN challenge_room_players p ON p.user_id = t.user_id \
            JOIN challenge_rooms r ON r.id = p.room_id \
@@ -568,6 +570,13 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
     g_challengeKnown++;
     copy(g_challengeVictory, charsmax(g_challengeVictory), type);
     g_challengeLimit = (limit >= 3 && limit <= 50) ? limit : 10;
+    new limitSec = SQL_ReadResult(query, 5);
+    new elapsedSec = SQL_ReadResult(query, 6);
+    if (limitSec <= 0) limitSec = 900;
+    g_challengeRemaining = limitSec - elapsedSec;
+    if (g_challengeRemaining < 0) g_challengeRemaining = 0;
+    if (task_exists(TASK_CHALLENGE_TIMEOUT)) remove_task(TASK_CHALLENGE_TIMEOUT);
+    set_task(10.0, "taskChallengeTimeout", TASK_CHALLENGE_TIMEOUT, _, _, "b");
     get_user_name(id, g_challengeName[id], 31);
 
     new teamStr[2];
@@ -900,6 +909,48 @@ bool:checkChallengeFinish() {
 
     beginChallengeSettlement(winner, scoreA, scoreB);
     return true;
+}
+
+/** 15 分钟限时：每 10 秒扣一次，归零后按当前比分结束 */
+public taskChallengeTimeout()
+{
+    if (!g_iBattle || !g_challengeActive || g_challengeSettled) {
+        remove_task(TASK_CHALLENGE_TIMEOUT);
+        return;
+    }
+    g_challengeRemaining -= 10;
+    if (g_challengeRemaining > 0) {
+        if (g_challengeRemaining <= 300 && g_challengeRemaining % 60 == 0) {
+            client_print(0, print_chat, "[约战] 本局剩余 %d 分钟", g_challengeRemaining / 60);
+        }
+        return;
+    }
+    remove_task(TASK_CHALLENGE_TIMEOUT);
+    forceChallengeTimeout();
+}
+
+forceChallengeTimeout()
+{
+    if (!g_iBattle || !g_challengeActive || g_challengeSettled || g_challengeRoomId == 0) return;
+
+    new scoreA = 0, scoreB = 0;
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        if (g_challengeTeam[i] == 0) continue;
+        if (g_challengeTeam[i] == 1) scoreA += g_challengeKills[i];
+        else scoreB += g_challengeKills[i];
+    }
+
+    new winner[2];
+    copy(winner, charsmax(winner), scoreA >= scoreB ? "a" : "b");
+    copy(g_challengeVictory, charsmax(g_challengeVictory), "kills");
+    g_challengeLimit = (scoreA > scoreB ? scoreA : scoreB);
+    if (g_challengeLimit < 3) g_challengeLimit = 3;
+
+    log_amx("[ESF-CHALLENGE] timeout room=%d score=%d:%d winner=%s",
+        g_challengeRoomId, scoreA, scoreB, winner);
+    client_print(0, print_chat, "[约战] 时间到，%s队按比分获胜 %d:%d，正在上传战绩...",
+        winner[0] == 'a' ? "A" : "B", scoreA, scoreB);
+    beginChallengeSettlement(winner, scoreA, scoreB);
 }
 
 public taskForceChallengeEnd()
@@ -2786,6 +2837,8 @@ resetAll()
     g_rankedSettled=false;
     for(new i = 1; i <= get_maxplayers(); i++) g_rankedTeam[i]=0;
 
+    remove_task(TASK_CHALLENGE_TIMEOUT);
+    g_challengeRemaining = 0;
     g_challengeActive = false;
     g_challengeRoomId = 0;
     g_challengeKnown = 0;

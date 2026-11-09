@@ -23,7 +23,7 @@
 
 #define PLUGIN  "ESF Platform Auth"
 #define VERSION "1.2.0"
-#define BUILD   "0.47"
+#define BUILD   "0.49"
 #define AUTHOR  "ESF Platform"
 
 #define TASK_VERIFY 1000
@@ -124,7 +124,7 @@ DbStatus:ensureDatabase() {
     // 中文昵称必须 utf8mb4，否则读出来是乱码
     SQL_SetCharset(g_db, "utf8mb4");
     g_dbReady = true;
-    log_amx("[Platform] database connected (%s) build 0.47", host);
+    log_amx("[Platform] database connected (%s) build 0.49", host);
     recordBuildHeartbeat();
     return DbReady;
 }
