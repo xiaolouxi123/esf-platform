@@ -160,6 +160,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateUser: (id, patch) => call('admin:update-user', { id, ...patch }),
     kickUser: (id) => call('admin:kick-user', { id }),
     resetPassword: (id) => call('admin:reset-password', { id }),
+    deleteUser: (id) => call('admin:delete-user', { id }),
     assets: (status) => call('admin:assets', { status }),
     setAssetStatus: (id, status) => call('admin:asset-status', { id, status }),
     audit: (params) => call('admin:audit', params),

@@ -11371,3 +11371,35 @@ select:focus {
   background: rgba(5, 7, 11, 0.42);
   backdrop-filter: blur(1.5px);
 }
+
+/* ---- 管理台：折叠栏目（0.5.2） ---- */
+.admin-stack { display: flex; flex-direction: column; gap: 14px; }
+.admin-stack .admin-section-head { cursor: pointer; user-select: none; }
+.admin-stack .admin-section-head::after {
+  content: '▾';
+  margin-left: auto;
+  padding-left: 10px;
+  color: var(--tx-3);
+  font-size: 12px;
+  transition: transform .18s ease;
+}
+.admin-stack .admin-section[data-open="false"] > .admin-section-head::after,
+.admin-stack .admin-collapse[data-open="false"] .admin-section > .admin-section-head::after {
+  transform: rotate(-90deg);
+}
+.admin-stack .admin-section[data-open="false"] > *:not(.admin-section-head),
+.admin-stack .admin-collapse[data-open="false"] .admin-section > *:not(.admin-section-head) {
+  display: none;
+}
+.admin-stack .admin-section[data-open="false"] > .admin-section-head .admin-filters,
+.admin-stack .admin-collapse[data-open="false"] .admin-section > .admin-section-head .admin-filters {
+  display: none;
+}
+.admin-stack .admin-section[data-open="false"],
+.admin-stack .admin-collapse[data-open="false"] .admin-section {
+  padding-bottom: 16px;
+}
+.admin-hero { min-height: 0; padding: 22px 26px 18px; }
+.admin-hero .hero-art { display: none; }
+.admin-hero .hero-title { font-size: 30px; }
+.admin-hero .hero-foot { margin-top: 12px; }

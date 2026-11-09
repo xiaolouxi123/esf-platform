@@ -1487,6 +1487,13 @@ handle('admin:reset-password', async ({ id } = {}) => {
   return data;
 });
 
+handle('admin:delete-user', async ({ id } = {}) => {
+  requireOwner();
+  const data = await apiCall(api.adminDeleteUser, getSettings(), requireToken(), id);
+  log(`🛡️ 账号 ${id} 已被注销`);
+  return data;
+});
+
 handle('admin:assets', async ({ status } = {}) => {
   requireStaff();
   return apiCall(api.adminAssets, getSettings(), requireToken(), status || 'pending');
