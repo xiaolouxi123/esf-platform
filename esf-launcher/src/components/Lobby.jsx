@@ -729,6 +729,28 @@ export default function Lobby({
 
   const openSettings = () => setSettingsOpen(true);
 
+  const memberCollapsed = settings?.memberPanelCollapsed === true;
+  const toggleMemberPanel = async () => {
+    const next = await window.electronAPI.settings.update({
+      memberPanelCollapsed: !memberCollapsed,
+    });
+    onSettingsChanged?.(next);
+  };
+
+  useEffect(() => {
+    const onKey = (event) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'm') return;
+      const tag = event.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target?.isContentEditable) return;
+      event.preventDefault();
+      window.electronAPI.settings
+        .update({ memberPanelCollapsed: !(settings?.memberPanelCollapsed === true) })
+        .then((next) => onSettingsChanged?.(next));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [settings?.memberPanelCollapsed, onSettingsChanged]);
+
   const saveSettings = async (patch) => {
     const next = await window.electronAPI.settings.update(patch);
     onSettingsChanged?.(next);
@@ -772,7 +794,7 @@ export default function Lobby({
         onOpenSettings={openSettings}
       />
 
-      <div className={`workspace${['servers', 'assets', 'admin', 'ranked', 'challenges', 'plugins'].includes(activePage) ? ' workspace--wide' : ''}`}>
+      <div className={`workspace${['servers', 'assets', 'admin', 'ranked', 'challenges', 'plugins'].includes(activePage) ? ' workspace--wide' : ''}${memberCollapsed ? ' workspace--members-collapsed' : ''}`}>
         <aside className="game-rail">
           <button
             type="button"
@@ -1520,22 +1542,22 @@ export default function Lobby({
           )}
         </main>
 
-        {(activePage === 'lobby' || activePage === 'channel') && (
-          <aside className="rail rail--members">
-            <MemberSidebar
-              user={user}
-              titles={titles}
-              ranks={combatRanks}
-              stats={stats}
-              coins={coins}
-              staff={staff}
-              toast={toast}
-              onTitlesChanged={loadTitles}
-              onOpenSettings={openSettings}
-              onOpenAdmin={() => setPage('admin')}
-            />
-          </aside>
-        )}
+        <aside className="rail rail--members">
+          <MemberSidebar
+            user={user}
+            titles={titles}
+            ranks={combatRanks}
+            stats={stats}
+            coins={coins}
+            staff={staff}
+            toast={toast}
+            onTitlesChanged={loadTitles}
+            onOpenSettings={openSettings}
+            onOpenAdmin={() => setPage('admin')}
+            collapsed={memberCollapsed}
+            onToggleCollapse={toggleMemberPanel}
+          />
+        </aside>
       </div>
 
       <footer className="statusbar">

@@ -27,6 +27,8 @@ export default function MemberSidebar({
   onTitlesChanged,
   onOpenSettings,
   onOpenAdmin,
+  collapsed = false,
+  onToggleCollapse,
 }) {
   const [members, setMembers] = useState([]);
   const [keyword, setKeyword] = useState('');
@@ -84,10 +86,17 @@ export default function MemberSidebar({
     setEditingStatus(false);
   };
 
-  /** 成员行状态：优先自定义状态，其次按对局/服务器自动推导 */
+  /** 成员行状态：优先自定义状态，其次约战/排位/游戏内自动推导 */
   const activityOf = (member) => {
     if (!member.online) return '离线';
     if (member.statusText) return member.statusText;
+    if (member.challenge) {
+      const c = member.challenge;
+      if (c.status === 'live') {
+        return `约战游戏中 · ${c.mode || '1v1'}${c.map ? ` · ${c.map}` : ''}`;
+      }
+      return c.ready ? '约战中 · 已准备' : '约战中 · 未准备';
+    }
     if (member.ranked) {
       const label =
         member.ranked.status === 'queued'
@@ -255,7 +264,52 @@ export default function MemberSidebar({
   }
 
   const onlineCount = members.filter((member) => member.online).length;
+  const onlineMembers = sorted.filter((member) => member.online);
   const selfTitle = titleById.get(Number(user?.titleId));
+
+  if (collapsed) {
+    return (
+      <aside className="member-sidebar card is-collapsed">
+        <button
+          type="button"
+          className="member-collapse-btn"
+          title="展开成员列表（Ctrl+M）"
+          onClick={onToggleCollapse}
+        >
+          <Icon name="chevronLeft" size={14} />
+        </button>
+        <span className="member-mini-count" title={`${members.length} 位 · ${onlineCount} 在线`}>
+          <span className="dot dot--on" />
+          {onlineCount}
+        </span>
+        <div className="member-mini-list">
+          {onlineMembers.slice(0, 10).map((member) => (
+            <button
+              key={member.id}
+              type="button"
+              className="member-mini-avatar"
+              title={`${member.gameName || member.username} · ${activityOf(member)}`}
+              onClick={() => openProfile(member)}
+            >
+              <Avatar user={member} size="xs" />
+              <span
+                className={`member-mini-dot${member.state === 'ingame' ? ' is-ingame' : ''}${member.challenge ? ' is-challenge' : member.ranked ? ' is-ranked' : ''}`}
+              />
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="member-mini-settings"
+          title="我的资料与设置"
+          onClick={onOpenSettings}
+        >
+          <Avatar user={user} size="xs" />
+        </button>
+      </aside>
+    );
+  }
+
   const profileMeta = profile ? metaOf(profile) : null;
 
   return (
@@ -267,6 +321,14 @@ export default function MemberSidebar({
         <span>
           {members.length} 位 · {onlineCount} 在线
         </span>
+        <button
+          type="button"
+          className="member-collapse-btn"
+          title="收起成员列表（Ctrl+M）"
+          onClick={onToggleCollapse}
+        >
+          <Icon name="chevronRight" size={14} />
+        </button>
       </header>
 
       <div className="member-self">
@@ -386,6 +448,11 @@ export default function MemberSidebar({
                           </span>
                         );
                       })()}
+                      {member.challenge && (
+                        <span className={`member-ranked is-challenge${member.challenge.status === 'live' ? ' is-live' : ''}`}>
+                          {member.challenge.status === 'live' ? '约战游戏中' : '约战中'}
+                        </span>
+                      )}
                       {member.ranked && (
                         <span className={`member-ranked is-${member.ranked.status}`}>
                           {member.ranked.status === 'queued'
@@ -398,7 +465,7 @@ export default function MemberSidebar({
                     </span>
                   </span>
                   <span
-                    className={`member-dot${member.online ? (member.state === 'ingame' ? ' is-ingame' : '') : ' is-offline'}${member.ranked ? ' is-ranked' : ''}`}
+                    className={`member-dot${member.online ? (member.state === 'ingame' ? ' is-ingame' : '') : ' is-offline'}${member.challenge ? ' is-challenge' : member.ranked ? ' is-ranked' : ''}`}
                   />
                 </div>
               ))}
@@ -462,6 +529,13 @@ export default function MemberSidebar({
                     <span className={`member-profile-state${profile.online ? ' is-online' : ''}`}>
                       {profile.online ? (profile.state === 'ingame' ? '游戏中' : '在线') : '离线'}
                     </span>
+                    {profile.challenge && (
+                      <span className={`member-ranked is-challenge${profile.challenge.status === 'live' ? ' is-live' : ''}`}>
+                        {profile.challenge.status === 'live' ? '约战游戏中' : '约战中'}
+                        {' · '}
+                        {profile.challenge.mode || '1v1'}
+                      </span>
+                    )}
                     {profile.ranked && (
                       <span className={`member-ranked is-${profile.ranked.status}`}>
                         {profile.ranked.status === 'queued'

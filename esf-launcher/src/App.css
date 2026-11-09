@@ -3952,8 +3952,9 @@ select:focus {
 .asset-cover-fallback--other { color: #a9b3c7; }
 /* 资源卡更紧凑：4 列 + 120px 封面 */
 /* ============================ 游戏图标栏 + 地图抽屉 ============================ */
-.workspace { grid-template-columns: 72px minmax(0, 1fr) 320px; }
-.workspace--wide { grid-template-columns: 72px minmax(0, 1fr); }
+.workspace { grid-template-columns: 72px minmax(0, 1fr) 320px; transition: grid-template-columns 180ms ease; }
+.workspace--wide { grid-template-columns: 72px minmax(0, 1fr) 320px; }
+.workspace--members-collapsed { grid-template-columns: 72px minmax(0, 1fr) 56px; }
 
 .game-rail {
   display: flex;
@@ -6498,6 +6499,22 @@ select:focus {
 .member-ranked.is-live {
   color: var(--red);
   background: rgba(255, 95, 109, 0.1);
+}
+
+/* 约战：等待紫、开赛橙，和排位的黄/青/红区分开 */
+.member-ranked.is-challenge {
+  color: #b79dff;
+  background: rgba(183, 157, 255, 0.12);
+}
+
+.member-ranked.is-challenge.is-live {
+  color: #ff9e45;
+  background: rgba(255, 158, 69, 0.14);
+}
+
+.member-dot.is-challenge {
+  background: #b79dff;
+  box-shadow: 0 0 0 3px rgba(183, 157, 255, 0.16);
 }
 
 .member-dot.is-ranked {
@@ -12149,3 +12166,119 @@ select:focus {
 .admin { min-height: 0; }
 .admin-hero { flex: 0 0 auto; max-height: none; min-height: 0; }
 .admin-stack { flex: 0 0 auto; }
+
+
+/* ============================ 成员面板：收起 / 展开 ============================ */
+.member-collapse-btn {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.member-collapse-btn:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.member-sidebar.is-collapsed {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 6px;
+  overflow: hidden;
+}
+
+.member-sidebar.is-collapsed .member-collapse-btn {
+  margin: 0;
+}
+
+.member-mini-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.member-mini-count .dot {
+  width: 6px;
+  height: 6px;
+}
+
+.member-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.member-mini-list::-webkit-scrollbar {
+  display: none;
+}
+
+.member-mini-avatar {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 0;
+  transition: transform 120ms ease;
+}
+
+.member-mini-avatar:hover {
+  transform: translateY(-1px);
+}
+
+.member-mini-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  border: 1px solid var(--bg-1);
+}
+
+.member-mini-dot.is-ingame {
+  background: var(--accent);
+}
+
+.member-mini-dot.is-ranked {
+  background: var(--yellow);
+}
+
+.member-mini-dot.is-challenge {
+  background: #b79dff;
+}
+
+.member-mini-settings {
+  margin-top: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 0;
+  opacity: 0.9;
+}
+
+.member-mini-settings:hover {
+  opacity: 1;
+}

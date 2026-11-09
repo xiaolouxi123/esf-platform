@@ -29,13 +29,23 @@ router.get('/members', requireAuth, async (req, res, next) => {
               (SELECT rm.status FROM ranked_match_players rmp
                  JOIN ranked_matches rm ON rm.id = rmp.match_id
                 WHERE rmp.user_id = u.id AND rm.status IN ('waiting', 'live')
-                ORDER BY rm.id DESC LIMIT 1) AS ranked_match_status
+                ORDER BY rm.id DESC LIMIT 1) AS ranked_match_status,
+              cr.id AS challenge_room_id, cr.status AS challenge_status,
+              cr.mode AS challenge_mode, cr.map AS challenge_map,
+              cp.ready AS challenge_ready, cp.team AS challenge_team
          FROM users u
          LEFT JOIN presence p
            ON p.user_id = u.id
           AND p.updated_at > (NOW() - INTERVAL ? SECOND)
          LEFT JOIN servers s ON s.server_key = p.server_key
          LEFT JOIN server_status st ON st.server_id = s.id
+         LEFT JOIN challenge_rooms cr
+           ON cr.id = (SELECT cp1.room_id FROM challenge_room_players cp1
+                         JOIN challenge_rooms cr1 ON cr1.id = cp1.room_id
+                        WHERE cp1.user_id = u.id AND cr1.status IN ('waiting', 'live')
+                        ORDER BY cp1.room_id DESC LIMIT 1)
+         LEFT JOIN challenge_room_players cp
+           ON cp.room_id = cr.id AND cp.user_id = u.id
         WHERE u.status = 'active'
         ORDER BY u.id ASC
         LIMIT 500`,
@@ -65,6 +75,16 @@ router.get('/members', requireAuth, async (req, res, next) => {
             : row.ranked_match_mode
               ? { mode: row.ranked_match_mode, status: row.ranked_match_status }
               : null,
+          challenge: row.challenge_room_id
+            ? {
+                roomId: Number(row.challenge_room_id),
+                status: row.challenge_status,
+                mode: row.challenge_mode || null,
+                map: row.challenge_map || null,
+                ready: Boolean(Number(row.challenge_ready)),
+                team: row.challenge_team || null,
+              }
+            : null,
           updatedAt: row.updated_at || null,
         })),
       },
@@ -138,13 +158,23 @@ router.get('/members/:id', requireAuth, async (req, res, next) => {
               (SELECT COUNT(*) FROM play_sessions p WHERE p.user_id = u.id) AS sessions,
               (SELECT COALESCE(SUM(p.duration_sec), 0) FROM play_sessions p WHERE p.user_id = u.id) AS total_seconds,
               p.state, p.server_key, p.updated_at,
-              s.name AS server_name, st.map AS server_map
+              s.name AS server_name, st.map AS server_map,
+              cr.id AS challenge_room_id, cr.status AS challenge_status,
+              cr.mode AS challenge_mode, cr.map AS challenge_map,
+              cp.ready AS challenge_ready, cp.team AS challenge_team
          FROM users u
          LEFT JOIN presence p
            ON p.user_id = u.id
           AND p.updated_at > (NOW() - INTERVAL ? SECOND)
          LEFT JOIN servers s ON s.server_key = p.server_key
          LEFT JOIN server_status st ON st.server_id = s.id
+         LEFT JOIN challenge_rooms cr
+           ON cr.id = (SELECT cp1.room_id FROM challenge_room_players cp1
+                         JOIN challenge_rooms cr1 ON cr1.id = cp1.room_id
+                        WHERE cp1.user_id = u.id AND cr1.status IN ('waiting', 'live')
+                        ORDER BY cp1.room_id DESC LIMIT 1)
+         LEFT JOIN challenge_room_players cp
+           ON cp.room_id = cr.id AND cp.user_id = u.id
         WHERE u.id = ? AND u.status = 'active'
         LIMIT 1`,
       [ONLINE_WINDOW_SECONDS, id]
@@ -177,6 +207,16 @@ router.get('/members/:id', requireAuth, async (req, res, next) => {
           totalSeconds: Number(row.total_seconds || 0),
           createdAt: row.created_at,
           lastLoginAt: row.last_login_at || null,
+          challenge: row.challenge_room_id
+            ? {
+                roomId: Number(row.challenge_room_id),
+                status: row.challenge_status,
+                mode: row.challenge_mode || null,
+                map: row.challenge_map || null,
+                ready: Boolean(Number(row.challenge_ready)),
+                team: row.challenge_team || null,
+              }
+            : null,
         },
       },
     });
