@@ -14,6 +14,13 @@ const paths = {
       <path d="M7 7.1h.01M7 16.9h.01" />
     </>
   ),
+  plug: (
+    <>
+      <path d="M9 3.8v3.4M15 3.8v3.4" />
+      <path d="M7 7.2h10v4.1a5 5 0 0 1-10 0z" />
+      <path d="M12 16.3v3.8" />
+    </>
+  ),
   settings: (
     <>
       <circle cx="12" cy="12" r="3.1" />

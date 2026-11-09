@@ -15,19 +15,53 @@ const { app, safeStorage } = require('electron');
 // 0.4.7 及更早版本的默认后端地址。0.4.8 起平台迁到 119.29.82.217。
 const LEGACY_DEFAULT_API_BASE_URL = 'http://119.91.99.176:3000';
 
+// 开发/测试版用独立 profile，避免和正式版的登录态、设置、自建服务器混在一起。
+// 快捷方式传 --test-profile 即可；正式版不带这个参数，仍用原来的 userData。
+const TEST_PROFILE = process.argv.includes('--test-profile');
+const TEST_PROFILE_DIR = 'esf-launcher-test';
+
 const DEFAULT_SETTINGS = {
   hlPath: '',
   esfModDir: '',
-  apiBaseUrl: 'http://119.29.82.217:3000',
+  apiBaseUrl: TEST_PROFILE ? 'http://127.0.0.1:3000' : 'http://119.29.82.217:3000',
   localServerKey: 'fcx-1v1-1',
   updateFeedUrl: '',
   soundEnabled: true,
 };
 
 function baseDir() {
-  const dir = app.getPath('userData');
+  const dir = TEST_PROFILE
+    ? path.join(app.getPath('appData'), TEST_PROFILE_DIR)
+    : app.getPath('userData');
   fs.mkdirSync(dir, { recursive: true });
   return dir;
+}
+
+/** 测试 profile 第一次启动时，从正式版复制游戏目录，但后端固定到本机。 */
+function seedTestProfile() {
+  if (!TEST_PROFILE) return;
+  try {
+    if (fs.existsSync(settingsPath())) return;
+    const prodPath = path.join(app.getPath('userData'), 'settings.json');
+    let prod = {};
+    try {
+      prod = JSON.parse(fs.readFileSync(prodPath, 'utf-8'));
+    } catch {
+      prod = {};
+    }
+    const seed = {
+      ...DEFAULT_SETTINGS,
+      hlPath: String(prod.hlPath || ''),
+      esfModDir: String(prod.esfModDir || ''),
+      localServerKey: String(prod.localServerKey || 'fcx-1v1-1'),
+      apiBaseUrl: 'http://127.0.0.1:3000',
+      updateFeedUrl: '',
+      soundEnabled: true,
+    };
+    fs.writeFileSync(settingsPath(), JSON.stringify(seed, null, 2), 'utf8');
+  } catch {
+    /* 生成失败就退回默认设置 */
+  }
 }
 
 function settingsPath() {
@@ -81,6 +115,7 @@ function migrateApiBaseUrl(settings) {
 }
 
 function loadSettings() {
+  seedTestProfile();
   let raw = {};
   try {
     if (fs.existsSync(settingsPath())) {

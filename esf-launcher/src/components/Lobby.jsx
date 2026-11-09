@@ -10,6 +10,7 @@ import ChatPanel from './ChatPanel';
 import RadarBadge from './RadarBadge';
 import RankedPage from './RankedPage';
 import ChallengePage from './ChallengePage';
+import PluginsPage from './PluginsPage';
 import ChallengeResultModal from './ChallengeResultModal';
 import ReleasesModal from './ReleasesModal';
 import ServerRoomList from './ServerRoomList';
@@ -753,7 +754,7 @@ export default function Lobby({
         onOpenSettings={openSettings}
       />
 
-      <div className={`workspace${['servers', 'assets', 'admin', 'ranked', 'challenges'].includes(activePage) ? ' workspace--wide' : ''}`}>
+      <div className={`workspace${['servers', 'assets', 'admin', 'ranked', 'challenges', 'plugins'].includes(activePage) ? ' workspace--wide' : ''}`}>
         <aside className="game-rail">
           <button
             type="button"
@@ -783,6 +784,15 @@ export default function Lobby({
             {chatUnread > 0 && (
               <span className="game-badge">{chatUnread > 99 ? '99+' : chatUnread}</span>
             )}
+          </button>
+          <button
+            type="button"
+            className={`game-tile game-tile--tool${activePage === 'plugins' ? ' is-active' : ''}`}
+            onClick={() => setPage(activePage === 'plugins' ? 'lobby' : 'plugins')}
+            title={activePage === 'plugins' ? '返回大厅' : '插件中心'}
+          >
+            <Icon name="plug" size={18} />
+            <small>{activePage === 'plugins' ? '返回' : '插件'}</small>
           </button>
           <span className="game-rail-spacer" />
           <RadarBadge
@@ -930,6 +940,8 @@ export default function Lobby({
               ranks={combatRanks}
               onJoinServer={joinServer}
             />
+          ) : activePage === 'plugins' ? (
+            <PluginsPage settings={settings} toast={toast} />
           ) : activePage === 'channel' ? (
             <div className="channel-page">
               <div className="channel-page-bar">
