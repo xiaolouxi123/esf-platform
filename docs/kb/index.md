@@ -30,6 +30,7 @@ updated: 2026-11-08T07:06:00+08:00
 | [[maintenance-channel]] | 114 免 RDP 维护通道：ops_jobs 命令队列与 pull agent |
 | [[ranked-challenge]] | 排位/约战业务规则：战绩历史、结算弹窗、按天房号、guest 与排位锁 |
 | [[challenge-limits]] | 约战限制（0.5.23）：只开单挑 1、单局 15 分钟、到点按比分结算 |
+| [[anti-occupy-06]] | 0.6 反占服与成员面板：AFK 判负、观战 4 人、锁服排队、可收缩面板、占用看板 |
 | [[amxx-plugins]] | AMXX 插件：UTF-8 构建、日志语言、构建心跳、自动更新管线 |
 | [[lobby-presence-sound]] | 成员状态行与界面音效：status_text 字段、自动活动、7 音效与开关 |
 | [[engine-mode]] | 新引擎（ESF Engine 1.0）：无 hl.exe，参数写 `engine.cfg` 的 `Launcher=` 行 |
