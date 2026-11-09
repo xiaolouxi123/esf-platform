@@ -693,6 +693,9 @@ export default function Lobby({
     if (!ensureGameDir() || !server?.serverKey) return;
     setJoinBusyKey(server.serverKey);
     try {
+      if (server.challenge?.id) {
+        await window.electronAPI.challenges.spectate(server.challenge.id);
+      }
       const result = await window.electronAPI.launch.spectate({
         serverKey: server.serverKey,
         ip: server.ip,
@@ -701,6 +704,25 @@ export default function Lobby({
       toast(`正在以观战模式进入 ${result.address}`, 'ok');
       window.electronAPI.presence.ping().catch(() => {});
       setTimeout(() => refreshServers({ silent: true }), 5000);
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setJoinBusyKey('');
+    }
+  };
+
+  const queueServer = async (server) => {
+    if (!server?.serverKey) return;
+    setJoinBusyKey(server.serverKey);
+    try {
+      const data = await window.electronAPI.challenges.queueJoin(server.serverKey);
+      const me = (data.entries || []).find((entry) => entry.mine);
+      toast(
+        me
+          ? `已排队，第 ${me.position} 位${me.priority === 'ranked' ? '（排位优先）' : ''}`
+          : '已加入排队',
+        'ok'
+      );
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -1010,6 +1032,7 @@ export default function Lobby({
               currentUserId={user?.id}
               onOpenRanked={() => setPage('ranked')}
               onSpectate={spectateServer}
+              onQueue={queueServer}
               onOpenChallenge={() => setPage('challenges')}
             />
           ) : activePage === 'assets' ? (
@@ -1456,6 +1479,7 @@ export default function Lobby({
                     currentUserId={user?.id}
                     onOpenChallenge={() => setPage('challenges')}
                     onSpectate={spectateServer}
+              onQueue={queueServer}
                   />
                 )}
               </section>

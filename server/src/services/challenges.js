@@ -19,6 +19,9 @@ const VICTORY_TYPES = ['kills', 'deaths'];
 const CHALLENGE_SERVER_KEY = 'fcx-1v1-1';
 const CHALLENGE_TIME_LIMIT_SEC = 900;
 const CHALLENGE_TIME_GRACE_SEC = 180;
+const SPECTATOR_LIMIT = 4;
+const EMPTY_ROOM_TIMEOUT_SEC = 600;
+const READY_TIMEOUT_SEC = 120;
 const STALE_HOURS = 6;
 
 function publicUser(row) {
@@ -179,6 +182,7 @@ function roomBase(row) {
         ? new Date(new Date(row.started_at).getTime() + Number(row.time_limit_sec || CHALLENGE_TIME_LIMIT_SEC) * 1000)
         : null,
     closedAt: row.closed_at || null,
+    updatedAt: row.updated_at || null,
     host: publicUser({
       id: row.host_id,
       username: row.host_username,
@@ -200,6 +204,7 @@ async function getRoom(roomId, viewerId) {
   const isMember = members.some((member) => member.id === Number(viewerId));
   const readyCount = members.filter((member) => member.ready).length;
   const pending = isMember ? await pendingInvites(roomId) : [];
+  const spectators = await spectatorCount(roomId);
 
   return {
     ...roomBase(row),
@@ -209,6 +214,8 @@ async function getRoom(roomId, viewerId) {
     readyCount,
     allReady: members.length > 0 && readyCount === members.length,
     full: members.length >= Number(row.max_players),
+    spectatorCount: spectators,
+    spectatorLimit: SPECTATOR_LIMIT,
     isHost: Number(row.host_id) === Number(viewerId),
     isMember,
     pendingInvites: pending,
@@ -225,9 +232,112 @@ async function expireStaleRooms() {
           AND started_at < DATE_SUB(NOW(), INTERVAL time_limit_sec + ? SECOND)`,
       [CHALLENGE_TIME_GRACE_SEC]
     );
+
+    // 空房：等待超过 10 分钟仍没坐满，自动解散
+    await q(
+      `UPDATE challenge_rooms r
+          SET r.status = 'closed', r.closed_at = NOW()
+        WHERE r.status = 'waiting'
+          AND (SELECT COUNT(*) FROM challenge_room_players p WHERE p.room_id = r.id) < r.max_players
+          AND r.created_at < DATE_SUB(NOW(), INTERVAL ? SECOND)`,
+      [EMPTY_ROOM_TIMEOUT_SEC]
+    );
+
+    // 准备超时：坐满后 2 分钟仍未全部准备，自动关闭
+    await q(
+      `UPDATE challenge_rooms r
+          SET r.status = 'closed', r.closed_at = NOW()
+        WHERE r.status = 'waiting'
+          AND (SELECT COUNT(*) FROM challenge_room_players p WHERE p.room_id = r.id) = r.max_players
+          AND (SELECT COUNT(*) FROM challenge_room_players p WHERE p.room_id = r.id AND p.ready = 1) < r.max_players
+          AND GREATEST(
+                r.updated_at,
+                COALESCE((SELECT MAX(p.joined_at) FROM challenge_room_players p WHERE p.room_id = r.id), r.created_at)
+              ) < DATE_SUB(NOW(), INTERVAL ? SECOND)`,
+      [READY_TIMEOUT_SEC]
+    );
   } catch {
     /* 非关键路径，失败不阻塞主流程 */
   }
+}
+
+async function spectatorCount(roomId) {
+  const row = await one('SELECT COUNT(*) AS n FROM challenge_spectators WHERE room_id = ?', [roomId]);
+  return Number(row?.n || 0);
+}
+
+async function joinSpectate(userId, roomId) {
+  const row = await roomRow(roomId);
+  if (!row) throw notFound('房间不存在');
+  if (row.status !== 'live') throw conflict('只有比赛进行中的房间可以观战');
+
+  await withTransaction(async (conn) => {
+    const [rows] = await conn.query(
+      'SELECT COUNT(*) AS n FROM challenge_spectators WHERE room_id = ? FOR UPDATE',
+      [roomId]
+    );
+    if (Number(rows[0].n) >= SPECTATOR_LIMIT) throw conflict(`观战位已满（最多 ${SPECTATOR_LIMIT} 人）`);
+    await conn.query(
+      `INSERT INTO challenge_spectators (room_id, user_id)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE joined_at = joined_at`,
+      [roomId, userId]
+    );
+  });
+
+  return { spectators: await spectatorCount(roomId), limit: SPECTATOR_LIMIT };
+}
+
+async function leaveSpectate(userId, roomId) {
+  await q('DELETE FROM challenge_spectators WHERE room_id = ? AND user_id = ?', [roomId, userId]);
+  return { spectators: await spectatorCount(roomId), limit: SPECTATOR_LIMIT };
+}
+
+const QUEUE_KINDS = ['ranked', 'challenge'];
+
+async function joinQueue(userId, serverKey, kind = 'challenge') {
+  const key = String(serverKey || '').trim();
+  if (!key) throw badRequest('缺少服务器标识');
+  const type = QUEUE_KINDS.includes(kind) ? kind : 'challenge';
+  await q(
+    `INSERT INTO challenge_queue (server_key, user_id, kind)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE kind = VALUES(kind)`,
+    [key, userId, type]
+  );
+  return queueList(key, userId);
+}
+
+async function leaveQueue(userId, serverKey) {
+  const key = String(serverKey || '').trim();
+  if (!key) throw badRequest('缺少服务器标识');
+  await q('DELETE FROM challenge_queue WHERE server_key = ? AND user_id = ?', [key, userId]);
+  return queueList(key, userId);
+}
+
+async function queueList(serverKey, viewerId) {
+  const key = String(serverKey || '').trim();
+  if (!key) throw badRequest('缺少服务器标识');
+  const rows = await q(
+    `SELECT cq.user_id, cq.kind, cq.created_at,
+            u.username, u.game_name, u.avatar, u.avatar_url, u.role, u.combat_level,
+            EXISTS(SELECT 1 FROM ranked_queue rq WHERE rq.user_id = u.id) AS ranked_waiting
+       FROM challenge_queue cq
+       JOIN users u ON u.id = cq.user_id
+      WHERE cq.server_key = ?
+      ORDER BY ranked_waiting DESC, cq.created_at ASC
+      LIMIT 50`,
+    [key]
+  );
+  const entries = rows.map((row, index) => ({
+    position: index + 1,
+    user: publicUser({ ...row, id: row.user_id }),
+    kind: row.kind,
+    priority: Number(row.ranked_waiting) ? 'ranked' : 'challenge',
+    joinedAt: row.created_at,
+    mine: Number(row.user_id) === Number(viewerId),
+  }));
+  return { serverKey: key, entries, count: entries.length };
 }
 
 async function listRooms() {
@@ -753,6 +863,7 @@ async function setReady(userId, roomId, ready) {
     roomId,
     userId,
   ]);
+  await q('UPDATE challenge_rooms SET updated_at = NOW() WHERE id = ?', [roomId]);
   return getRoom(roomId, userId);
 }
 
@@ -803,6 +914,7 @@ async function startRoom(user, roomId) {
 module.exports = {
   MODES,
   MODE_SLOTS,
+  SPECTATOR_LIMIT,
   getState,
   getRoom,
   createRoom,
@@ -813,6 +925,12 @@ module.exports = {
   respond,
   setReady,
   startRoom,
+  spectatorCount,
+  joinSpectate,
+  leaveSpectate,
+  joinQueue,
+  leaveQueue,
+  queueList,
   activeChallengesByServer,
   challengeAccess,
   resultOf,

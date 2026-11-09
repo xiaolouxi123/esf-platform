@@ -7,7 +7,12 @@ const { q, one } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { badRequest, notFound } = require('../lib/errors');
 const { activeMatchesByServer } = require('../services/ranked');
-const { activeChallengesByServer, challengeAccess } = require('../services/challenges');
+const {
+  activeChallengesByServer,
+  challengeAccess,
+  spectatorCount,
+  SPECTATOR_LIMIT,
+} = require('../services/challenges');
 
 const router = express.Router();
 const QUERY_TIMEOUT_MS = 3000;
@@ -45,11 +50,14 @@ router.get('/servers', requireAuth, async (req, res, next) => {
         let challengeInfo = null;
         if (challenge) {
           const access = await challengeAccess(req.user.id, row.server_key);
+          const spectators = await spectatorCount(challenge.id);
           challengeInfo = {
             ...challenge,
             participant: access.participant,
             team: access.team || null,
-            spectatorAllowed: Boolean(Number(row.online)),
+            spectatorCount: spectators,
+            spectatorLimit: SPECTATOR_LIMIT,
+            spectatorAllowed: Boolean(Number(row.online)) && spectators < SPECTATOR_LIMIT,
           };
         }
         return {

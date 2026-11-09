@@ -12282,3 +12282,11 @@ select:focus {
 .member-mini-settings:hover {
   opacity: 1;
 }
+
+/* ---- 0.6 锁服排队 ---- */
+.room-queue-btn.is-ranked { color:#b79dff; border-color:rgba(183,157,255,.42); background:rgba(183,157,255,.08); }
+.room-queue-btn.is-ranked:hover { background:rgba(183,157,255,.16); }
+.room-queue-btn.is-challenge { color:#ffc861; border-color:rgba(255,200,97,.36); background:rgba(255,200,97,.07); }
+.room-queue-btn.is-challenge:hover { background:rgba(255,200,97,.14); }
+
+.tag.is-warn { color:#ffc861; border-color:rgba(255,200,97,.36); background:rgba(255,200,97,.08); }

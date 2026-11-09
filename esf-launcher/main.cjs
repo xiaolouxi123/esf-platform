@@ -1109,6 +1109,18 @@ handle('challenges:ready', async ({ id, ready } = {}) =>
 handle('challenges:start', async ({ id } = {}) =>
   apiCall(api.challengeStart, getSettings(), requireToken(), id)
 );
+handle('challenges:spectate', async ({ id } = {}) =>
+  apiCall(api.challengeSpectate, getSettings(), requireToken(), id)
+);
+handle('challenges:queue-join', async ({ serverKey, kind } = {}) =>
+  apiCall(api.challengeQueueJoin, getSettings(), requireToken(), serverKey, kind)
+);
+handle('challenges:queue-leave', async ({ serverKey } = {}) =>
+  apiCall(api.challengeQueueLeave, getSettings(), requireToken(), serverKey)
+);
+handle('challenges:queue', async ({ serverKey } = {}) =>
+  apiCall(api.challengeQueue, getSettings(), requireToken(), serverKey)
+);
 
 handle('titles:list', async () => apiCall(api.titles, getSettings(), requireToken()));
 

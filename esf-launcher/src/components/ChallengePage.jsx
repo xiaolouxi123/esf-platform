@@ -73,7 +73,7 @@ export default function ChallengePage({
   const [now, setNow] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 30000);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -240,6 +240,14 @@ export default function ChallengePage({
     const left = new Date(myRoom.endsAt).getTime() - now;
     return Math.max(0, Math.ceil(left / 60000));
   }, [myRoom, now]);
+  const readyRemain = useMemo(() => {
+    if (!myRoom?.updatedAt) return null;
+    if (myRoom.playerCount < myRoom.maxPlayers) return null;
+    if (myRoom.readyCount >= myRoom.playerCount) return null;
+    const start = new Date(myRoom.updatedAt).getTime();
+    if (!Number.isFinite(start)) return null;
+    return Math.max(0, Math.ceil((start + 120000 - now) / 1000));
+  }, [myRoom, now]);
   const challengeServers = useMemo(
     () => servers.filter((server) => server.serverKey === 'fcx-1v1-1'),
     [servers]
@@ -371,6 +379,9 @@ export default function ChallengePage({
                 </span>
                 <span className="tag">{myRoom.mode}</span>
                 <span className="tag">限时 {Math.round((myRoom.timeLimitSec || 900) / 60)} 分钟</span>
+                {readyRemain !== null && (
+                  <span className="tag is-warn">准备倒计时 {readyRemain} 秒</span>
+                )}
                 {isLive && remainMinutes !== null && (
                   <span className="tag">剩余 {remainMinutes} 分钟</span>
                 )}
@@ -589,6 +600,11 @@ export default function ChallengePage({
                   required
                 >
                   <option value="">选择一台服务器</option>
+                  {challengeServers.length === 0 && (
+                    <option value="" disabled>
+                      暂时无服务器可提供约战
+                    </option>
+                  )}
                   {challengeServers.map((server) => (
                     <option key={server.serverKey} value={server.serverKey}>
                       {server.name}

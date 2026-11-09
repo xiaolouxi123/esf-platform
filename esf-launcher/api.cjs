@@ -380,6 +380,14 @@ const challengeReady = (settings, token, id, ready = true) =>
   request(settings, { method: 'POST', path: `/api/challenges/${id}/ready`, token, body: { ready } });
 const challengeStart = (settings, token, id) =>
   request(settings, { method: 'POST', path: `/api/challenges/${id}/start`, token });
+const challengeSpectate = (settings, token, id) =>
+  request(settings, { method: 'POST', path: `/api/challenges/${id}/spectate`, token });
+const challengeQueueJoin = (settings, token, serverKey, kind = 'challenge') =>
+  request(settings, { method: 'POST', path: '/api/queue', token, body: { serverKey, kind } });
+const challengeQueueLeave = (settings, token, serverKey) =>
+  request(settings, { method: 'DELETE', path: `/api/queue?serverKey=${encodeURIComponent(serverKey)}`, token });
+const challengeQueue = (settings, token, serverKey) =>
+  request(settings, { path: `/api/queue?serverKey=${encodeURIComponent(serverKey)}`, token });
 
 const chatList = (settings, token, after) =>
   request(settings, { path: `/api/chat${queryString({ after })}`, token });
@@ -483,6 +491,10 @@ module.exports = {
   challengeRespond,
   challengeReady,
   challengeStart,
+  challengeSpectate,
+  challengeQueueJoin,
+  challengeQueueLeave,
+  challengeQueue,
   chatList,
   chatSend,
   updateProfile,

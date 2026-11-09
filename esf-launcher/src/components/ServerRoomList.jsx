@@ -40,6 +40,7 @@ export default function ServerRoomList({
   onOpenRanked,
   onSpectate,
   onOpenChallenge,
+  onQueue,
 }) {
   const [openKey, setOpenKey] = useState('');
   const [details, setDetails] = useState({});
@@ -225,11 +226,28 @@ export default function ServerRoomList({
                   <button
                     type="button"
                     className="btn btn-sm btn-ghost room-spectate-btn"
-                    disabled={busy}
-                    title="以 Half-Life 原生观战模式进入，不占参赛席位"
+                    disabled={busy || !challenge.spectatorAllowed}
+                    title={
+                      challenge.spectatorAllowed
+                        ? '以 Half-Life 原生观战模式进入，不占参赛席位'
+                        : '观战位已满（最多 4 人）'
+                    }
                     onClick={stop(() => onSpectate(server))}
                   >
-                    <Icon name="eye" size={13} /> 观战
+                    <Icon name="eye" size={13} /> 观战{' '}
+                    {Number(challenge.spectatorCount || 0)}/{Number(challenge.spectatorLimit || 4)}
+                  </button>
+                )}
+
+                {lockedForMe && server.online && onQueue && (
+                  <button
+                    type="button"
+                    className={`btn btn-sm btn-ghost room-queue-btn${ranked ? ' is-ranked' : ' is-challenge'}`}
+                    disabled={busy}
+                    title={ranked ? '排位赛锁服：排位匹配玩家优先' : '约战锁服：可排队等下一场'}
+                    onClick={stop(() => onQueue(server))}
+                  >
+                    <Icon name="clock" size={13} /> 排队
                   </button>
                 )}
 

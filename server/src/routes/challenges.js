@@ -139,4 +139,55 @@ router.get('/challenges/:id/result', async (req, res, next) => {
   }
 });
 
+router.post('/challenges/:id/spectate', async (req, res, next) => {
+  try {
+    const data = await challenges.joinSpectate(req.user.id, idOf(req.params.id));
+    res.status(201).json({ ok: true, data });
+  } catch (err) {
+    fail(err, next);
+  }
+});
+
+router.delete('/challenges/:id/spectate', async (req, res, next) => {
+  try {
+    const data = await challenges.leaveSpectate(req.user.id, idOf(req.params.id));
+    res.json({ ok: true, data });
+  } catch (err) {
+    fail(err, next);
+  }
+});
+
+const queueSchema = z.object({
+  serverKey: z.string().trim().min(1).max(32),
+  kind: z.enum(['ranked', 'challenge']).optional(),
+});
+
+router.get('/queue', requireAuth, async (req, res, next) => {
+  try {
+    const data = await challenges.queueList(String(req.query.serverKey || ''), req.user.id);
+    res.json({ ok: true, data });
+  } catch (err) {
+    fail(err, next);
+  }
+});
+
+router.post('/queue', requireAuth, async (req, res, next) => {
+  try {
+    const body = queueSchema.parse(req.body || {});
+    const data = await challenges.joinQueue(req.user.id, body.serverKey, body.kind);
+    res.status(201).json({ ok: true, data });
+  } catch (err) {
+    fail(err, next);
+  }
+});
+
+router.delete('/queue', requireAuth, async (req, res, next) => {
+  try {
+    const data = await challenges.leaveQueue(req.user.id, String(req.query.serverKey || ''));
+    res.json({ ok: true, data });
+  } catch (err) {
+    fail(err, next);
+  }
+});
+
 module.exports = router;
