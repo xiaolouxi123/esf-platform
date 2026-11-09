@@ -63,6 +63,7 @@ $files = @(
   'esf-launcher/api.cjs',
   'esf-launcher/main.cjs',
   'esf-launcher/preload.js',
+  'esf-launcher/store.cjs',
   'esf-launcher/src',
   'server',
   'deploy/ops-agent',
