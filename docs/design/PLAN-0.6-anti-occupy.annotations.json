@@ -1,0 +1,15 @@
+{
+  "meta": {
+    "style": "swiss",
+    "theme": "safety-orange",
+    "brand": "#ff8a1f",
+    "embed": true,
+    "title": "0.6 反占服与成员面板",
+    "subtitle": "从方案树到实施与验证：成员状态、可收缩面板、AFK 判负、锁服排队与观战",
+    "author": "ESF PLATFORM · 设计与工程",
+    "date": "2026.11.10",
+    "reading_time": "6 min",
+    "tags": ["方案树", "反占服", "AFK", "成员面板", "锁服"]
+  },
+  "upgrades": []
+}
