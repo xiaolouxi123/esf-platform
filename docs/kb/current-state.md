@@ -2,7 +2,7 @@
 title: 线上现状
 category: state
 tags: [state, versions, deployment]
-updated: 2026-11-10T03:15:00+08:00
+updated: 2026-11-10T05:00:00+08:00
 ---
 
 # 线上现状（2026-11-10）
@@ -26,14 +26,15 @@ updated: 2026-11-10T03:15:00+08:00
 
 | 项 | 值 |
 |---|---|
-| 最新版本 | **0.5.21**（提交 ad91457，tag v0.5.21，插件中心 / 测试 profile / 比赛结束强杀） |
+| 最新版本 | **0.5.23**（提交 0faa15c，tag v0.5.23，约战限时与单服开放；发布只推新机） |
 | 更新源 | https://119.29.82.217/updates/ |
-| 安装包 | ESF-Platform-Setup-0.5.21.exe（128,763,862 B，blockmap 135,279 B） |
-| 差量基线 | 0.5.1 → 0.5.2：36 个操作，下载 7,365,460 B；0.5.0 → 0.5.1：22 个操作，下载 1,685,174 B；0.4.16 → 0.5.0：27 个操作，下载 3,480,839 B；0.4.15 → 0.4.16：30 个操作，下载 7,357,162 B；0.4.14 → 0.4.15：30 个操作，下载 7,625,781 B；0.4.13 → 0.4.14：18 个操作，下载 1,867,465 B |
+| 安装包 | ESF-Platform-Setup-0.5.23.exe（128,764,486 B，blockmap 135,271 B） |
+| 差量基线 | 0.5.21 → 0.5.23：22 个操作，下载 1,697,637 B；0.5.1 → 0.5.2：36 个操作，下载 7,365,460 B；0.5.0 → 0.5.1：22 个操作，下载 1,685,174 B；0.4.16 → 0.5.0：27 个操作，下载 3,480,839 B；0.4.15 → 0.4.16：30 个操作，下载 7,357,162 B；0.4.14 → 0.4.15：30 个操作，下载 7,625,781 B；0.4.13 → 0.4.14：18 个操作，下载 1,867,465 B |
 | 新引擎支持 | 0.4.14 起识别 `ESF.exe + engine\engine.cfg`（ESF Engine 1.0），启动参数写入 `Launcher=` 行，退出还原 |
 | 账号安全 | 0.4.15：邮箱绑定 / 忘记密码 / 管理台重置 + 10 次锁定；0.4.16：TOTP 两步验证（含 10 个一次性备用码）、登录设备列表与撤销、密码强度（≥10 位且 ≥3 类）、接口安全响应头 |
 | 地图记忆 | 0.5.2：本地 `settings.lastMap` 记录上次选图，进大厅自动选中（换图/随机都写入）；文件里找不到时退回第一张 |
 | 启动兼容 | 0.5.1：启动失败自动重试 2 次；15s/25s 窗口检测，无窗口可一键直接启动 `no_hl.exe`；兼容模式（窗口化 800×600 + `-gl` + `-heapsize 262144`）；`launcher.log` 与一键诊断包 |
+| 约战限制 | 0.5.23：只开放「单挑 1」（fcx-1v1-1），单局 15 分钟，到点按击杀比分结算；服务端 180 秒宽限自动关闭僵尸房间 |
 | 界面 | 0.5.0：P0–P9 全站 UI 重做（令牌、外壳、大厅、排位、约战、服务器、资源库、管理台、设置、登录、频道），交接单 `docs/design/HANDOFF-ui-redesign.md`；0.5.2：管理台栏目折叠（默认只展开玩家管理）；0.5.21：左侧栏新增「插件中心」独立页，不再放设置抽屉 |
 | 插件可观测性 | 0.5.21：`GET /api/plugins/observability` 返回本地四插件版本/大小/哈希、cvar、auth/lock/test_ranked 心跳与日志入口；测试 profile 用 `--test-profile` 在 Chromium 启动前切 `userData`，登录态独立 |
 | 比赛结束 | 0.5.21：AMXX 写 `esf_match_end.flag`，启动器 2.5 秒轮询后只强杀本次启动捕获的 PID（`hl.exe` 壳优先），不再按镜像名全杀 |
@@ -42,15 +43,15 @@ updated: 2026-11-10T03:15:00+08:00
 
 | 项 | 值 |
 |---|---|
-| 当前插件包 | **0.48**（UTF-8 构建，含 guest 兜底 + 构建心跳） |
+| 当前插件包 | **0.49**（UTF-8 构建，含 guest 兜底、构建心跳、约战 15 分钟限时） |
 | 本地测试包 | `test_ranked 1.3.4-teamtest`（test15，38,392 B，SHA256 `0e81b6f6...`）；仅本地验证，未发布到游戏服 |
-| 分发位置 | `C:\esf\updates\amxx\manifest.json` + `esf-challenge-plugins-0.48.zip` |
+| 分发位置 | `C:\esf\updates\amxx\manifest.json` + `esf-challenge-plugins-0.49.zip` |
 | 受管插件 | esf_gamemode / esf_platform_auth / esf_ranked_lock / test_ranked |
 | 114 更新任务 | `ESFAmxxUpdate`，SYSTEM，每 10 分钟 |
 | 114 更新脚本 | `C:\esf-agent\amxx-updater.ps1`，版本记录 `C:\esf-agent\amxx-version.txt` |
-| 线上构建心跳 | 表 `amxx_builds`；fcx-1v1-1 于 2026-11-07 10:07 上报 0.48 |
-| 源码分支 | `fix/amxx-ascii-logs`（提交 dd3a868）；含 r14 提交 c333c33 + 0.48 修复，main 306cd47 早于线上，不能作为现状基线 |
-| 版本一致性 | 线上源码 `esf_platform_auth.sma` 的 `BUILD` 仍是 `0.47`、`esf_ranked_lock.sma` 的 `VERSION` 是 `1.3.0`，与包 `0.48` / README `1.2.0` 不一致；0.48 发布物不能由当前分支的构建脚本直接复现，待复核 |
+| 线上构建心跳 | 表 `amxx_builds`；fcx-1v1-1 于 2026-11-10 04:47 上报 0.49（platform_auth / ranked_lock） |
+| 源码分支 | `fix/amxx-ascii-logs`（提交 0e07224，含 0.49 限时补丁；r14 基线 c333c33） |
+| 版本一致性 | 0.49 已统一：`BUILD` = `"0.49"`，`esf_ranked_lock.sma` 的 `VERSION` = `1.3.0`；构建方式为 amxxpc 1.10.0.5392 + `-d1` + UTF-8 无 BOM 直编 |
 | 功能缺口 | 开局不会自动分边：`autoPlayerStart()` 只统计引擎队伍，未下发 `jointeam`；平台队伍已在 `g_challengeTeam` / `g_rankedTeam`，但未写回引擎。见待办 9 |
 
 ## 游戏服配置
