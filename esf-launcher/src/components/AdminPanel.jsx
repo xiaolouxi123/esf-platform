@@ -89,6 +89,17 @@ export default function AdminPanel({
 
   const [transferId, setTransferId] = useState('');
   const [transferring, setTransferring] = useState(false);
+  const [openSection, setOpenSection] = useState('users');
+
+  const onStackClick = (event) => {
+    const head = event.target.closest('.admin-section-head');
+    if (!head) return;
+    if (event.target.closest('input, select, textarea, button, a, .admin-filters')) return;
+    const holder = head.closest('[data-key]');
+    if (!holder) return;
+    const key = holder.dataset.key;
+    setOpenSection((current) => (current === key ? '' : key));
+  };
 
   const refresh = useCallback(async () => {
     if (!staff) return;
@@ -252,6 +263,22 @@ export default function AdminPanel({
   const kick = (target) =>
     act(target.id, () => window.electronAPI.admin.kickUser(target.id), `已强制 ${target.gameName} 下线`);
 
+  // 注销账号：服务端软删除（匿名化 + 撤销会话），仅所有者可用
+  const deleteUser = async (target) => {
+    if (!window.confirm(`确定注销「${target.gameName}」？\n会清空邮箱、状态、密码与会话，历史对局保留，无法撤销。`)) return;
+    setBusyId(target.id);
+    try {
+      await window.electronAPI.admin.deleteUser(target.id);
+      toast(`已注销 ${target.gameName}`, 'ok');
+      await refresh();
+      if (canSeeAudit) await loadAudit();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   // 重置密码：服务端生成一次性临时密码，复制到剪贴板给玩家
   const resetPassword = async (target) => {
     if (!window.confirm(`确定重置 ${target.gameName} 的密码？重置后对方会被强制下线，需用临时密码登录并改密。`)) {
@@ -378,12 +405,13 @@ export default function AdminPanel({
   const cardValue = (key) => cards.find((card) => card.key === key)?.value ?? '—';
 
   const gotoRegisterServer = () => {
+    setOpenSection('servers');
     const section = serversRef.current;
     if (!section) return;
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     window.setTimeout(() => {
       section.querySelector('.admin-section-head .btn-primary')?.click();
-    }, 220);
+    }, 260);
   };
 
   const transferCandidates = users.filter((item) => item.role !== 'owner' && item.id !== user?.id);
@@ -445,14 +473,19 @@ export default function AdminPanel({
         </div>
       </header>
 
-      <div ref={serversRef} className="admin-servers-block">
+      <div className="admin-stack" onClick={onStackClick}>
+      <div ref={serversRef} className="admin-servers-block admin-collapse" data-key="servers" data-open={openSection === 'servers'}>
         <AdminServers toast={toast} />
       </div>
 
 
-      {canAssign && <AdminRanks toast={toast} onRanksChanged={onRanksChanged} />}
+      {canAssign && (
+        <div className="admin-collapse" data-key="ranks" data-open={openSection === 'ranks'}>
+          <AdminRanks toast={toast} onRanksChanged={onRanksChanged} />
+        </div>
+      )}
 
-      <section className="admin-section">
+      <section className="admin-section" data-key="users" data-open={openSection === 'users'}>
         <div className="admin-section-head">
           <h3>
             <Icon name="users" size={15} /> 玩家管理
@@ -607,6 +640,16 @@ export default function AdminPanel({
                                 重置密码
                               </button>
                             ) : null}
+                            {owner ? (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-danger-ghost"
+                                disabled={busyId === row.id || locked}
+                                onClick={() => deleteUser(row)}
+                              >
+                                注销
+                              </button>
+                            ) : null}
                           </div>
                         )}
                       </td>
@@ -619,7 +662,7 @@ export default function AdminPanel({
         </div>
       </section>
 
-      <section className="admin-section">
+      <section className="admin-section" data-key="titles" data-open={openSection === 'titles'}>
         <div className="admin-section-head">
           <h3>
             <Icon name="star" size={15} /> 频道头衔
@@ -694,7 +737,7 @@ export default function AdminPanel({
         </div>
       </section>
 
-      <section className="admin-section">
+      <section className="admin-section" data-key="platform" data-open={openSection === 'platform'}>
         <div className="admin-section-head">
           <h3>
             <Icon name="bell" size={15} /> 运营设置
@@ -759,7 +802,7 @@ export default function AdminPanel({
         </div>
       </section>
 
-      <section className="admin-section">
+      <section className="admin-section" data-key="assets" data-open={openSection === 'assets'}>
         <div className="admin-section-head">
           <h3>
             <Icon name="spark" size={15} /> 资源审核
@@ -806,7 +849,7 @@ export default function AdminPanel({
       </section>
 
       {canSeeAudit && (
-        <section className="admin-section">
+        <section className="admin-section" data-key="audit" data-open={openSection === 'audit'}>
           <div className="admin-section-head">
             <h3>
               <Icon name="clock" size={15} /> 操作审计
@@ -874,7 +917,7 @@ export default function AdminPanel({
       )}
 
       {owner && (
-        <section className="admin-section">
+        <section className="admin-section" data-key="transfer" data-open={openSection === 'transfer'}>
           <div className="admin-section-head">
             <h3>
               <Icon name="shield" size={15} /> 转让所有权
@@ -907,7 +950,7 @@ export default function AdminPanel({
         </section>
       )}
 
-      <section className="admin-section admin-section--dev">
+      <section className="admin-section admin-section--dev" data-key="dev" data-open={openSection === 'dev'}>
         <div className="admin-section-head">
           <h3>
             <Icon name="settings" size={15} /> 开发者工具
@@ -976,6 +1019,7 @@ export default function AdminPanel({
           <p className="admin-muted">开发者工具仅对管理员开放。</p>
         )}
       </section>
+      </div>
     </div>
   );
 }

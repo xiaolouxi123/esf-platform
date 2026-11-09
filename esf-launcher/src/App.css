@@ -12107,3 +12107,45 @@ select:focus {
     display: none;
   }
 }
+
+/* ---- 管理台：折叠栏目（0.5.2） ---- */
+.admin-stack { display: flex; flex-direction: column; gap: 14px; }
+.admin-stack .admin-section-head { cursor: pointer; user-select: none; }
+.admin-stack .admin-section-head::after {
+  content: '▾';
+  margin-left: auto;
+  padding-left: 10px;
+  color: var(--tx-3);
+  font-size: 12px;
+  transition: transform .18s ease;
+}
+.admin-stack .admin-section[data-open="false"] > .admin-section-head::after,
+.admin-stack .admin-collapse[data-open="false"] .admin-section > .admin-section-head::after {
+  transform: rotate(-90deg);
+}
+.admin-stack .admin-section[data-open="false"] > *:not(.admin-section-head),
+.admin-stack .admin-collapse[data-open="false"] .admin-section > *:not(.admin-section-head) {
+  display: none;
+}
+.admin-stack .admin-section[data-open="false"] > .admin-section-head .admin-filters,
+.admin-stack .admin-collapse[data-open="false"] .admin-section > .admin-section-head .admin-filters {
+  display: none;
+}
+.admin-stack .admin-section[data-open="false"],
+.admin-stack .admin-collapse[data-open="false"] .admin-section {
+  padding-bottom: 16px;
+}
+.admin-hero { min-height: 0; padding: 22px 26px 18px; }
+.admin-hero .hero-art { display: none; }
+.admin-hero .hero-title { font-size: 30px; }
+.admin-hero .hero-foot { margin-top: 12px; }
+
+/* =====================================================================
+   0.5.2 修版：管理台页面可滚动 + hero 不再被压缩裁切
+   - .center > .admin 原本 flex:1，高度被锁死，子内容超出后被裁掉且不滚动
+   - .hero 自带 overflow:hidden + .admin-hero max-height，会被压到 < 内容高度
+   ===================================================================== */
+.center > .admin { flex: none; }
+.admin { min-height: 0; }
+.admin-hero { flex: 0 0 auto; max-height: none; min-height: 0; }
+.admin-stack { flex: 0 0 auto; }

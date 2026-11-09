@@ -2,7 +2,7 @@
 title: 已解决的问题与根因
 category: debugging
 tags: [troubleshooting, root-cause]
-updated: 2026-11-08T04:45:00+08:00
+updated: 2026-11-09T07:55:00+08:00
 ---
 
 # 已知问题
@@ -51,3 +51,14 @@ updated: 2026-11-08T04:45:00+08:00
 - 现象：导入 dump 报 `ERROR 1064`，中文表名/内容乱码。
 - 根因：文本方式传输时编码被转坏。
 - 处理：一律 gzip + base64 二进制传输，`--default-character-set=utf8mb4`。
+
+## 8. 开局不会自动分配队伍（待处理）
+
+- 现象：约战/排位房间已经登记了 `team`，但玩家进服后仍是未选队/同队；必须手动在控制台输入 `jointeam 1` 或 `jointeam 2` 才生效，且 ESF 对切队有 8 秒冷却。
+- 现状代码（以线上 0.48 分支 `fix/amxx-ascii-logs` 为准；`test_ranked.sma` 共 3,064 行，版本 `1.2.0-r14`）：`autoPlayerStart()` 在 `amxx/test_ranked.sma:2849-2879`，只统计 `Get_Team()`，双方人数相等才走 legacy 开赛；全文件没有任何 `client_cmd` / `engclient_cmd` 下发 `jointeam`。`hookJoint()` 在 `:1905-1945`，只做拦截，不负责分配。平台房间的 `g_challengeTeam[id]` 已从 `challenge_room_players.team` 读到（`:505-563`），但只用于 HUD/结算，没有写回引擎队伍。因此队伍不相等时，`autoPlayerStart()` 不会开赛；即使 `startChallengeBattle()` 按内部队伍开赛，玩家在引擎侧仍未选队，无法正常出生。
+- 相关：`register_clcmd("jointeam 1"/"jointeam 2"/"jointeam 5", "hookJoint")` 在 `:3038-3040`；`Get_Team()` 用 `get_user_team()` 首字母 G/E 判队（`:2406-2419`）。main 的旧源码行号不同（旧 `autoPlayerStart` 在 2448 附近），评估必须以线上分支为准。
+- 可选修法：
+  1. 插件主动分配（不逆向）：在 `OnChallengeIdentify` / `OnRankedIdentify` 拿到平台队伍后，置内部标记 `g_teamAssigning[id]=true`，用 `engclient_cmd(id, "jointeam", team == 1 ? "1" : "2")` 下发（必要时再补 `menuselect` 选职业）；`hookJoint()` 对内部标记放行，避免被自己的登录/2v2 拦截规则挡住。下发后 0.5–1 秒校验 `Get_Team()`，不匹配则等 8.2 秒重试，最多 2 次；超时以 `TEAM_ASSIGN_FAILED` 终止开局并在 HUD 提示。先实测“首次选队是否也吃 8 秒冷却”：若首次不吃，进服后 1 秒内一次即可；若吃，则按 8.2 秒节奏重试。
+  2. 逆向 ESF.dll：找 8 秒冷却对应的 cvar / `m_flNextTeamChange` 字段 / `CBasePlayer::JoinTeam`，优先把冷却 cvar 设为 0；其次用 Orpheu 直接调用 JoinTeam 或清冷却。只有在方案 1 的 8 秒重试不可接受时再做。
+  3. 启动器预选：进服前把队伍写进启动参数或 `launcher.cfg`，让首次 `jointeam` 不触发冷却；插件只做校验。需要实机验证命令执行时机。
+- 状态：待处理（2026-11-09 记录，等插件下一轮修改时做；先做方案 1 的本地验证）。

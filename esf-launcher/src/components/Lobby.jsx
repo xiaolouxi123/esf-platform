@@ -54,6 +54,7 @@ export default function Lobby({
   const [mapKeyword, setMapKeyword] = useState('');
   const [mapCategory, setMapCategory] = useState('all');
   const [selectedMap, setSelectedMap] = useState('');
+  const initialMapRef = useRef(settings?.lastMap || '');
   const [localMode, setLocalMode] = useState(readLocalMode);
   const [coins, setCoins] = useState(Number(user?.coins || 0));
   const [mapOpen, setMapOpen] = useState(false);
@@ -251,10 +252,27 @@ export default function Lobby({
       .scan()
       .then((list) => {
         setMaps(list);
-        setSelectedMap((current) => current || list[0] || '');
+        // 本地地图记忆：优先上次选择，其次第一张
+        setSelectedMap((current) => {
+          if (current) return current;
+          const saved = initialMapRef.current;
+          return (saved && list.includes(saved) ? saved : list[0]) || '';
+        });
       })
       .catch(() => setMaps([]));
   }, []);
+
+  const selectMap = useCallback(
+    (code) => {
+      setSelectedMap(code);
+      if (!code || settings?.lastMap === code) return;
+      window.electronAPI.settings
+        .update({ lastMap: code })
+        .then((next) => onSettingsChanged?.(next))
+        .catch(() => {});
+    },
+    [settings?.lastMap, onSettingsChanged]
+  );
 
   useEffect(() => {
     let alive = true;
@@ -695,7 +713,7 @@ export default function Lobby({
     playSfx('click');
     const pool = maps.filter((map) => map !== selectedMap);
     const next = pool.length ? pool[Math.floor(Math.random() * pool.length)] : maps[0];
-    setSelectedMap(next);
+    selectMap(next);
   };
 
   const switchLocalMode = (mode) => {
@@ -879,14 +897,14 @@ export default function Lobby({
                     key={item.code}
                     className={`map-row map-row--${item.tone}${selectedMap === item.code ? ' is-active' : ''}`}
                     onClick={() => {
-                      setSelectedMap(item.code);
+                      selectMap(item.code);
                       setMapOpen(false);
                     }}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
-                        setSelectedMap(item.code);
+                        selectMap(item.code);
                         setMapOpen(false);
                       }
                     }}

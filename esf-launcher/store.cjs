@@ -27,6 +27,8 @@ const DEFAULT_SETTINGS = {
   localServerKey: 'fcx-1v1-1',
   updateFeedUrl: '',
   soundEnabled: true,
+  compatMode: false,
+  lastMap: '',
 };
 
 function baseDir() {
@@ -84,6 +86,7 @@ function normalizeSettings(raw) {
     }
   }
   merged.soundEnabled = merged.soundEnabled !== false;
+  merged.compatMode = merged.compatMode === true;
   return merged;
 }
 

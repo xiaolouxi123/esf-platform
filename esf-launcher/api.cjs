@@ -276,6 +276,9 @@ const adminKickUser = (settings, token, id) =>
 const adminResetPassword = (settings, token, id) =>
   request(settings, { method: 'POST', path: `/api/admin/users/${id}/reset-password`, token });
 
+const adminDeleteUser = (settings, token, id) =>
+  request(settings, { method: 'DELETE', path: `/api/admin/users/${id}`, token });
+
 const adminAssets = (settings, token, status) =>
   request(settings, { path: `/api/admin/assets${queryString({ status })}`, token });
 
@@ -443,6 +446,7 @@ module.exports = {
   adminUpdateUser,
   adminKickUser,
   adminResetPassword,
+  adminDeleteUser,
   adminAssets,
   adminAudit,
   adminTransferOwner,

@@ -32,6 +32,7 @@ updated: 2026-11-08T07:06:00+08:00
 | [[amxx-plugins]] | AMXX 插件：UTF-8 构建、日志语言、构建心跳、自动更新管线 |
 | [[lobby-presence-sound]] | 成员状态行与界面音效：status_text 字段、自动活动、7 音效与开关 |
 | [[engine-mode]] | 新引擎（ESF Engine 1.0）：无 hl.exe，参数写 `engine.cfg` 的 `Launcher=` 行 |
+| [[launch-compat]] | 启动兼容包（0.5.1）：重试、无窗口检测与 no_hl 回退、兼容模式、诊断包 |
 | [[kb-policy]] | 本知识库自身的位置与维护规则 |
 | [[servers]] | 三台服务器清单：角色、路径、服务、任务、端口 |
 | [[accounts-secrets]] | 账号、凭据存放位置、授权与轮换待办（不写明文密码） |

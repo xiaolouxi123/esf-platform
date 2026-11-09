@@ -508,6 +508,49 @@ router.post('/admin/users/:id/reset-password', requireRole('admin', 'owner'), as
   }
 });
 
+/** 注销账号（仅所有者）：软删除并匿名化，保留历史对局引用 */
+router.delete('/admin/users/:id', requireRole('owner'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) throw badRequest('账号无效');
+    if (id === Number(req.user.id)) throw badRequest('不能注销自己的账号');
+
+    const target = await one('SELECT id, username, game_name, role FROM users WHERE id = ? LIMIT 1', [
+      id,
+    ]);
+    if (!target) throw notFound('账号不存在');
+    if (target.role === 'owner') throw forbidden('不能注销所有者账号');
+
+    const suffix = crypto.randomBytes(3).toString('hex');
+    await q(
+      `UPDATE users
+          SET status = 'banned', role = 'user', title_id = NULL,
+              username = CONCAT('deleted_', id, '_', ?),
+              game_name = '已注销账号',
+              email = NULL, email_verified_at = NULL, status_text = NULL,
+              must_change_password = 0, failed_login_count = 0, locked_until = NULL,
+              token_version = token_version + 1
+        WHERE id = ?`,
+      [suffix, id]
+    );
+    // 清掉会话与验证码；对局历史通过 user_id 保留引用
+    await q('DELETE FROM user_sessions WHERE user_id = ?', [id]).catch(() => {});
+    await q('DELETE FROM email_codes WHERE user_id = ?', [id]).catch(() => {});
+    await q('DELETE FROM password_reset_tokens WHERE user_id = ?', [id]).catch(() => {});
+
+    await logAction(req, {
+      action: 'user.delete',
+      targetType: 'user',
+      targetId: target.id,
+      detail: { username: target.username, gameName: target.game_name, role: target.role },
+    });
+
+    res.json({ ok: true, data: { deleted: true, id: target.id } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** 强制下线 */
 router.post('/admin/users/:id/kick', requireRole(...STAFF_ROLES), async (req, res, next) => {
   try {

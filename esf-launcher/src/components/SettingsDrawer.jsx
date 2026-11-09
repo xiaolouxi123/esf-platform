@@ -424,6 +424,43 @@ export default function SettingsDrawer({
           </section>
 
           <section className="drawer-section">
+            <h3>启动兼容</h3>
+            <p className="drawer-hint">老电脑上游戏“起来了但没窗口”时打开：窗口化 800×600 + OpenGL + 固定堆大小。</p>
+            <label className="field field--row">
+              <span className="field-label">兼容模式（窗口化）</span>
+              <button
+                type="button"
+                className={`switch${draft.compatMode ? ' is-on' : ''}`}
+                role="switch"
+                aria-checked={Boolean(draft.compatMode)}
+                onClick={() => {
+                  const next = { ...draft, compatMode: !draft.compatMode };
+                  setDraft(next);
+                  onSave?.(next);
+                }}
+              >
+                <i />
+              </button>
+            </label>
+            <button
+              type="button"
+              className="btn btn--ghost drawer-actions"
+              onClick={async () => {
+                try {
+                  const result = await window.electronAPI.app.exportDiagnosis();
+                  if (result?.canceled) return;
+                  toast(`诊断包已导出：${result?.path || ''}`, 'ok');
+                } catch (err) {
+                  toast(err.message || '导出失败', 'error');
+                }
+              }}
+            >
+              <Icon name="download" size={15} /> 导出诊断包
+            </button>
+            <p className="drawer-hint">包含启动参数、游戏进程与最近启动日志，老电脑出问题发这个就行。</p>
+          </section>
+
+          <section className="drawer-section">
             <h3>账号安全</h3>
             <p className="drawer-hint">绑定邮箱后，忘记密码可以自助重置，不用再找管理员。</p>
 

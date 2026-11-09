@@ -536,13 +536,14 @@ function spawnGame(args) {
   const current = getSettings();
   const gameDir = path.dirname(current.hlPath);
   clearMatchEndFlag();
+  const fullArgs = launchArgsWithCompat(args);
 
   // 新引擎（ESF Engine 1.0）：ESF.exe 只认 engine.cfg，命令行参数会被丢弃
-  let spawnArgs = args;
+  let spawnArgs = fullArgs;
   const engineCfg = core.detectEngineCfg(current.hlPath);
   if (engineCfg) {
     try {
-      const applied = core.applyEngineArgs(engineCfg, args);
+      const applied = core.applyEngineArgs(engineCfg, fullArgs);
       activeEngineCfg = engineCfg;
       spawnArgs = [];
       log('🎛 新引擎模式：启动参数已写入 engine.cfg');
@@ -553,6 +554,7 @@ function spawnGame(args) {
   }
 
   log('🚀 启动命令:', core.formatCommand(current.hlPath, spawnArgs));
+  appendLaunchLog(`launch exe=${current.hlPath} cwd=${gameDir} compat=${!!current.compatMode} args=${JSON.stringify(spawnArgs)}`);
 
   return new Promise((resolve, reject) => {
     let child;
@@ -564,12 +566,14 @@ function spawnGame(args) {
         windowsHide: true,
       });
     } catch (err) {
+      appendLaunchLog(`spawn throw: ${err.message}`);
       reject(err);
       return;
     }
 
     child.once('spawn', () => {
       log(`✅ 已拉起游戏主程序 (pid=${child.pid})`);
+      appendLaunchLog(`spawned pid=${child.pid}`);
       spawnedGamePids.add(child.pid);
       // 壳进程通常几秒内拉起真正的游戏进程，认一次名字并持续复用
       for (const delay of [4000, 12000]) {
@@ -577,11 +581,13 @@ function spawnGame(args) {
         if (typeof timer.unref === 'function') timer.unref();
       }
       child.unref();
+      watchGameWindow(gameDir);
       resolve(child.pid);
     });
 
     child.once('error', (err) => {
       log('❌ 启动游戏主程序失败:', err.message);
+      appendLaunchLog(`spawn error: ${err.code || ''} ${err.message}`);
       if (err.code === 'EACCES' || err.code === 'EPERM') {
         reject(new Error(
           `游戏启动失败：没有权限执行 ${path.basename(current.hlPath)}。`
@@ -593,6 +599,134 @@ function spawnGame(args) {
       reject(new Error(`游戏启动失败：${err.message}`));
     });
   });
+}
+
+// ================= 兼容启动（0.5.1） =================
+const COMPAT_ARGS = ['-window', '-w', '800', '-h', '600', '-gl', '-heapsize', '262144'];
+let noWindowDialogShown = false;
+
+function launchArgsWithCompat(args) {
+  const current = getSettings();
+  return current.compatMode ? [...args, ...COMPAT_ARGS] : args;
+}
+
+function launchLogPath() {
+  return path.join(app.getPath('userData'), 'launcher.log');
+}
+
+function appendLaunchLog(line) {
+  try {
+    const file = launchLogPath();
+    if (fs.existsSync(file) && fs.statSync(file).size > 2 * 1024 * 1024) fs.writeFileSync(file, '');
+    fs.appendFileSync(file, `[${new Date().toISOString()}] ${line}\n`);
+  } catch {
+    /* 日志失败不影响启动 */
+  }
+}
+
+/** 带重试的启动：失败最多重试 2 次（1.5s / 3s），仍失败才抛错 */
+async function spawnGameWithRetry(args) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await spawnGame(args);
+    } catch (err) {
+      lastError = err;
+      appendLaunchLog(`attempt ${attempt} failed: ${err.message}`);
+      if (attempt < 3) await wait(attempt * 1500);
+    }
+  }
+  throw lastError || new Error('游戏启动失败');
+}
+
+/** 查当前是否有带主窗口的游戏进程（PowerShell MainWindowHandle） */
+function hasGameWindow() {
+  const names = [...gameProcessNames()].filter((name) => name.endsWith('.exe'));
+  if (names.length === 0) return false;
+  const filter = names
+    .map((name) => `$_.ProcessName -ieq '${name.replace(/\.exe$/i, '')}'`)
+    .join(' -or ');
+  const script = `Get-Process -ErrorAction SilentlyContinue | Where-Object { ${filter} } | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1 -ExpandProperty Id`;
+  try {
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', script], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 8000,
+    });
+    return Boolean(String(result.stdout || '').trim());
+  } catch {
+    return false;
+  }
+}
+
+/** 拉起后 15s / 25s 各检查一次；进程在但没窗口 → 给出回退与日志入口 */
+async function watchGameWindow(gameDir) {
+  noWindowDialogShown = false;
+  await wait(15000);
+  if (!isGameRunning()) {
+    appendLaunchLog('no game process 15s after spawn');
+    return;
+  }
+  if (hasGameWindow()) {
+    appendLaunchLog('window detected');
+    return;
+  }
+  await wait(10000);
+  if (hasGameWindow()) {
+    appendLaunchLog('window detected late');
+    return;
+  }
+  appendLaunchLog('process running but no window after 25s');
+  showNoWindowDialog(gameDir);
+}
+
+function launchDirectNoHl(gameDir) {
+  const exe = path.join(gameDir, 'no_hl.exe');
+  if (!fs.existsSync(exe)) return false;
+  try {
+    const child = spawn(exe, launchArgsWithCompat(['-game', modName()]), {
+      cwd: gameDir,
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    child.once('spawn', () => {
+      appendLaunchLog(`fallback direct no_hl.exe pid=${child.pid}`);
+      spawnedGamePids.add(child.pid);
+      child.unref();
+    });
+    child.once('error', (err) => appendLaunchLog(`fallback direct error: ${err.message}`));
+    return true;
+  } catch (err) {
+    appendLaunchLog(`fallback direct throw: ${err.message}`);
+    return false;
+  }
+}
+
+function showNoWindowDialog(gameDir) {
+  if (noWindowDialogShown) return;
+  noWindowDialogShown = true;
+  const canDirect = fs.existsSync(path.join(gameDir, 'no_hl.exe'));
+  const buttons = [...(canDirect ? ['直接启动 no_hl.exe'] : []), '打开启动日志', '关闭'];
+  dialog.showMessageBox({
+    type: 'warning',
+    title: '游戏已启动但没有窗口',
+    message: '游戏进程已经起来了，但 25 秒内没有检测到窗口。',
+    detail: '常见原因：显卡驱动/渲染模式不兼容、杀毒或 Overlay 拦截、Windows 兼容性问题。\n'
+      + '可以先试“直接启动 no_hl.exe”，或在设置里打开兼容模式（窗口化 800×600 + OpenGL）。',
+    buttons,
+    defaultId: 0,
+    cancelId: buttons.length - 1,
+  }).then(({ response }) => {
+    const choice = buttons[response];
+    if (choice === '直接启动 no_hl.exe') {
+      if (!launchDirectNoHl(gameDir)) {
+        dialog.showErrorBox('没找到 no_hl.exe', '游戏目录下没有 no_hl.exe，请检查整合包是否完整。');
+      }
+    } else if (choice === '打开启动日志') {
+      shell.openPath(launchLogPath());
+    }
+  }).catch(() => {});
 }
 
 // ================= 窗口 =================
@@ -652,6 +786,52 @@ handle('app:info', async () => ({
   userDataDir: store.baseDir(),
   packaged: app.isPackaged,
 }));
+
+// 导出诊断包：启动日志 + 设置 + 系统信息，方便老电脑排障
+handle('app:export-diagnosis', async () => {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: '导出诊断包',
+    defaultPath: path.join(app.getPath('desktop'), `ESF诊断-${stamp}.txt`),
+    filters: [{ name: '文本文件', extensions: ['txt'] }],
+  });
+  if (canceled || !filePath) return { canceled: true };
+
+  const current = getSettings();
+  const lines = [];
+  lines.push('ESF 平台诊断包');
+  lines.push(`生成时间: ${new Date().toISOString()}`);
+  lines.push(`启动器版本: ${app.getVersion()}  Electron: ${process.versions.electron}`);
+  lines.push(`系统: ${process.getSystemVersion()} ${process.arch}  Node: ${process.versions.node}`);
+  lines.push('');
+  lines.push('--- 设置（已隐藏敏感字段） ---');
+  lines.push(JSON.stringify({
+    hlPath: current.hlPath,
+    esfModDir: current.esfModDir,
+    apiBaseUrl: current.apiBaseUrl,
+    compatMode: Boolean(current.compatMode),
+    soundEnabled: current.soundEnabled,
+    localServerKey: current.localServerKey,
+  }, null, 2));
+  lines.push('');
+  lines.push('--- 游戏进程 ---');
+  try {
+    lines.push(JSON.stringify(listGameProcesses()));
+  } catch {
+    lines.push('(读取失败)');
+  }
+  lines.push('');
+  lines.push('--- launcher.log（最近 300 行） ---');
+  try {
+    const text = fs.readFileSync(launchLogPath(), 'utf8');
+    lines.push(text.split(/\r?\n/).slice(-300).join('\n'));
+  } catch {
+    lines.push('(没有启动日志)');
+  }
+
+  fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
+  return { path: filePath };
+});
 
 handle('config:get', async () => api.config(getSettings()));
 
@@ -1061,7 +1241,7 @@ handle('launch:join', async ({ serverKey, ip, port }) => {
 
   const address = `${ip}:${port}`;
   lastServerKey = serverKey;
-  await spawnGame(core.buildJoinArgs(modName(), address));
+  await spawnGameWithRetry(core.buildJoinArgs(modName(), address));
   hideToTrayForGame();
   log(`🌐 正在连接 ${address}`);
   return { address, maskedToken: maskToken(issued.token), switched };
@@ -1083,7 +1263,7 @@ handle('launch:spectate', async ({ serverKey, ip, port }) => {
 
   const address = `${ip}:${port}`;
   lastServerKey = serverKey;
-  await spawnGame(core.buildJoinArgs(modName(), address));
+  await spawnGameWithRetry(core.buildJoinArgs(modName(), address));
   hideToTrayForGame();
   log(`👁 观战 ${address}`);
   return { address, spectator: true, maskedToken: maskToken(issued.token), switched };
@@ -1100,7 +1280,7 @@ handle('launch:join-custom', async ({ address } = {}) => {
 
   const target = `${matched[1]}:${matched[2]}`;
   const switched = await stopGameForSwitch();
-  await spawnGame(['-game', modName(), '+connect', target]);
+  await spawnGameWithRetry(['-game', modName(), '+connect', target]);
   hideToTrayForGame();
   log(`🌐 自定义服务器直连 ${target}（不带平台身份）`);
   return { address: target, platform: false, switched };
@@ -1120,7 +1300,7 @@ handle('launch:local', async ({ map, mode }) => {  const current = getSession();
   lastServerKey = getSettings().localServerKey;
   const modeInfo = core.applyLocalGameMode(getSettings().esfModDir, mode);
   log(`🎮 本地模式 mp_gamemode=${modeInfo.mode}（写入 ${modeInfo.changed.join(', ') || '无'}）`);
-  await spawnGame(core.buildLocalArgs(modName(), safeMap, mode));
+  await spawnGameWithRetry(core.buildLocalArgs(modName(), safeMap, mode));
   hideToTrayForGame();
   return { map: safeMap, mode: mode === 'deathmatch' ? 'deathmatch' : 'team', gameMode: modeInfo.mode, changedFiles: modeInfo.changed, maskedToken: maskToken(issued.token), switched };
 });
@@ -1129,7 +1309,7 @@ handle('launch:local', async ({ map, mode }) => {  const current = getSession();
 handle('launch:guest', async () => {
   checkGameDir();
   const switched = await stopGameForSwitch();
-  await spawnGame(['-game', modName()]);
+  await spawnGameWithRetry(['-game', modName()]);
   hideToTrayForGame();
   return { guest: true, switched };
 });
@@ -1537,6 +1717,13 @@ handle('admin:reset-password', async ({ id } = {}) => {
   requireStaff();
   const data = await apiCall(api.adminResetPassword, getSettings(), requireToken(), id);
   log(`🛡️ 账号 ${id} 密码已重置为临时密码`);
+  return data;
+});
+
+handle('admin:delete-user', async ({ id } = {}) => {
+  requireOwner();
+  const data = await apiCall(api.adminDeleteUser, getSettings(), requireToken(), id);
+  log(`🛡️ 账号 ${id} 已被注销`);
   return data;
 });
 
