@@ -1,7 +1,8 @@
 # AMXX 插件
 
-当前线上插件包：**0.52**（2026-11-10；唯一权威状态见 `docs/kb/current-state.md`）。
-`esf_platform_auth.sma` / `esf_ranked_lock.sma` 的 `BUILD` = `"0.52"`，
+当前线上插件包：**0.52**（2026-11-10）；本次源码已升 **0.53**（含开局自动分边修复），产物已本地打包、**待发布**，
+发布清单见 `docs/RELEASE-2026-11-11.md`。唯一权威状态见 `docs/kb/current-state.md`。
+`esf_platform_auth.sma` / `esf_ranked_lock.sma` 的 `BUILD` = `"0.53"`，
 `esf_ranked_lock.sma` 的 `VERSION` = `"1.3.0"`；`test_ranked.sma` 沿用 FCX_BATTLE `1.2.0-r14` 基线。
 构建方式：amxxpc 1.10.0.5392 + `-d1` + UTF-8 无 BOM 直编（详见下文「构建链现状」）。
 发布包与安装步骤见 `docs/kb/pattern/release-amxx.md`；`docs/AMXX_CHALLENGE.md`、
@@ -15,7 +16,7 @@
 | `esf_ranked_lock.sma` | 比赛锁服：排位/约战 live 时只允许参赛者与持观战 token 的观众进入 |
 | `esf_gamemode.sma` | 启动后兜底应用 `esf_force_gamemode`（-1 不改 / 0 混战 / 2 组队） |
 | `test_ranked.sma` | 约战识别、开赛、HUD、计分、结算、弃权；排位保留原逻辑 |
-| `tools/build-r14.ps1` | **历史 r14 构建脚本**（GBK 转码、产出 0.4.6-r14 包），不要用于当前 0.52；见「构建链现状」 |
+| `tools/build-r14.ps1` | **历史 r14 构建脚本**（GBK 转码、产出 0.4.6-r14 包），不要用于当前版本；见「构建链现状」 |
 | `tools/install-amxx.ps1` | 离线安装：SHA256 校验、备份、幂等复制、失败回滚、`-DryRun` |
 | `tools/README-package.txt` | 打进发布包的服主安装/回滚说明 |
 
@@ -47,12 +48,12 @@ $text = [IO.File]::ReadAllText($src).TrimStart([char]0xFEFF)
 
 固定 `-d1` 是构建要求：amxxpc 1.10 默认 `-d2` 在同源重复编译极小插件时会写出不稳定的调试
 字符串，导致同源二进制不可复现；`-d1` 保留行号诊断且可复现。
-当前 0.52 用上面的 **UTF-8 无 BOM 直编**编译 4 个 `.sma`，再由
-`scripts/publish-amxx.ps1` 打包成 `esf-challenge-plugins-0.52.zip` + `manifest.json`。
+当前版本用上面的 **UTF-8 无 BOM 直编**编译 4 个 `.sma`，再由
+`scripts/publish-amxx.ps1` 打包成 `esf-challenge-plugins-<BUILD>.zip` + `manifest.json`。
 
 注意：`amxx/tools/build-r14.ps1` 是 r14 时代脚本，会先把源码转成 **GBK** 再编译并产出
 `dist/esf-challenge-plugins-0.4.6-r14.zip`。用它构建当前版本会让客户端/控制台中文乱码
-（根因见 `docs/kb/debugging/known-issues.md` 第 1 条），**不要用于 0.52 及以后**，仅作历史参考。
+（根因见 `docs/kb/debugging/known-issues.md` 第 1 条），**不要用于当前版本及以后**，仅作历史参考。
 
 ## 测试
 
@@ -183,13 +184,15 @@ EXECUTE ON PROCEDURE esf_platform.settle_challenge_match TO 'esf_amxx'@'<游戏�
 - **可复现构建（2026-11-11 补齐）**：`amxx/tools/build-current.ps1`（ASCII-only），
   从 `esf_platform_auth.sma` 的 `BUILD` 读版本，用 amxxpc 1.10.0.5392 + `-d1` +
   **UTF-8 无 BOM 直编**编译 4 个插件到 `dist/amxx-<BUILD>/`，产出 `SHA256SUMS.txt`
-  与 `build.log`。实测 BUILD 0.52 编译 0 error / 0 warning。
-  之后用 `scripts/publish-amxx.ps1` 打包成 `esf-challenge-plugins-0.52.zip` + `manifest.json`，
-  经 114 的 `ESFAmxxUpdate` 自动生效；发布步骤见 `docs/kb/pattern/release-amxx.md`。
-  **待确认**：本次产物哈希需与线上 `C:\esf\updates\amxx\esf-challenge-plugins-0.52.zip` 比对，
-  才能证明线上二进制确由这份源码构建（线上包不在仓库）。
-  **注意**：2026-11-11 源码已加入「开局自动分边」修复（`test_ranked.amxx` 26638 B），
-  但**线上仍运行旧 0.52 二进制**；下次发布需升 `BUILD` 并同步 `AMXX_EXPECTED_*` 默认值。
+  与 `build.log`。实测 BUILD 0.53 编译 0 error / 0 warning。
+  之后用 `scripts/publish-amxx.ps1` 打包成 `esf-challenge-plugins-0.53.zip` + `manifest.json`，
+  经 114 的 `ESFAmxxUpdate` 自动生效；发布步骤见 `docs/kb/pattern/release-amxx.md`
+  与 `docs/RELEASE-2026-11-11.md`。
+  **待确认**：发布后需核对 114 两台服上 4 个 `.amxx` 的 SHA256 与本次 `SHA256SUMS.txt` 一致，
+  才能证明线上二进制确由这份源码构建。
+  **状态**：源码已升 `BUILD 0.53` 并加入「开局自动分边」修复（`test_ranked.amxx` 26638 B），
+  `AMXX_EXPECTED_*` 默认值与静态测试已同步；zip + manifest 已本地产出，**线上仍运行 0.52**。
+  上传与验证步骤见 `docs/RELEASE-2026-11-11.md`。
 - **`amxx/tools/build-r14.ps1` 是 r14/0.4.6 时代的历史脚本**：转 GBK 后编译、产出
   `esf-challenge-plugins-0.4.6-r14.zip`，**不要用于 0.52 及以后**，仅作历史参考。
 - 2026-11-11 已把线上分支 `fix/amxx-ascii-logs`（BUILD 0.52）合入 main，

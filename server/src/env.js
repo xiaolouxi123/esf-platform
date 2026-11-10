@@ -83,11 +83,11 @@ const env = {
     password: str(process.env.AMXX_DB_PASSWORD),
     allowedHost: str(process.env.AMXX_ALLOWED_HOST, '127.0.0.1'),
     // 心跳表 amxx_builds 里的 build 标签（不是插件 VERSION）；
-    // auth/lock 共用线上套件构建号 0.47，发版时随插件一起改这里。
+    // 发版时随 amxx/*.sma 的 BUILD 常量一起改这里。
     expected: {
-      platform_auth: str(process.env.AMXX_EXPECTED_PLATFORM_AUTH, '0.52'),
-      ranked_lock: str(process.env.AMXX_EXPECTED_RANKED_LOCK, '0.52'),
-      test_ranked: str(process.env.AMXX_EXPECTED_TEST_RANKED, '0.52'),
+      platform_auth: str(process.env.AMXX_EXPECTED_PLATFORM_AUTH, '0.53'),
+      ranked_lock: str(process.env.AMXX_EXPECTED_RANKED_LOCK, '0.53'),
+      test_ranked: str(process.env.AMXX_EXPECTED_TEST_RANKED, '0.53'),
       gamemode: str(process.env.AMXX_EXPECTED_GAMEMODE, '1.0.0'),
     },
     heartbeatStaleSeconds: num(process.env.AMXX_HEARTBEAT_STALE_SECONDS, 15 * 60),

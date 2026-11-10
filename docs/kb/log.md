@@ -9,6 +9,16 @@ updated: 2026-11-10T08:00:00+08:00
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-11 · **部署包重建 + 0.53 发布准备**：新增 `scripts/build-server-bundle.py`，重建
+  `deploy/esf-server-bundle.zip`（45→73 文件、7→16 个 SQL、含 `settle_*` 过程、53 项 env 模板），
+  产出 manifest 并接入 `check-versions.cjs`（12 PASS / 0 FAIL）。`server/.env.example` 补全应用与
+  脚本全部变量、全为占位值；`deploy-esf-server.ps1` 生成的 `.env` 补邀请码、上传令牌、ops key、
+  HTTPS 入口、AMXX 来源 IP 与 0.53 心跳期望。
+  **插件升 BUILD 0.53**（不升版本 114 的 updater 不会拉取），同步 `AMXX_EXPECTED_*` 默认值、
+  静态测试断言与部署脚本。编译 0 error / 0 warning，本地产出
+  `dist/amxx-release/esf-challenge-plugins-0.53.zip`（37,908 B / sha256 `b8d8a480…`）与无 BOM manifest。
+  发布清单见 `docs/RELEASE-2026-11-11.md`。**线上仍是 0.52**：上传到新机、114 自动更新与
+  `git push origin main` 需维护者执行；发布后把 `current-state` 的线上插件包改为 0.53。
 - 2026-11-11 · **修复开局自动分边（KB 待办 9 / known-issues #8）**：`amxx/test_ranked.sma` 新增
   `platformAssignTeam()`，在排位/约战识别回调拿到平台队伍后主动 `engclient_cmd(jointeam)`；
   下发期间 `g_teamAssigning` 让 `hookJoint` 放行，0.8 秒校验 `Get_Team()`，不匹配按 8.2 秒

@@ -219,10 +219,10 @@ test('fail-open paths record verify_timeout=1 (AC-R6-4)', () => {
   );
 });
 
-test('both plugins report build 0.52', () => {
-  // KB current-state.md：线上插件包 0.52，auth VERSION 1.2.0 / lock VERSION 1.3.0
-  assert.match(source, /#define BUILD "0\.52"/, 'auth 构建号必须是 0.52');
-  assert.match(lockSource, /#define BUILD "0\.52"/, 'lock 构建号必须是 0.52');
+test('both plugins report build 0.53', () => {
+  // 0.53 = 含开局自动分边修复的待发布包；auth VERSION 1.2.0 / lock VERSION 1.3.0
+  assert.match(source, /#define BUILD "0\.53"/, 'auth 构建号必须是 0.53');
+  assert.match(lockSource, /#define BUILD "0\.53"/, 'lock 构建号必须是 0.53');
   assert.match(source, /#define VERSION "1\.2\.0"/, 'auth 版本必须是 1.2.0');
   assert.match(lockSource, /#define VERSION "1\.3\.0"/, 'lock 版本必须是 1.3.0');
 });
