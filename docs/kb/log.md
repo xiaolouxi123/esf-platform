@@ -2,13 +2,17 @@
 title: 变更日志
 category: log
 tags: [log]
-updated: 2026-11-10T08:00:00+08:00
+updated: 2026-11-11T06:37:00+08:00
 ---
 
 # 变更日志
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-11 · 新增 `docs/HANDOFF-2026-11-11.md` 交接总览（架构 / 代码地图 / 凭据位置 / 版本发布机制 /
+  线上快照 / 命令速查 / 本次接手完成的 13 项变更 / 待办风险 / 已知坑），挂入 `docs/kb/index.md`「交接入口」
+  与根 README「新接手请先读」。文档在公开仓库中，**不含任何口令、邀请码、令牌的具体值**；
+  所有链接目标已校验存在。KB `index.md` / `log.md` 的 updated 同步刷新。
 - 2026-11-11 · **生产 .env 三项修补完成**（带备份 → 重启 ESFAPI → `/api/health` 验证 `ok=true / db=up`，未触发回滚；
   备份 `C:\esf\backups\env-20261111-062934.bak`）：
   `MIN_LAUNCHER_VERSION` 0.2.4→0.6.1、显式写 `AMXX_EXPECTED_*=0.53`（消除与新插件的 drift）、
