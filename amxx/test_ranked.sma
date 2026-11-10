@@ -45,6 +45,10 @@
 #define TASK_MATCH_END_COUNT 4961
 #define TASK_RANKED_END 4800
 #define TASK_QUIT   4300
+// 平台队伍自动分配：分配 / 校验 / 开赛延后（基址避开 4940+32 等已有区间）
+#define TASK_TEAM_ASSIGN 5000
+#define TASK_TEAM_VERIFY 5100
+#define TASK_TEAM_START_DEFER 5200
 #define esf_get_advancedmelee(%1) get_pdata_int(%1, 298)
 
 forward armChallengeQuorum();
@@ -137,6 +141,14 @@ new bool:g_challengeQuorumArmed = false;
 new g_challengeName[33][32];
 new bool:g_challengeActive = false;
 new bool:g_challengeSettled = false;
+
+// 平台队伍自动分配（KB known-issues #8）：把 g_rankedTeam / g_challengeTeam 写回引擎队伍
+new g_platformDesiredTeam[33];
+new bool:g_teamAssigning[33];
+new bool:g_teamAssignFailed[33];
+new g_teamAssignTries[33];
+new g_teamStartDeferTries = 0;
+
 new g_pcRankedHost, g_pcRankedUser, g_pcRankedPass, g_pcRankedDb, g_pcRankedServerKey;
 new g_pcQuitEnable, g_pcQuitDelay;
 new g_pcPlatformLogin;
@@ -168,6 +180,10 @@ public client_putinserver(id)
     g_userCount[id]=0;
     g_rankedTeam[id]=0;
     g_challengeTeam[id]=0;
+    g_platformDesiredTeam[id]=0;
+    g_teamAssigning[id]=false;
+    g_teamAssignFailed[id]=false;
+    g_teamAssignTries[id]=0;
     g_challengeRetry[id]=0;
     g_challengeUserId[id]=0;
     g_challengeKills[id]=0;
@@ -319,7 +335,12 @@ public client_disconnected(id)
     remove_task(id+TASK_LoginCountDown);
     remove_task(id+TASK_ID);
     remove_task(TASK_CHALLENGE_RETRY + id);
+    remove_task(TASK_TEAM_ASSIGN + id);
+    remove_task(TASK_TEAM_VERIFY + id);
     g_challengeRetry[id] = 0;
+    g_platformDesiredTeam[id] = 0;
+    g_teamAssigning[id] = false;
+    g_teamAssignFailed[id] = false;
 }
 
 //阻止优化系统发来的消息
@@ -462,6 +483,86 @@ public taskRankedIdentify(taskid) {
     SQL_ThreadQuery(g_rankedTuple, "OnRankedIdentify", query, data, 1);
 }
 
+// ---- 平台队伍自动分配（KB known-issues #8）----
+// 平台房间登记了 g_rankedTeam / g_challengeTeam，但引擎侧一直是"未选队/同队"；
+// autoPlayerStart() 只统计 Get_Team()，导致队伍不等时无法正常出生。
+// 这里主动下发 jointeam，校验引擎队伍，按 ESF 的 8 秒切队冷却重试；失败留日志与提示。
+platformAssignTeam(id, team) {
+    if (team != 1 && team != 2) return;
+    if (!is_user_connected(id)) return;
+
+    g_platformDesiredTeam[id] = team;
+    g_teamAssignFailed[id] = false;
+    g_teamAssignTries[id] = 0;
+    remove_task(TASK_TEAM_ASSIGN + id);
+    remove_task(TASK_TEAM_VERIFY + id);
+
+    if (Get_Team(id) == team) {
+        log_amx("[ESF-TEAM] already id=%d team=%d", id, team);
+        return;
+    }
+    set_task(0.2, "taskTeamAssign", TASK_TEAM_ASSIGN + id);
+}
+
+public taskTeamAssign(taskid) {
+    new id = taskid - TASK_TEAM_ASSIGN;
+    if (!is_user_connected(id) || g_platformDesiredTeam[id] == 0) return;
+    if (Get_Team(id) == g_platformDesiredTeam[id]) {
+        g_teamAssignFailed[id] = false;
+        log_amx("[ESF-TEAM] assigned id=%d team=%d tries=%d", id,
+            g_platformDesiredTeam[id], g_teamAssignTries[id]);
+        return;
+    }
+
+    // 内部下发期间放行 hookJoint：平台模式 PS_IS_LOGGED 为 false，
+    // 否则会被自己的登录/比赛期拦截规则挡住。
+    g_teamAssigning[id] = true;
+    engclient_cmd(id, "jointeam", g_platformDesiredTeam[id] == 1 ? "1" : "2");
+    set_task(0.8, "taskTeamVerify", TASK_TEAM_VERIFY + id);
+}
+
+public taskTeamVerify(taskid) {
+    new id = taskid - TASK_TEAM_VERIFY;
+    g_teamAssigning[id] = false;
+    if (!is_user_connected(id) || g_platformDesiredTeam[id] == 0) return;
+
+    if (Get_Team(id) == g_platformDesiredTeam[id]) {
+        g_teamAssignFailed[id] = false;
+        log_amx("[ESF-TEAM] assigned id=%d team=%d tries=%d", id,
+            g_platformDesiredTeam[id], g_teamAssignTries[id]);
+        return;
+    }
+
+    if (g_teamAssignTries[id] < 2) {
+        g_teamAssignTries[id]++;
+        log_amx("[ESF-TEAM] retry id=%d try=%d desired=%d actual=%d", id,
+            g_teamAssignTries[id], g_platformDesiredTeam[id], Get_Team(id));
+        // ESF 切队有 8 秒冷却，等 8.2 秒再下发
+        set_task(8.2, "taskTeamAssign", TASK_TEAM_ASSIGN + id);
+        return;
+    }
+
+    g_teamAssignFailed[id] = true;
+    log_amx("[ESF-TEAM] TEAM_ASSIGN_FAILED id=%d desired=%d actual=%d", id,
+        g_platformDesiredTeam[id], Get_Team(id));
+    client_print(id, print_chat, "[平台] 队伍分配失败，请在控制台输入 jointeam %d 后重进房间",
+        g_platformDesiredTeam[id]);
+}
+
+/** 是否还有已登记平台队伍、但引擎队伍尚未匹配的玩家 */
+platformTeamAssignmentPending() {
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        if (!is_user_connected(i) || g_platformDesiredTeam[i] == 0) continue;
+        if (Get_Team(i) != g_platformDesiredTeam[i]) return true;
+    }
+    return false;
+}
+
+public taskTeamStartDefer() {
+    if (!g_challengeActive || g_challengeSettled || g_iBattle) return;
+    startChallengeBattle();
+}
+
 public OnRankedIdentify(failstate, Handle:query, error[], errnum, data[], dataSize) {
     new id = data[0];
     if (failstate != TQUERY_SUCCESS) {
@@ -476,6 +577,7 @@ public OnRankedIdentify(failstate, Handle:query, error[], errnum, data[], dataSi
     g_rankedMatchId = SQL_ReadResult(query, 0);
     g_rankedTeam[id] = (team[0] == 'a') ? 1 : 2;
     g_rankedUserId[id] = SQL_ReadResult(query, 2);
+    platformAssignTeam(id, g_rankedTeam[id]);
     g_rankedKnown++;
     if (g_rankedTeam[id] == 1) g_rankedSeenA++;
     else g_rankedSeenB++;
@@ -567,7 +669,15 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
             g_challengeKills[i] = 0;
             g_challengeDeaths[i] = 0;
             g_challengeName[i][0] = 0;
+            g_platformDesiredTeam[i] = 0;
+            g_teamAssigning[i] = false;
+            g_teamAssignFailed[i] = false;
+            g_teamAssignTries[i] = 0;
+            remove_task(TASK_TEAM_ASSIGN + i);
+            remove_task(TASK_TEAM_VERIFY + i);
         }
+        g_teamStartDeferTries = 0;
+        remove_task(TASK_TEAM_START_DEFER);
     } else if (g_challengeSlots <= 0) {
         g_challengeSlots = equal(mode, "2v2") ? 2 : 1;
         g_challengeExpected = g_challengeSlots * 2;
@@ -575,6 +685,7 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
 
     g_challengeUserId[id] = userId;
     g_challengeTeam[id] = (team[0] == 'a') ? 1 : 2;
+    platformAssignTeam(id, g_challengeTeam[id]);
     g_challengeKills[id] = 0;
     g_challengeDeaths[id] = 0;
     g_challengeBaseKills[id] = get_user_frags(id);
@@ -639,6 +750,24 @@ checkChallengeReadyToStart() {
 
 startChallengeBattle() {
     if (g_iBattle) return;
+
+    // 平台队伍尚未落到引擎侧：最多延后 5 次（约 10 秒）再开赛，避免同队出生；
+    // 超时强制开赛并留日志，不能让房间永远卡住。
+    if (platformTeamAssignmentPending()) {
+        g_challengeStartArmed = false;
+        g_challengeQuorumArmed = false;
+        remove_task(TASK_CHALLENGE_PARTIAL);
+        remove_task(TASK_CHALLENGE_QUORUM);
+        g_teamStartDeferTries++;
+        if (g_teamStartDeferTries > 5) {
+            log_amx("[ESF-TEAM] TEAM_ASSIGN_FAILED start forced after %d defers", g_teamStartDeferTries);
+        } else {
+            log_amx("[ESF-TEAM] start deferred %d", g_teamStartDeferTries);
+            if (!task_exists(TASK_TEAM_START_DEFER))
+                set_task(2.0, "taskTeamStartDefer", TASK_TEAM_START_DEFER);
+            return;
+        }
+    }
 
     g_challengeStartArmed = false;
     g_challengeQuorumArmed = false;
@@ -1995,6 +2124,9 @@ public voteMenu_handle(id,menu,item)
 //检测处理玩家加入比赛函数
 public hookJoint(id)
 {
+    // 平台内部下发 jointeam 时放行，避免被下面的登录/比赛期规则误拦
+    if (g_teamAssigning[id]) return PLUGIN_CONTINUE;
+
     new agi  = read_argv_int(id);
     
     if( g_PlayerStats[id][PS_IS_LOGGED] == false)
@@ -2879,7 +3011,16 @@ resetAll()
     g_rankedSeenA=0;
     g_rankedSeenB=0;
     g_rankedSettled=false;
-    for(new i = 1; i <= get_maxplayers(); i++) { g_rankedTeam[i]=0; g_rankedUserId[i]=0; }
+    for(new i = 1; i <= get_maxplayers(); i++) {
+        g_rankedTeam[i]=0;
+        g_rankedUserId[i]=0;
+        g_platformDesiredTeam[i]=0;
+        g_teamAssignFailed[i]=false;
+        remove_task(TASK_TEAM_ASSIGN + i);
+        remove_task(TASK_TEAM_VERIFY + i);
+    }
+    g_teamStartDeferTries = 0;
+    remove_task(TASK_TEAM_START_DEFER);
 
     remove_task(TASK_CHALLENGE_TIMEOUT);
     g_challengeRemaining = 0;
@@ -2912,8 +3053,15 @@ resetAll()
         g_challengeKills[i] = 0;
         g_challengeDeaths[i] = 0;
         g_challengeName[i][0] = 0;
+        g_platformDesiredTeam[i] = 0;
+        g_teamAssigning[i] = false;
+        g_teamAssignFailed[i] = false;
+        g_teamAssignTries[i] = 0;
+        remove_task(TASK_TEAM_ASSIGN + i);
+        remove_task(TASK_TEAM_VERIFY + i);
         remove_task(TASK_CHALLENGE_SPECTATE + i);
     }
+    remove_task(TASK_TEAM_START_DEFER);
 
     g_iBattle     = false;
     g_BattleState = false;

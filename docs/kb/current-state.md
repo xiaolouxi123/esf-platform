@@ -73,4 +73,4 @@ updated: 2026-11-10T09:10:00+08:00
 6. ops agent 任务输出的中文乱码（cmd 以 UTF-8 输出、agent 按 GBK 读回），改 `[IO.File]::ReadAllText(..., UTF8)`。
 7. 老 114 仍有 0.2.1 版本残留，待与现网版本对齐。
 8. 发布提速：`release.ps1` 仍用 PSSession 逐机拷 125 MB 安装包（约 4–5 分钟/台）；下一步改成两台机自行从 `https://119.29.82.217/updates/` 下载并校验 sha512。
-9. 插件开局不会自动分边：`autoPlayerStart()` 只统计队伍，未下发 `jointeam`；ESF 切队有 8 秒冷却。方案与验证项见 [[known-issues]] 第 8 条，等插件下一轮修改时处理。
+9. **发布并验收自动分边**：源码已修（`platformAssignTeam` + `jointeam` 下发 + 8.2 秒冷却重试 + 开赛延后保护，见 [[known-issues]] 第 8 条），amxxpc 编译 0 error / 0 warning、静态测试 100/100。**线上仍运行旧 0.52 二进制**，需下次插件发布时升 `BUILD`（auth/ranked_lock）并同步 `AMXX_EXPECTED_*` 默认值，再真人双开验证首次选队是否也吃 8 秒冷却。

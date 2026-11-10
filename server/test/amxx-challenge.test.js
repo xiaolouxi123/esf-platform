@@ -235,3 +235,18 @@ test('team_empty forfeit awards the remaining team regardless of score (AC-R8-6)
   const winner = forfeitTeam === 2 ? 'a' : 'b';
   assert.equal(winner, 'b');
 });
+
+test('platform team assignment writes jointeam and guards start (KB known-issues #8)', () => {
+  // 平台队伍必须写回引擎队伍，否则进服后仍未选队/同队，无法正常出生。
+  assert.match(source, /platformAssignTeam\(id, team\)/, '必须有队伍分配入口');
+  assert.match(source, /platformAssignTeam\(id, g_rankedTeam\[id\]\)/, '排位识别后必须分配');
+  assert.match(source, /platformAssignTeam\(id, g_challengeTeam\[id\]\)/, '约战识别后必须分配');
+  assert.match(source, /engclient_cmd\(id, "jointeam"/, '必须主动下发 jointeam');
+  assert.match(source, /g_teamAssigning\[id\] = true/, '下发期间必须置内部标记');
+  assert.match(source, /if \(g_teamAssigning\[id\]\) return PLUGIN_CONTINUE;/, 'hookJoint 必须放行内部下发');
+  assert.match(source, /set_task\(0\.8, "taskTeamVerify"/, '下发后必须校验引擎队伍');
+  assert.match(source, /set_task\(8\.2, "taskTeamAssign"/, '重试必须等过 ESF 的 8 秒切队冷却');
+  assert.match(source, /TEAM_ASSIGN_FAILED/, '分配失败必须有明确日志');
+  assert.match(source, /platformTeamAssignmentPending\(\)/, '开赛前必须检查队伍是否落位');
+  assert.match(source, /remove_task\(TASK_TEAM_ASSIGN \+ id\)/, '断线必须清掉分配任务');
+});

@@ -9,6 +9,15 @@ updated: 2026-11-10T08:00:00+08:00
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-11 · **修复开局自动分边（KB 待办 9 / known-issues #8）**：`amxx/test_ranked.sma` 新增
+  `platformAssignTeam()`，在排位/约战识别回调拿到平台队伍后主动 `engclient_cmd(jointeam)`；
+  下发期间 `g_teamAssigning` 让 `hookJoint` 放行，0.8 秒校验 `Get_Team()`，不匹配按 8.2 秒
+  冷却重试最多 2 次，失败记 `TEAM_ASSIGN_FAILED` 并提示玩家；`startChallengeBattle()` 在队伍
+  未落位时延后开赛（最多 5 次），断线/换房/resetall 全量清理。
+  `amxx/tools/build-current.ps1` 编译 **0 error / 0 warning**（`test_ranked.amxx` 25640→26638 B），
+  新增静态防回归断言，后端 **100/100 全绿**。**未发布**：线上仍是旧 0.52 二进制，
+  下次插件发布需升 BUILD 并同步 `AMXX_EXPECTED_*`；首次选队是否吃 8 秒冷却待真机确认。
+  构建脚本同时修掉 `Remove-Item` 触发环境删除保护的问题，改为 amxxpc 覆盖 + 时间戳校验。
 - 2026-11-11 · **版本单一来源**：新增 `scripts/sync-versions.cjs`（发版时由 `release.ps1` 调用）与
   `scripts/check-versions.cjs`（已接入 CI，11 PASS / 0 FAIL）。唯一来源为 `esf-launcher/package.json` 0.6.1；
   同步官网 3 处版本、JS 兜底值、下载链接、更新记录（取 releases.json 前 8 条）、`website/version.json`、

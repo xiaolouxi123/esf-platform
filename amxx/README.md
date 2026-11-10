@@ -139,6 +139,9 @@ EXECUTE ON PROCEDURE esf_platform.settle_challenge_match TO 'esf_amxx'@'<游戏�
 ## 行为
 
 - 合法平台玩家验证通过后，游戏内昵称同步为平台资料里的游戏昵称（≤31 UTF-8 字节）。
+- 识别到平台队伍后主动 `engclient_cmd(jointeam)` 写回引擎队伍：0.8 秒校验 `Get_Team()`，
+  不匹配按 8.2 秒切队冷却重试最多 2 次；队伍未落位时延后开赛，失败记
+  `TEAM_ASSIGN_FAILED`。日志前缀 `[ESF-TEAM]`，详见 KB `debugging/known-issues` 第 8 条。
 - 进服后 2.2/6.2/12.2 秒识别约战，之后每 20 秒重试一次，最多约 10 分钟。
 - 满员立即开赛；8 秒时若已识别人数满足 quorum（1v1 known≥1；2v2 每队≥1 且 known≥2）则 `start_partial` 开赛，否则进入 20 秒 quorum 宽限，不足按 R8 弃权规则结算。
 - 约战 HUD 为单条 DHUD：channel 4、x=-1.0、两行、ASCII 规则 `FIRST TO <limit> KILLS|DEATHS`；
@@ -185,6 +188,8 @@ EXECUTE ON PROCEDURE esf_platform.settle_challenge_match TO 'esf_amxx'@'<游戏�
   经 114 的 `ESFAmxxUpdate` 自动生效；发布步骤见 `docs/kb/pattern/release-amxx.md`。
   **待确认**：本次产物哈希需与线上 `C:\esf\updates\amxx\esf-challenge-plugins-0.52.zip` 比对，
   才能证明线上二进制确由这份源码构建（线上包不在仓库）。
+  **注意**：2026-11-11 源码已加入「开局自动分边」修复（`test_ranked.amxx` 26638 B），
+  但**线上仍运行旧 0.52 二进制**；下次发布需升 `BUILD` 并同步 `AMXX_EXPECTED_*` 默认值。
 - **`amxx/tools/build-r14.ps1` 是 r14/0.4.6 时代的历史脚本**：转 GBK 后编译、产出
   `esf-challenge-plugins-0.4.6-r14.zip`，**不要用于 0.52 及以后**，仅作历史参考。
 - 2026-11-11 已把线上分支 `fix/amxx-ascii-logs`（BUILD 0.52）合入 main，

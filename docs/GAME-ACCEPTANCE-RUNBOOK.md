@@ -101,9 +101,12 @@ node amxx/local-verify.cjs <tokenA> 测试A esf_cell
 | 3 | 赛后退出 | 比赛结束提示 10 秒倒计时，启动器只强杀本次捕获的游戏 PID，平台正常恢复 | 录屏 + `launcher.log` |
 | 4 | 观战 / 锁服 | 非参赛者拿 `spectate` token 可进、`join` 被拒；观战上限 4 人（API 层已验，进服行为待确） | 两个客户端截图 + AMXX 日志 |
 
-> 第 1 项目前**已知不通过**：KB `current-state.md` 待办 9 与 `debugging/known-issues` 第 8 条
-> 记录 `autoPlayerStart()` 只统计引擎队伍、未下发 `jointeam`。验收时应如实记为 FAIL，
-> 修复方案（engclient_cmd + 8.2 秒重试 + 校验）已写在 known-issues 第 8 条。
+> 第 1 项**源码已修（2026-11-11）**：`platformAssignTeam()` 主动下发 `jointeam`、0.8 秒校验、
+> 8.2 秒冷却重试最多 2 次，`hookJoint` 对内部下发放行，开赛前检查队伍是否落位；
+> 编译 0 error / 0 warning、静态测试 100/100。**但线上仍运行旧 0.52 二进制**，
+> 需先发布新插件包再验收。本地若用 `dist/amxx-0.52/` 产物验证，重点看：
+> 日志是否出现 `[ESF-TEAM] assigned`、首次选队是否也吃 8 秒冷却、失败时是否有
+> `TEAM_ASSIGN_FAILED` 与玩家提示。详见 KB `known-issues` 第 8 条。
 
 ## 证据归档模板
 

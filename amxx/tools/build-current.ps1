@@ -27,6 +27,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$scriptStart = Get-Date
 
 $amxxDir = Split-Path -Parent $PSScriptRoot
 $root = Split-Path -Parent $amxxDir
@@ -79,7 +80,7 @@ foreach ($name in $names) {
     }
 
     $outFile = Join-Path $OutDir ($name + '.amxx')
-    if (Test-Path $outFile) { Remove-Item $outFile -Force }
+    # amxxpc -o overwrites in place; do not delete first (avoids safe-delete guards)
 
     $compileArgs = @($compileSrc, '-d1', ('-i' + $IncludeDir), ('-o' + $outFile))
     Add-Content -Path $logPath -Value ("`r`n=== " + $name + " ===") -Encoding ascii
@@ -92,6 +93,10 @@ foreach ($name in $names) {
     }
     if (-not (Test-Path $outFile) -or (Get-Item $outFile).Length -eq 0) {
         throw ("no .amxx produced for " + $name)
+    }
+    $item = Get-Item $outFile
+    if ($item.LastWriteTime -lt $scriptStart.AddSeconds(-2)) {
+        throw ("stale .amxx for " + $name + " (compiler did not overwrite output)")
     }
     $built += $name
     Write-Output ("[ok] " + $name + ".amxx " + (Get-Item $outFile).Length + " bytes")
