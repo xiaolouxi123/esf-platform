@@ -2,7 +2,7 @@
 title: 已解决的问题与根因
 category: debugging
 tags: [troubleshooting, root-cause]
-updated: 2026-11-09T07:55:00+08:00
+updated: 2026-11-11T06:50:00+08:00
 ---
 
 # 已知问题
@@ -73,3 +73,37 @@ updated: 2026-11-09T07:55:00+08:00
   静态防回归断言见 `server/test/amxx-challenge.test.js`（后端 100/100 通过）。
   **注意**：线上仍运行旧 0.52 二进制，此修复需打包发布后才生效；是否"首次选队也吃 8 秒冷却"
   仍需真机确认（KB `current-state` 待办 9）。
+
+## 9. 本地 listen server 开房被平台校验踢出
+
+- 现象：本机 `hl.exe` 开 listen server（New Game / LAN）后，房主反复收到
+  `[平台] 未检测到平台凭证，请从 ESF 平台启动游戏`、`[排位赛] 本地房主无法被踢出，请从平台进入比赛`，
+  控制台刷 `[ESF-REJECT]` / `[ESF-LOCK]` 日志；`jointeam` 还被 `hookJoint` 以
+  "未登录账号，禁止加入比赛" 拦掉，实际既踢不掉也玩不了。
+- 根因：本机 `G:\FCX1\FCX7.02融合版\esf\addons\amxmodx\configs\amxx.cfg` 里
+  `platform_enforce "1"`、`ranked_lock "1"`、`platform_server_key "fcx-1v1-1"`（指向生产服）。
+  房主没有 `_platform_token` → `esf_platform_auth.sma` 走 `rejectPlayer` 下发 `kick`，
+  但 **listen server 房主引擎踢不掉**；`esf_ranked_lock.sma` 的 loopback 兜底只跳过 kick，
+  仍写拒绝状态、弹提示；`test_ranked.sma` 的 `hookJoint` 因 legacy `PS_IS_LOGGED=false` 阻止选队。
+  旧做法（把 `platform_enforce` 设 `0`）只是 workaround，且锁服插件不看这个 cvar。
+- 修复（2026-11-11，`BUILD 0.54`）：三个插件各加入同名 `isLocalListenGuest(id)`，
+  判定条件为 **非 `is_dedicated_server()` + IP 为 `127.0.0.1` / `::1`**：
+  1. `esf_platform_auth.sma`：`rejectPlayer` 在任何拒绝原因下先按 guest 放行
+     （`allowLocalListenGuest`，只提示一次、不写 `g_authed`/会话/战绩、不排踢人任务）。
+  2. `esf_ranked_lock.sma`：`taskCheckPlayer` 对无凭证的本地连接直接跳过锁服查询；
+     `rejectPlayer` 兜底也不踢、不写拒绝状态。
+  3. `test_ranked.sma`：`hookJoint` 在**无进行中的平台比赛**时放行手动 `jointeam`。
+- 安全边界（关键）：`is_dedicated_server()` 是第一道判定，生产两台 HLDS 都是 dedicated，
+  **这段放行在线上永远不会触发**，平台强制校验强度不变；从公网连入 listen server 的玩家
+  IP 非 loopback，仍走完整校验；**带有效 token 的本地客户端仍走完整校验**，
+  `amxx/local-verify.cjs` 与双开验收的 token 消费链路不受影响。
+  静态防回归断言见 `server/test/amxx-auth.test.js`（后端 103/103）。
+- 本机落地：`dist/amxx-0.54/` 的 4 个 `.amxx` 已覆盖到上述游戏目录 `plugins/`，
+  逐文件 SHA256 校验一致，旧文件备份在 `plugins/backup-before-0.54-20261111-064942/`。
+- 验证方式：重开一局本地 listen server，日志应出现
+  `[Platform] local_listen_guest=1`、`[ESF-LOCK] local_listen_guest=1 ... skip lock check`，
+  且**不再出现** `[ESF-REJECT] kick` / `[ESF-LOCK] kick`；房主可手动 `jointeam 1`/`2` 选队。
+- 状态：**源码与本机场已修，编译 0 error / 0 warning、静态断言通过；待真机开一局确认**。
+  0.54 包已本地打包但**未上传生产更新源**（生产 dedicated 不受此问题影响，
+  留待下次常规发布一并上线）；生产 `.env` 仍显式 `AMXX_EXPECTED_*=0.53`，与线上 0.53 一致，
+  不要因为仓库默认值升到 0.54 就误判为 drift。

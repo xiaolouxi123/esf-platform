@@ -9,6 +9,14 @@ updated: 2026-11-11T06:37:00+08:00
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-11 · **修复本地 listen server 开房被踢**（[[known-issues]] 第 9 条）：三个插件各加
+  `isLocalListenGuest()`（非 dedicated + loopback 才放行），auth 的 `rejectPlayer` 降级为 guest 放行、
+  lock 的无凭证连接跳过锁服查询且不踢、`hookJoint` 在无平台比赛时放行手动 `jointeam`；
+  **生产 dedicated 服不触发**，带有效 token 的本地验收链路不变。源码升 `BUILD 0.54`，
+  同步 `AMXX_EXPECTED_*` 默认值 / `.env.example` / 部署脚本 / 静态断言（后端 103/103）；
+  amxxpc 编译 0 error / 0 warning，4 个 `.amxx` 已覆盖本机游戏目录并逐文件校验 SHA256，
+  旧件备份在 `plugins/backup-before-0.54-20261111-064942/`。0.54 包**未上传生产**
+  （线上 dedicated 无此问题，留待下次常规发布）。
 - 2026-11-11 · 新增 `docs/HANDOFF-2026-11-11.md` 交接总览（架构 / 代码地图 / 凭据位置 / 版本发布机制 /
   线上快照 / 命令速查 / 本次接手完成的 13 项变更 / 待办风险 / 已知坑），挂入 `docs/kb/index.md`「交接入口」
   与根 README「新接手请先读」。文档在公开仓库中，**不含任何口令、邀请码、令牌的具体值**；

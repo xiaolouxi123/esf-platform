@@ -2,7 +2,7 @@
 title: 线上现状
 category: state
 tags: [state, versions, deployment]
-updated: 2026-11-10T09:10:00+08:00
+updated: 2026-11-11T06:50:00+08:00
 ---
 
 # 线上现状（2026-11-10）
@@ -48,6 +48,7 @@ updated: 2026-11-10T09:10:00+08:00
 |---|---|
 | 当前线上插件包 | **0.52**（UTF-8 构建，含 guest 兜底、构建心跳、约战限时、AFK 判负、结算失败落盘与 2v2 列修正） |
 | 更新源已上传 | **0.53**（含开局自动分边修复，zip + manifest 已上传新机 `C:\esf\updates\amxx\`，等待 114 自动更新与心跳确认；见 `docs/RELEASE-2026-11-11.md`） |
+| 当前源码 BUILD | **0.54**（追加本地 listen server 开房放行，见 [[known-issues]] 第 9 条；已编译并装入**本机游戏目录**，zip + manifest 已本地产出，**未上传生产**——生产是 dedicated server，不触发该问题） |
 | 本地测试包 | `test_ranked 1.3.4-teamtest`（test15，38,392 B，SHA256 `0e81b6f6...`）；仅本地验证，未发布到游戏服 |
 | 分发位置 | `C:\esf\updates\amxx\manifest.json` + `esf-challenge-plugins-0.52.zip` |
 | 受管插件 | esf_gamemode / esf_platform_auth / esf_ranked_lock / test_ranked |
@@ -74,4 +75,8 @@ updated: 2026-11-10T09:10:00+08:00
 6. ops agent 任务输出的中文乱码（cmd 以 UTF-8 输出、agent 按 GBK 读回），改 `[IO.File]::ReadAllText(..., UTF8)`。
 7. 老 114 仍有 0.2.1 版本残留，待与现网版本对齐。
 8. 发布提速：`release.ps1` 仍用 PSSession 逐机拷 125 MB 安装包（约 4–5 分钟/台）；下一步改成两台机自行从 `https://119.29.82.217/updates/` 下载并校验 sha512。
-9. **发布并验收自动分边 0.53**：源码、`BUILD`、心跳期望值、静态测试与产物均已就绪（编译 0 error / 0 warning、后端 100/100、zip+manifest 见 `docs/RELEASE-2026-11-11.md`）。**线上仍是 0.52**：待维护者上传新机 → 114 自动更新 → 验证心跳/哈希 → 真人双开确认首次选队是否也吃 8 秒冷却。发布后把上表「当前线上插件包」改为 0.53。
+9. **验收 0.53，择机发布 0.54**：0.53（自动分边）已上传更新源，待确认 114 心跳/哈希与真机双开验收。
+   源码已升 **0.54**（追加本地 listen server 开房放行，见 [[known-issues]] 第 9 条），产物已本地打包并装入本机游戏目录，
+   **未上传生产**（生产 dedicated 服不受该问题影响），留到下次常规发布一并上线。
+   生产 `.env` 仍显式写 `AMXX_EXPECTED_*=0.53`，与线上一致；仓库默认值已升 0.54，
+   **不要因此误判为 drift**；真正发布 0.54 时需同步改这三项并重启 API。

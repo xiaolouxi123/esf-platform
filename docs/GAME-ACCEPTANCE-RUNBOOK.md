@@ -17,7 +17,7 @@
 ## 前置条件（已核实可用）
 
 - `G:\FCX1\FCX7.02融合版\hl.exe` 存在；`amxxpc.exe` 1.10.0.5392 存在
-- `amxx/tools/build-current.ps1` 已实测产出 0.52 的 4 个 `.amxx`（`dist/amxx-0.52/`）
+- `amxx/tools/build-current.ps1` 已实测产出 **0.54** 的 4 个 `.amxx`（`dist/amxx-0.54/`），并已装入本机游戏目录 `G:\FCX1\FCX7.02融合版\esf\addons\amxmodx\plugins\`
 - 本地 dev MySQL 可起（`npm run db:start` + `npm run migrate`），本地 API 可起
 - `amxx/local-verify.cjs`：单实例 listen server 验证工具（写 `launcher.cfg` + 启动 hl.exe）
 - `esf-launcher` 的 `--test-profile` 提供独立登录态，不碰正式账号
@@ -68,12 +68,15 @@ curl -s -X POST http://127.0.0.1:3000/api/launch-token \
 
 拿到两个 32 位 hex token（120 秒内有效、单次使用）。
 
-### 3. 装 0.52 插件到本机 listen server
+### 3. 装 0.54 插件到本机 listen server
 
-把 `dist/amxx-0.52/*.amxx` 复制到 `<mod_a>/addons/amxmodx/plugins/`，
-`amxx.cfg` 的 `platform_sql_host` / `ranked_sql_host` 指向 **dev 库**
+`dist/amxx-0.54/*.amxx` **已复制**到本机游戏目录的 `addons/amxmodx/plugins/`
+（旧件备份在 `plugins/backup-before-0.54-*`），无需再装。
+跑平台链路验收时把该目录 `amxx.cfg` 的 `platform_sql_host` / `ranked_sql_host` 指向 **dev 库**
 （本机命名管道或 `127.0.0.1:3307`），`platform_server_key` / `ranked_server_key` 设为
-`fcx-1v1-1`，`platform_enforce 0`（本机 listen server 房主踢不掉）。
+`fcx-1v1-1`；`platform_enforce` 保持 `1` 即可 —— 0.54 起本地 listen server 的 loopback
+无凭证连接自动按 guest 放行，**不再需要改成 0**（KB `known-issues` 第 9 条）。
+带有效 token 的客户端仍走完整校验，本节验收链路不受影响。
 
 ### 4. 单实例先跑通（L3）
 
@@ -81,7 +84,7 @@ curl -s -X POST http://127.0.0.1:3000/api/launch-token \
 node amxx/local-verify.cjs <tokenA> 测试A esf_cell
 ```
 
-观察：AMXX 日志出现 token 校验通过、`amxx_builds` 心跳写入 `0.52`、控制台中文不乱码、
+观察：AMXX 日志出现 token 校验通过、`amxx_builds` 心跳写入 `0.54`、控制台中文不乱码、
 `launch_tokens.used_at` 被消费、`play_sessions` 有记录。这一步不通过就不要继续双开。
 
 ### 5. 双开跑 1v1 / 2v2
@@ -103,8 +106,8 @@ node amxx/local-verify.cjs <tokenA> 测试A esf_cell
 
 > 第 1 项**源码已修（2026-11-11）**：`platformAssignTeam()` 主动下发 `jointeam`、0.8 秒校验、
 > 8.2 秒冷却重试最多 2 次，`hookJoint` 对内部下发放行，开赛前检查队伍是否落位；
-> 编译 0 error / 0 warning、静态测试 100/100。**但线上仍运行旧 0.52 二进制**，
-> 需先发布新插件包再验收。本地若用 `dist/amxx-0.52/` 产物验证，重点看：
+> 编译 0 error / 0 warning、静态测试 103/103。**本机已装 0.54 产物可直接验收**（线上 0.53 尚待确认）。
+> 用 `dist/amxx-0.54/` 产物验证时，重点看：
 > 日志是否出现 `[ESF-TEAM] assigned`、首次选队是否也吃 8 秒冷却、失败时是否有
 > `TEAM_ASSIGN_FAILED` 与玩家提示。详见 KB `known-issues` 第 8 条。
 

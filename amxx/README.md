@@ -1,8 +1,9 @@
 # AMXX 插件
 
-当前线上插件包：**0.52**（2026-11-10）；本次源码已升 **0.53**（含开局自动分边修复），产物已本地打包、**待发布**，
-发布清单见 `docs/RELEASE-2026-11-11.md`。唯一权威状态见 `docs/kb/current-state.md`。
-`esf_platform_auth.sma` / `esf_ranked_lock.sma` 的 `BUILD` = `"0.53"`，
+当前源码 `BUILD` = **0.54**（含开局自动分边修复 + 本地 listen server 开房放行）。
+0.53 包已上传更新源；0.54 只影响本地开房，**暂未上传生产**（生产是 dedicated server，本来就不触发该问题）。
+发布清单见 `docs/RELEASE-2026-11-11.md`，唯一权威状态见 `docs/kb/current-state.md`。
+`esf_platform_auth.sma` / `esf_ranked_lock.sma` 的 `BUILD` = `"0.54"`，
 `esf_ranked_lock.sma` 的 `VERSION` = `"1.3.0"`；`test_ranked.sma` 沿用 FCX_BATTLE `1.2.0-r14` 基线。
 构建方式：amxxpc 1.10.0.5392 + `-d1` + UTF-8 无 BOM 直编（详见下文「构建链现状」）。
 发布包与安装步骤见 `docs/kb/pattern/release-amxx.md`；`docs/AMXX_CHALLENGE.md`、
@@ -101,7 +102,7 @@ esf_force_gamemode -1
 
 | cvar | 默认 | 说明 |
 |---|---|---|
-| `platform_enforce` | `1` | 拒绝时是否真踢；本地调试可 `0` |
+| `platform_enforce` | `1` | 拒绝时是否真踢；**本地 listen server 已自动放行，不必改成 `0`** |
 | `platform_allow_guest` | `0` | 无 token 是否放行进服；推广后必须 `0` |
 | `platform_sync_name` | `1` | 验证通过后把昵称同步为平台 `game_name` |
 | `platform_fail_open` | `1` | 身份数据库不可用时容灾放行 |
@@ -159,7 +160,7 @@ EXECUTE ON PROCEDURE esf_platform.settle_challenge_match TO 'esf_amxx'@'<游戏�
 - `Info string length exceeded`：旧版身份插件对普通进服也写 `_platform_spectator=0`；
   r14 仅观战者写入。
 - 玩家被踢：先看 `amxx.log` 的 `[ESF-REJECT] code=...`，再核对 `server_key`、数据库授权、
-  token 是否过期；127.0.0.1 本地房主只记录 `local_bypass=1`。
+  token 是否过期；本地 listen server 的 loopback 连接只记录 `local_listen_guest=1` 并放行，不会踢。
 - 约战不开始：确认房间 `status=live`、`server_key` 匹配、双方从平台启动；8 秒后应出现
   `start_partial`。
 - 结算不结束：确认已执行包含 `settle_challenge_match` 的迁移；12 秒后应出现
@@ -167,7 +168,11 @@ EXECUTE ON PROCEDURE esf_platform.settle_challenge_match TO 'esf_amxx'@'<游戏�
 
 ## 注意
 
-- 本地 listen server 的房主无法被引擎踢出，本地测试请把 `platform_enforce` 设为 `0`。
+- **本地 listen server 开房**（非 dedicated + loopback）无平台凭证时按 guest 放行：身份插件不踢、
+  锁服插件不查库、`hookJoint` 允许手动选队；只提示一次，不写平台会话/战绩。
+  三个插件各有一份 `isLocalListenGuest()`，第一道判定是 `is_dedicated_server()`，
+  **生产两台 HLDS 是 dedicated，线上不会触发这段放行**。带有效 token 的本地客户端仍走完整校验，
+  `local-verify.cjs` / 双开验收链路不受影响。详见 [[known-issues]] 第 9 条。
 - `platform_allow_guest "1"` 只放行进服，不伪造身份、不写平台会话/战绩；上线后必须改回 `0`。
 - `platform_sync_name "1"` 会在验证通过后把游戏内昵称改成平台资料昵称；关闭时保持客户端原名。
 - 机器人没有平台 token，不参与战绩回写。
@@ -184,15 +189,14 @@ EXECUTE ON PROCEDURE esf_platform.settle_challenge_match TO 'esf_amxx'@'<游戏�
 - **可复现构建（2026-11-11 补齐）**：`amxx/tools/build-current.ps1`（ASCII-only），
   从 `esf_platform_auth.sma` 的 `BUILD` 读版本，用 amxxpc 1.10.0.5392 + `-d1` +
   **UTF-8 无 BOM 直编**编译 4 个插件到 `dist/amxx-<BUILD>/`，产出 `SHA256SUMS.txt`
-  与 `build.log`。实测 BUILD 0.53 编译 0 error / 0 warning。
-  之后用 `scripts/publish-amxx.ps1` 打包成 `esf-challenge-plugins-0.53.zip` + `manifest.json`，
-  经 114 的 `ESFAmxxUpdate` 自动生效；发布步骤见 `docs/kb/pattern/release-amxx.md`
-  与 `docs/RELEASE-2026-11-11.md`。
-  **待确认**：发布后需核对 114 两台服上 4 个 `.amxx` 的 SHA256 与本次 `SHA256SUMS.txt` 一致，
-  才能证明线上二进制确由这份源码构建。
-  **状态**：源码已升 `BUILD 0.53` 并加入「开局自动分边」修复（`test_ranked.amxx` 26638 B），
-  `AMXX_EXPECTED_*` 默认值与静态测试已同步；zip + manifest 已本地产出，**线上仍运行 0.52**。
-  上传与验证步骤见 `docs/RELEASE-2026-11-11.md`。
+  与 `build.log`。实测 BUILD 0.54 编译 0 error / 0 warning。
+  之后用 `scripts/publish-amxx.ps1` 打包成 `esf-challenge-plugins-<BUILD>.zip` + `manifest.json`。
+  **0.54 现状**：源码含开局自动分边 + 本地开房放行（`test_ranked.amxx` 26,770 B），
+  `AMXX_EXPECTED_*` 默认值与静态测试已同步；zip + manifest 已本地产出并**已装入本机游戏目录**
+  （`G:\FCX1\FCX7.02融合版\esf\addons\amxmodx\plugins\`，旧文件备份在 `backup-before-0.54-*`）。
+  **未上传生产更新源**：0.54 的改动只在 listen server 生效，生产 dedicated 服无影响，
+  留到下次常规发布一并上线即可。上传与验证步骤见 `docs/RELEASE-2026-11-11.md`；
+  发布后仍需核对 114 两台服 4 个 `.amxx` 的 SHA256 与 `SHA256SUMS.txt` 一致。
 - **`amxx/tools/build-r14.ps1` 是 r14/0.4.6 时代的历史脚本**：转 GBK 后编译、产出
   `esf-challenge-plugins-0.4.6-r14.zip`，**不要用于 0.52 及以后**，仅作历史参考。
 - 2026-11-11 已把线上分支 `fix/amxx-ascii-logs`（BUILD 0.52）合入 main，
