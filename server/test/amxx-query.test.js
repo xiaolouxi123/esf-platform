@@ -13,9 +13,12 @@ test('ranked lock SQL fits its AMXX query buffer', () => {
   assert.ok(bufferMatch, '未找到 query 缓冲区声明');
 
   const bufferSize = Number(bufferMatch[1]);
-  const sqlMatch = source.match(
-    /formatex\(query, charsmax\(query\),\s*"([\s\S]*?)"\s*,\s*serverKey/,
-  );
+  // 0.52 起文件里有多个 formatex(query, ..., serverKey)（含 amxx_builds 心跳），
+  // 必须挑出真正查 launch_tokens 的那一段，否则会拿心跳 SQL 误判缓冲区。
+  const blocks = [...source.matchAll(
+    /formatex\(query, charsmax\(query\),\s*"([\s\S]*?)"\s*,\s*serverKey/g,
+  )];
+  const sqlMatch = blocks.find((m) => /FROM launch_tokens/i.test(m[1]));
   assert.ok(sqlMatch, '未找到锁服查询 SQL');
 
   // token 与 server_key 都是 32 字符上限；%s 按最坏情况展开。

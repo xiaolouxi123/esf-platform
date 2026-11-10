@@ -62,7 +62,10 @@ test('1v1 settles with one participant while 2v2 requires both teams', () => {
 });
 
 test('challenge mode drives slots and safe start fallback', () => {
-  assert.match(source, /t\.user_id, r\.mode/);
+  // 0.6.1 起 SELECT 列固定（修 2v2 被当成 1v1），列顺序见 test_ranked.sma 约战识别 SQL
+  assert.match(source, /COALESCE\(c\.victory_type, 'kills'\)/, '约战 SQL 必须读取胜利条件');
+  assert.match(source, /t\.user_id, r\.time_limit_sec/, '约战 SQL 必须读取单局限时');
+  assert.match(source, /r\.mode/, '约战 SQL 必须读取模式供 1v1/2v2 判断');
   assert.match(source, /new query\[1024\]/);
   assert.match(source, /g_challengeExpected = g_challengeSlots \* 2/);
   assert.match(source, /\[ESF-CHALLENGE\] start_partial known=%d expected=%d/);
