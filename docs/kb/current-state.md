@@ -64,7 +64,7 @@ updated: 2026-11-10T09:10:00+08:00
 
 ## 待办
 
-1. 0.6.1 真人验收：观战 4 人上限、锁服排队（排位优先着色）、AFK 180s 提醒 / 300s 判负、赛后 10 秒退出与结算补交（需用户与朋友实战一局）。
+1. 0.6.1 验收：**API 层 9 项本机模拟已全部通过**（2026-11-11，`server/scripts/acceptance-sim.cjs` → `npm run test:acceptance`，记录见 `docs/ACCEPTANCE-SIM-2026-11-11.md`）：观战 4 人上限与空位复用、锁服排队排位优先、AFK −30 结算与战绩公开标记、结算补交幂等与鉴权。仍待真人/双开 hl.exe 验证：游戏侧 AFK 计时提醒、赛后 10 秒退出与 PID 强杀、观战 Token 实际进服、开局自动分边。
 2. 0.5.0/0.6.0 客户端实机复测：全站新 UI、2FA、设备会话、忘记密码全链路。
 2. 新手房（27017）未上报 `amxx_builds` 心跳，疑似 `amxx.cfg` 未配 `platform_server_key` / `ranked_server_key`，待查。
 3. 启动器侧把 token 直接写进命令行参数（`+setinfo`），不再依赖 launcher.cfg，随下一版发布。
