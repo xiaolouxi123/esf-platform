@@ -13,7 +13,7 @@ updated: 2026-11-08T04:40:00+08:00
 - 启动器：Electron + Vite + React；构建 `npm.cmd run build`，打包由 GitHub Actions 的 electron-builder 完成。
 - 服务端：Node + Express，`server/`，依赖 `--omit=dev` 安装（102 包）。
 - 数据库迁移脚本：`server/scripts/migrate.js`（幂等，含新增列/唯一键/数据回填）。
-- 测试：`node --test tests/`（启动器 3 个文件 39 项）；ESLint 用 `npx.cmd eslint`。
+- 测试：`npm test`（显式文件列表，Node 18/20/22 通用；启动器 3 个文件 66 检查点、后端 81 用例，后端需本地库 `npm run db:start` + `npm run migrate`）；ESLint 用 `npx.cmd eslint`。
 
 ## AMXX
 

@@ -9,6 +9,9 @@ updated: 2026-11-10T08:00:00+08:00
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-11 · 修复 `npm test`（Node 22 下 `node --test <dir>` 把目录当模块而失败）：两个 package.json 的 test 脚本改为显式文件列表，Node 18/20/22 均可跑；实测启动器 3 文件/66 检查点、后端 81 用例全绿（后端需先 `npm run db:start` + `migrate`）。修复 `test/challenges.test.js` 未跟上 0.5.23「约战只开放单挑 1」的过时用例（改用 `fcx-1v1-1`，临时服务器仅保留给收藏/管理台用例）。
+- 2026-11-11 · 凭据泄露处置（一阶段）：`docs/ESF_MP_ARCHIVE.md` 移除两台服务器 administrator 明文口令并标作废（历史版本仍在 git 历史，administrator 口令待轮换）；`PROJECT_REPORT.md` 标作废；`README.md` 总档案指引改指向 KB；`.gitignore` 新增 `CREDENTIALS.txt`/`*.cnf`/`*.pwd`/`ops-key.txt`/`*.pem` 等凭据模式与 `.agents/`；新增 `deploy/security/rotate-admin-password.ps1`（WinRM 远程轮换 administrator 口令，校验后才写回密码文件）。评估报告见 `docs/ASSESSMENT-2026-11-11.md`。
+
 - 2026-11-10 · 启动器 0.6.0 发布（`98cb7db`，tag v0.6.0）：成员状态补全约战、成员面板全站常驻可收缩（320/56，Ctrl/Cmd+M）、AFK 180s 提醒/300s 判负并固定扣 30 分（战绩公开 AFK 标记）、观战 4 人上限、锁服排队（排位优先着色）、准备 120s/空房 600s 自动解散、管理台占用看板、比赛结束 10 秒倒计时退出；插件 0.50 已由 114 自动更新（心跳 07:27）。安装包 128,767,331 B / blockmap 135,121 B，0.5.23→0.6.0 差量 41 ops / 9,103,896 B；两机 `/api/config` 均 0.6.0。新增发布自动同步 `src/data/releases.json`（`scripts/update-releases.js`，`release.ps1` bump 后调用），并回填 0.4.15/0.4.16/0.5.1/0.5.2/0.5.21/0.5.23 说明。
 
 - 2026-11-10 · 0.6 反占服与成员面板（实施中，待验收）：成员列表补约战状态（`/members` 子查询 + `activityOf` 优先级）且成员面板全站常驻、展开 320/折叠 56、`Ctrl/Cmd+M`（`9d9e230`）；观战 4 人上限、锁服排队（排位优先）、准备 120 秒与空房 600 秒自动解散、`/queue` 与 `/challenges/:id/spectate` 接口（`a75be66`）；AFK 180s 提醒/300s 判负、排位固定 -30、`esf_match_end.flag` + 启动器 10 秒强杀、插件 0.50（`bdc7b8e` + 插件 `ad13df4`）；管理台占用看板与 AFK 战绩标记（`0887a3f`）。真机 CDP 验证折叠宽度差 264px、占用看板渲染、114 心跳 07:27 上报 0.50。Caddy 11/7 起无触发器宕机，已恢复并加 `ESFCaddyWatch` 每 5 分钟自愈。新增 `decision/anti-occupy-06` 与 `docs/design/p06-plan.html`（方案树渲染）。

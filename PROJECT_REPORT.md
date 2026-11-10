@@ -1,5 +1,9 @@
 # ESF China 平台项目报告
 
+> **已作废（2026-11-11）**：本报告停留在 0.4.2（2026-11-05），其后平台已迁移新机并启用 Caddy HTTPS 反代，
+> 与本报告"不迁移 / 无 HTTPS"等结论相反。当前权威信息见 [docs/kb/index.md](docs/kb/index.md)。
+> 本文件仅作历史参考，不再更新。
+
 报告日期：2026-11-05  
 当前版本：0.4.2  
 仓库：https://github.com/xiaolouxi123/esf-platform  

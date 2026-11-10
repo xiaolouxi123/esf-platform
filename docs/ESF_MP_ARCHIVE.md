@@ -1,5 +1,9 @@
 # ESF 平台 · MP 总档案
 
+> **已作废（2026-11-11）**：本档案停留在 0.4.7/r13，数字与结论已过时。
+> 当前权威信息一律看知识库：[docs/kb/index.md](kb/index.md)（线上现状见 [kb/current-state.md](kb/current-state.md)）。
+> 本文件仅作历史参考，不再更新；历史版本在 git 历史中可查。
+
 > 更新：2026-11-07 04:41（Asia/Shanghai）  
 > 用途：新窗口/新接手的人只看这一份，就能知道 ESF 平台现在是什么、发布怎么发、问题在哪、下一步迁到哪。  
 > 关键词：`ESF` `0.4.7` `r13` `差量更新` `blockmap` `119.29.82.217` `119.91.99.176` `114.132.84.150` `lastResult` `guest` `Kick` `ESFAPI` `ESFMySQL`
@@ -15,8 +19,8 @@
 后端：Node/Express + MySQL 8
 游戏端：AMXX 1.10，当前 r13
 生产平台：119.91.99.176（API :3000，MySQL 本机）
-游戏服：114.132.84.150（HLDS 27015/27016）账号:administrator 密码:Qq2957212447-
-新目标机：119.29.82.217（计划集中 API/MySQL/下载反代）账号:administrator 密码:Qq2957212447-
+游戏服：114.132.84.150（HLDS 27015/27016）账号:administrator（密码已轮换，位置见 docs/kb/environment/accounts-secrets.md）
+新目标机：119.29.82.217（计划集中 API/MySQL/下载反代）账号:administrator（密码已轮换，位置见 docs/kb/environment/accounts-secrets.md）
 官网：https://esfcn.cn/ 与 https://xiaolouxi123.github.io/esf-platform/
 GitHub：https://github.com/xiaolouxi123/esf-platform
 ```
