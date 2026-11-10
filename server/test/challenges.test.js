@@ -14,6 +14,8 @@ const password = 'ChallengePass_1';
 const names = Array.from({ length: 4 }, (_, i) => `t_ch_${i}_${stamp}`);
 const serverKey = `t_ch_${stamp}`;
 const adminKey = `t_adm_${stamp}`;
+// 0.5.23 起约战只开放「单挑 1」（见 src/services/challenges.js CHALLENGE_SERVER_KEY）
+const challengeServerKey = 'fcx-1v1-1';
 const ids = [];
 const tokens = [];
 let server;
@@ -130,7 +132,7 @@ test('约战：建房、邀请、接受、准备、开赛、关闭', async () =>
 
   const created = await api('POST', '/api/challenges', {
     token: tokens[1],
-    body: { mode: '1v1', title: '测试约战', map: 'esf_cell', serverKey },
+    body: { mode: '1v1', title: '测试约战', map: 'esf_cell', serverKey: challengeServerKey },
   });
   assert.equal(created.status, 201, JSON.stringify(created.body));
   roomId = created.body.data.room.id;
@@ -169,7 +171,7 @@ test('约战：建房、邀请、接受、准备、开赛、关闭', async () =>
   assert.equal(started.body.data.room.status, 'live');
 
   const liveList = await api('GET', '/api/servers', { token: tokens[3] });
-  const liveServer = liveList.body.data.servers.find((item) => item.serverKey === serverKey);
+  const liveServer = liveList.body.data.servers.find((item) => item.serverKey === challengeServerKey);
   assert.ok(liveServer.challenge, '服务器应显示约战锁');
   assert.equal(liveServer.locked, true);
   assert.equal(liveServer.canJoin, false);
@@ -177,20 +179,20 @@ test('约战：建房、邀请、接受、准备、开赛、关闭', async () =>
 
   const blockedJoin = await api('POST', '/api/launch-token', {
     token: tokens[3],
-    body: { serverKey, purpose: 'join' },
+    body: { serverKey: challengeServerKey, purpose: 'join' },
   });
   assert.equal(blockedJoin.status, 409, JSON.stringify(blockedJoin.body));
 
   const spectator = await api('POST', '/api/launch-token', {
     token: tokens[3],
-    body: { serverKey, purpose: 'spectate' },
+    body: { serverKey: challengeServerKey, purpose: 'spectate' },
   });
   assert.equal(spectator.status, 200, JSON.stringify(spectator.body));
   assert.equal(spectator.body.data.purpose, 'spectate');
 
   const participant = await api('POST', '/api/launch-token', {
     token: tokens[1],
-    body: { serverKey, purpose: 'join' },
+    body: { serverKey: challengeServerKey, purpose: 'join' },
   });
   assert.equal(participant.status, 200, JSON.stringify(participant.body));
 
