@@ -9,6 +9,7 @@ updated: 2026-11-10T08:00:00+08:00
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-11 · administrator 口令轮换（一阶段完成）：新机 119.29.82.217 已用 `deploy/security/rotate-admin-password.ps1` 轮换并用新口令复连验证成功，新值写回 `%TEMP%\esf-newbox.pwd`（WinRM/发布脚本自动可用）。114 游戏服仅 RDP，待人工改密；**两台机必须设不同口令**（泄露根因是复用）。本机 `cmdkey /list` 中 `TERMSRV/119.29.82.217`、`TERMSRV/114.132.84.150`（Domain + LegacyGeneric 两条）保存凭据均需删除后重新保存；`.rdp` 文件本身不含明文口令。114 上 `ESFAmxxUpdate`、`ESFOpsAgent` 与新机 `ESFAPI`/`ESFDBBackup` 均为 SYSTEM 运行，改密不影响服务；但需确认 114 未配置使用旧口令的自动登录，否则重启后会卡在登录界面导致 HLDS 起不来。
 - 2026-11-11 · 修复 `npm test`（Node 22 下 `node --test <dir>` 把目录当模块而失败）：两个 package.json 的 test 脚本改为显式文件列表，Node 18/20/22 均可跑；实测启动器 3 文件/66 检查点、后端 81 用例全绿（后端需先 `npm run db:start` + `migrate`）。修复 `test/challenges.test.js` 未跟上 0.5.23「约战只开放单挑 1」的过时用例（改用 `fcx-1v1-1`，临时服务器仅保留给收藏/管理台用例）。
 - 2026-11-11 · 凭据泄露处置（一阶段）：`docs/ESF_MP_ARCHIVE.md` 移除两台服务器 administrator 明文口令并标作废（历史版本仍在 git 历史，administrator 口令待轮换）；`PROJECT_REPORT.md` 标作废；`README.md` 总档案指引改指向 KB；`.gitignore` 新增 `CREDENTIALS.txt`/`*.cnf`/`*.pwd`/`ops-key.txt`/`*.pem` 等凭据模式与 `.agents/`；新增 `deploy/security/rotate-admin-password.ps1`（WinRM 远程轮换 administrator 口令，校验后才写回密码文件）。评估报告见 `docs/ASSESSMENT-2026-11-11.md`。
 

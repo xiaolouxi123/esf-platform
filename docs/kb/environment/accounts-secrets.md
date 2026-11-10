@@ -37,10 +37,16 @@ updated: 2026-11-08T04:40:00+08:00
 
 ## 轮换/清理清单（迁移收尾）
 
-0. **administrator 口令轮换（2026-11-11 新增，P0）**：`ESF_MP_ARCHIVE.md` 曾在公开仓库泄露两台服务器
+0. **administrator 口令轮换（2026-11-11，P0）**：`ESF_MP_ARCHIVE.md` 曾在公开仓库泄露两台服务器
    administrator 明文口令（11-11 已从文档移除，但 git 历史仍在）。
-   用 `deploy/security/rotate-admin-password.ps1` 轮换：新机 WinRM 直连；114 只有 RDP，需登录后手改；
-   老机走 esfops。轮换后同步更新 `%TEMP%\esf-newbox.pwd` 与 RDP 保存凭据。
+   - 新机 119.29.82.217：**已完成**，用 `deploy/security/rotate-admin-password.ps1` 轮换并复连验证，
+     新值写回 `%TEMP%\esf-newbox.pwd`。
+   - 114 游戏服：**待改**，只有 RDP，登录后用 `net user administrator *` 交互式设置（新口令不要与新机相同，
+     也不要写进任何脚本/聊天/数据库）。
+   - 本机 RDP 保存凭据：`cmdkey /delete:TERMSRV/119.29.82.217`、`cmdkey /delete:TERMSRV/114.132.84.150`
+     及 `cmdkey /delete:LegacyGeneric:target=TERMSRV/114.132.84.150`，删除后重新连接并记住新口令。
+   - 相关计划任务均为 SYSTEM，改密不影响运行；但改完要确认 114 没有依赖旧口令的自动登录。
+   - 轮换完成后 git 历史中的旧值即作废；是否重写历史另行决定（需 force push，会波及未合并分支）。
 1. 删除老机 `esfops`，复位 `LocalAccountTokenFilterPolicy`（设回 0 或删除）。
 2. 删除老机 RDP 保存凭据（`cmdkey /delete:...`）与 `%TEMP%` 下的密码文件。
 3. 轮换 `esf_app` / `esf_amxx` / `esf_backup` 密码，并同步 `.env` 与 `amxx.cfg`。（2026-11-09 已执行一轮，见 log）
