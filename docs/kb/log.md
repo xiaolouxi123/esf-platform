@@ -9,6 +9,13 @@ updated: 2026-11-10T08:00:00+08:00
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-11 · **生产 .env 三项修补完成**（带备份 → 重启 ESFAPI → `/api/health` 验证 `ok=true / db=up`，未触发回滚；
+  备份 `C:\esf\backups\env-20261111-062934.bak`）：
+  `MIN_LAUNCHER_VERSION` 0.2.4→0.6.1、显式写 `AMXX_EXPECTED_*=0.53`（消除与新插件的 drift）、
+  设置 `INVITE_CODE`（小范围邀请制落地）。**邀请码值只在生产 .env 与维护者手中，不写进公开仓库**。
+  客户端确认**不打新 tag**：生产更新源已有 0.4.7~0.6.1 共 18 个历史版本 exe+blockmap、
+  `latest.yml` 指向当前 0.6.1，重发只会产生内容相同的空版本。
+  仍待确认：114 自动更新后的 `amxx_builds` 心跳 0.53、两台服插件哈希、真机双开验收。
 - 2026-11-11 · **0.53 插件包已上传生产更新源**：`esf-challenge-plugins-0.53.zip` + manifest →
   新机 `C:\esf\updates\amxx\`（远端已有 0.45~0.53 全部历史包，manifest.version=0.53），
   114 的 `ESFAmxxUpdate` 会在 10 分钟内自动替换并重启游戏服；心跳与哈希待确认。

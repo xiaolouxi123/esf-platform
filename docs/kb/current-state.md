@@ -47,7 +47,7 @@ updated: 2026-11-10T09:10:00+08:00
 | 项 | 值 |
 |---|---|
 | 当前线上插件包 | **0.52**（UTF-8 构建，含 guest 兜底、构建心跳、约战限时、AFK 判负、结算失败落盘与 2v2 列修正） |
-| 待发布 | **0.53**（含开局自动分边修复；zip + manifest 已本地产出，见 `docs/RELEASE-2026-11-11.md`） |
+| 更新源已上传 | **0.53**（含开局自动分边修复，zip + manifest 已上传新机 `C:\esf\updates\amxx\`，等待 114 自动更新与心跳确认；见 `docs/RELEASE-2026-11-11.md`） |
 | 本地测试包 | `test_ranked 1.3.4-teamtest`（test15，38,392 B，SHA256 `0e81b6f6...`）；仅本地验证，未发布到游戏服 |
 | 分发位置 | `C:\esf\updates\amxx\manifest.json` + `esf-challenge-plugins-0.52.zip` |
 | 受管插件 | esf_gamemode / esf_platform_auth / esf_ranked_lock / test_ranked |
