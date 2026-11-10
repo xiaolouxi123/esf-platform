@@ -546,7 +546,7 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
     new limit = SQL_ReadResult(query, 3);
     new userId = SQL_ReadResult(query, 4);
     new mode[8];
-    SQL_ReadResult(query, 5, mode, charsmax(mode));
+    SQL_ReadResult(query, 7, mode, charsmax(mode));
 
     if (g_challengeRoomId != roomId) {
         g_challengeRoomId = roomId;
@@ -578,7 +578,7 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
     g_challengeBaseDeaths[id] = get_user_deaths(id);
     g_challengeKnown++;
     copy(g_challengeVictory, charsmax(g_challengeVictory), type);
-    g_challengeLimit = (limit >= 3 && limit <= 50) ? limit : 10;
+    g_challengeLimit = (limit == 3 || limit == 5 || limit == 10) ? limit : 10;
     new limitSec = SQL_ReadResult(query, 5);
     new elapsedSec = SQL_ReadResult(query, 6);
     if (limitSec <= 0) limitSec = 900;
