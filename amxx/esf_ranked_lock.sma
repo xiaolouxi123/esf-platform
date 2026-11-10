@@ -24,7 +24,7 @@
 
 #define PLUGIN  "ESF Ranked Lock"
 #define VERSION "1.3.0"
-#define BUILD "0.53"
+#define BUILD "0.54"
 #define AUTHOR  "ESF Platform"
 
 #define TASK_CHECK 3100
@@ -38,6 +38,21 @@ new g_kickReason[MAX_PLAYERS_ARRAY][128];
 
 new g_pcHost, g_pcUser, g_pcPass, g_pcDb;
 new g_pcServerKey, g_pcLock, g_pcFailOpen;
+
+/**
+ * 本地 listen server 判定（esf_platform_auth.sma 有一份同样的实现，改动需同步）。
+ *
+ * 只在「非 dedicated server」+ loopback 连接上为真：生产两台 HLDS 都是 dedicated，
+ * 因此这段逻辑在线上永远不触发，锁服强度不变；从公网连入 listen server 的玩家
+ * IP 不是 loopback，仍走完整校验。带有效 token 的本地客户端也走完整校验。
+ */
+stock bool:isLocalListenGuest(id) {
+    if (is_dedicated_server()) return false;
+    new ip[16];
+    get_user_ip(id, ip, charsmax(ip), 1);
+    if (equal(ip, "127.0.0.1") || equal(ip, "::1")) return true;
+    return false;
+}
 
 public plugin_init() {
     register_plugin(PLUGIN, VERSION, AUTHOR);
@@ -130,6 +145,13 @@ public taskCheckPlayer(taskid) {
     new token[40];
     get_user_info(id, "_platform_token", token, charsmax(token));
     if (!isValidToken(token)) {
+        // 本地 listen server 不是平台注册服：无凭证的 loopback 连接直接跳过锁服校验。
+        // 否则本地开房会拿生产库里的 live 比赛把自己判成 RANKED_LOCKED / CHALLENGE_LOCKED，
+        // 而房主又踢不掉，只会反复弹提示、刷日志。带 token 的本地验收链路不受影响。
+        if (isLocalListenGuest(id)) {
+            log_amx("[ESF-LOCK] local_listen_guest=1 id=%d skip lock check", id);
+            return;
+        }
         // 无平台 token 的 guest 在排位赛期间也必须拒绝，否则排位永远无法结算。
         checkGuestLock(id);
         return;
@@ -342,17 +364,19 @@ rejectPlayer(id, const reason[], const code[] = "RANKED_LOCKED") {
     new name[32], ip[16];
     get_user_name(id, name, charsmax(name));
     get_user_ip(id, ip, charsmax(ip), 1);
-    copy(g_rejectReason[id], 63, reason);
-    formatex(g_kickReason[id], 127, "%s: %s", code, reason);
     log_amx("[ESF-LOCK] code=%s id=%d name=%s ip=%s reason=%s", code, id, name, ip, reason);
-    client_print(id, print_chat, "[排位赛] %s", reason);
 
-    // 本地 listen server 的房主无法被 kick，避免刷错误日志
-    if (equal(ip, "127.0.0.1") || equal(ip, "::1")) {
-        log_amx("[ESF-LOCK] code=%s id=%d name=%s ip=%s local_bypass=1", code, id, name, ip);
-        client_print(id, print_chat, "[排位赛] 本地房主无法被踢出，请从平台进入比赛");
+    // 兜底：异步回调（DB 异常等）也可能走到这里。本地 listen server 的房主踢不掉，
+    // 直接按 guest 放行，不再提示"请从平台进入比赛"，也不写拒绝状态。
+    // 生产 dedicated server 不触发这段逻辑。
+    if (isLocalListenGuest(id)) {
+        log_amx("[ESF-LOCK] local_listen_guest=1 id=%d code=%s skip kick", id, code);
         return;
     }
+
+    copy(g_rejectReason[id], 63, reason);
+    formatex(g_kickReason[id], 127, "%s: %s", code, reason);
+    client_print(id, print_chat, "[排位赛] %s", reason);
 
     set_task(1.0, "taskKick", TASK_KICK + id);
 }

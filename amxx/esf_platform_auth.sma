@@ -23,7 +23,7 @@
 
 #define PLUGIN  "ESF Platform Auth"
 #define VERSION "1.2.0"
-#define BUILD "0.53"
+#define BUILD "0.54"
 #define AUTHOR  "ESF Platform"
 
 #define TASK_VERIFY 1000
@@ -56,6 +56,7 @@ new g_startedAt[MAX_PLAYERS_ARRAY];
 new g_verifyAttempts[MAX_PLAYERS_ARRAY];
 new g_rejectReason[MAX_PLAYERS_ARRAY][64];
 new g_kickReason[MAX_PLAYERS_ARRAY][128];
+new bool:g_localGuestNoticed[MAX_PLAYERS_ARRAY];
 
 public plugin_init() {
     register_plugin(PLUGIN, VERSION, AUTHOR);
@@ -158,6 +159,7 @@ public client_putinserver(id) {
     g_tokenId[id] = 0;
     g_startedAt[id] = 0;
     g_verifyAttempts[id] = 0;
+    g_localGuestNoticed[id] = false;
 
     if (is_user_bot(id)) return;
 
@@ -181,6 +183,40 @@ stock allowGuestEntry(id, const reason[]) {
     set_hudmessage(255, 210, 80, -1.0, 0.35, 0, 0.0, 5.0, 0.1, 0.2, -1);
     show_hudmessage(id, "测试模式：非平台玩家已放行");
     client_print(id, print_chat, "[平台] 测试模式：%s，本次允许进入（不计平台战绩）", reason);
+}
+
+/**
+ * 本地 listen server 判定（esf_ranked_lock.sma 有一份同样的实现，改动需同步）。
+ *
+ * 只在「非 dedicated server」+ loopback 连接上为真：
+ *   - 生产两台 HLDS 都是 dedicated，因此这段逻辑在线上永远不会触发，
+ *     platform_enforce / 锁服校验的强度不变；
+ *   - 从公网连入 listen server 的玩家 IP 不是 loopback，仍走完整校验。
+ * 带有效平台 token 的本地客户端不受影响：正常走完校验，
+ * local-verify.cjs 与双开验收的 token 消费链路保持可验证。
+ */
+stock bool:isLocalListenGuest(id) {
+    if (is_dedicated_server()) return false;
+    new ip[16];
+    get_user_ip(id, ip, charsmax(ip), 1);
+    if (equal(ip, "127.0.0.1") || equal(ip, "::1")) return true;
+    return false;
+}
+
+/**
+ * 本地开房按 guest 放行：不踢、不写平台会话/战绩、只提示一次。
+ * 根因：listen server 房主无法被引擎 kick，硬踢只会反复刷拒绝日志并弹提示。
+ */
+stock allowLocalListenGuest(id, const code[]) {
+    new name[32];
+    get_user_name(id, name, charsmax(name));
+    log_amx("[Platform] local_listen_guest=1 id=%d user=%s code=%s (guest: no session, no stats)",
+        id, name, code);
+    if (g_localGuestNoticed[id]) return;
+    g_localGuestNoticed[id] = true;
+    set_hudmessage(255, 210, 80, -1.0, 0.35, 0, 0.0, 4.0, 0.1, 0.2, -1);
+    show_hudmessage(id, "本地开房：已按测试模式放行");
+    client_print(id, print_chat, "[平台] 本地开房已放行（不计平台战绩）");
 }
 
 public taskVerify(taskid) {
@@ -458,11 +494,18 @@ rejectPlayer(id, const reason[], const code[] = "PLATFORM_TOKEN_INVALID") {
     get_user_name(id, name, charsmax(name));
     get_user_ip(id, ip, charsmax(ip), 1);
     get_pcvar_string(g_pcServerKey, serverKey, charsmax(serverKey));
-    copy(g_rejectReason[id], 63, reason);
-    formatex(g_kickReason[id], 127, "%s: %s", code, reason);
     log_amx("[ESF-REJECT] code=%s id=%d name=%s ip=%s reason=%s server=%s",
         code, id, name, ip, reason, serverKey);
 
+    // 本地 listen server 的 loopback 房主踢不掉，硬踢只会反复刷拒绝日志和提示。
+    // 按 guest 放行：不写平台会话、不参与战绩；生产 dedicated server 不触发。
+    if (isLocalListenGuest(id)) {
+        allowLocalListenGuest(id, code);
+        return;
+    }
+
+    copy(g_rejectReason[id], 63, reason);
+    formatex(g_kickReason[id], 127, "%s: %s", code, reason);
     client_print(id, print_chat, "[平台] %s", reason);
 
     if (get_pcvar_num(g_pcEnforce)) {

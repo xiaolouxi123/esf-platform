@@ -90,6 +90,19 @@ new g_Votes[4],
     g_szCachedPassword[33][64], // 临时储存密码.
     g_PlayerStats[33][PlayerStats];
 
+/**
+ * 本地 listen server 判定（三个插件各有一份，改动需同步）。
+ * 只在非 dedicated server + loopback 连接上为真；生产两台 HLDS 都是 dedicated，
+ * 因此线上永远不会触发，不会削弱平台模式的选队/比赛规则。
+ */
+stock bool:isLocalListenGuest(id) {
+    if (is_dedicated_server()) return false;
+    new ip[16];
+    get_user_ip(id, ip, charsmax(ip), 1);
+    if (equal(ip, "127.0.0.1") || equal(ip, "::1")) return true;
+    return false;
+}
+
 //数据库-正则表达式
 new Handle:g_sqlTuple;
 
@@ -2124,6 +2137,11 @@ public voteMenu_handle(id,menu,item)
 //检测处理玩家加入比赛函数
 public hookJoint(id)
 {
+    // 本地 listen server 开房且没有进行中的平台比赛：玩家没有平台/legacy 账号，
+    // PS_IS_LOGGED 恒为 false，放行手动选队，否则本地开房连队伍都选不了。
+    // 生产 dedicated server 不触发；有比赛时平台规则照常生效。
+    if (!g_iBattle && !g_challengeActive && isLocalListenGuest(id)) return PLUGIN_CONTINUE;
+
     // 平台内部下发 jointeam 时放行，避免被下面的登录/比赛期规则误拦
     if (g_teamAssigning[id]) return PLUGIN_CONTINUE;
 

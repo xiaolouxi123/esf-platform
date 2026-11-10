@@ -85,9 +85,9 @@ const env = {
     // 心跳表 amxx_builds 里的 build 标签（不是插件 VERSION）；
     // 发版时随 amxx/*.sma 的 BUILD 常量一起改这里。
     expected: {
-      platform_auth: str(process.env.AMXX_EXPECTED_PLATFORM_AUTH, '0.53'),
-      ranked_lock: str(process.env.AMXX_EXPECTED_RANKED_LOCK, '0.53'),
-      test_ranked: str(process.env.AMXX_EXPECTED_TEST_RANKED, '0.53'),
+      platform_auth: str(process.env.AMXX_EXPECTED_PLATFORM_AUTH, '0.54'),
+      ranked_lock: str(process.env.AMXX_EXPECTED_RANKED_LOCK, '0.54'),
+      test_ranked: str(process.env.AMXX_EXPECTED_TEST_RANKED, '0.54'),
       gamemode: str(process.env.AMXX_EXPECTED_GAMEMODE, '1.0.0'),
     },
     heartbeatStaleSeconds: num(process.env.AMXX_HEARTBEAT_STALE_SECONDS, 15 * 60),

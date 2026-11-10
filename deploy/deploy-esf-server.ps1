@@ -28,7 +28,7 @@ $LatestVer = '0.6.1'   # 由 scripts/sync-versions.cjs 随发版同步，勿手�
 $ServerIp  = '119.29.82.217'
 # 游戏服来源 IP（esf_amxx 账号授权），以及当前插件包的 BUILD（心跳期望值）
 $GameServerIp = '114.132.84.150'
-$ExpectedPluginBuild = '0.53'
+$ExpectedPluginBuild = '0.54'
 # =================================================
 
 $NodeUrl  = 'https://npmmirror.com/mirrors/node/v18.20.8/node-v18.20.8-x64.msi'

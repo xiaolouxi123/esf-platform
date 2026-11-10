@@ -11,6 +11,9 @@ const source = fs.readFileSync(sourcePath, 'utf8');
 const lockSourcePath = path.join(__dirname, '..', '..', 'amxx', 'esf_ranked_lock.sma');
 const lockSource = fs.readFileSync(lockSourcePath, 'utf8');
 
+const rankedSourcePath = path.join(__dirname, '..', '..', 'amxx', 'test_ranked.sma');
+const rankedSource = fs.readFileSync(rankedSourcePath, 'utf8');
+
 const AUTH_REJECT_CODES = [
   'PLATFORM_TOKEN_MISSING',
   'PLATFORM_TOKEN_INVALID',
@@ -197,13 +200,65 @@ test('guest lock also checks live challenge rooms', () => {
   );
 });
 
-test('local listen host bypass is logged', () => {
+test('local listen guest bypass is gated on dedicated server (production unaffected)', () => {
+  // 三个插件各有一份同名 stock，第一道判定必须是 is_dedicated_server()：
+  // 生产两台 HLDS 是 dedicated，这段放行在线上永远不会触发。
+  for (const [name, src] of [
+    ['esf_platform_auth.sma', source],
+    ['esf_ranked_lock.sma', lockSource],
+    ['test_ranked.sma', rankedSource],
+  ]) {
+    const match = src.match(/stock bool:isLocalListenGuest\(id\)\s*\{([\s\S]*?)\n\}/);
+    assert.ok(match, `${name} 必须定义 isLocalListenGuest`);
+    assert.match(match[1], /if \(is_dedicated_server\(\)\) return false;/, `${name} 必须先排除 dedicated server`);
+    assert.match(match[1], /"127\.0\.0\.1"/, `${name} 必须限定 loopback`);
+    assert.match(match[1], /"::1"/, `${name} 必须限定 IPv6 loopback`);
+  }
+});
+
+test('local listen guest is never kicked and never gains a platform session', () => {
+  // auth：rejectPlayer 里的 bypass 必须早于 set_task(taskKick)
+  const rejectBody = source.match(/rejectPlayer\(id, const reason\[\][\s\S]*?\n\}/);
+  assert.ok(rejectBody, 'auth 必须存在 rejectPlayer');
+  const bypassAt = rejectBody[0].indexOf('isLocalListenGuest(id)');
+  const kickAt = rejectBody[0].indexOf('set_task(1.5, "taskKick"');
+  assert.ok(bypassAt > -1 && kickAt > bypassAt, '本地放行必须发生在踢人任务之前');
+  assert.match(rejectBody[0], /allowLocalListenGuest\(id, code\);\s*return;/);
+
+  // guest 语义：不得伪造登录态、不得写平台会话
+  const allowBody = source.match(/stock allowLocalListenGuest\(id, const code\[\]\)[\s\S]*?\n\}/);
+  assert.ok(allowBody, 'auth 必须定义 allowLocalListenGuest');
+  assert.doesNotMatch(allowBody[0], /g_authed\[id\]\s*=\s*true/, '本地放行不能置为已登录');
+  assert.doesNotMatch(allowBody[0], /taskKick/, '本地放行不能触发踢人');
+
+  // lock：无凭证的本地连接跳过整个锁服查询；兜底 reject 也不踢
+  assert.match(lockSource, /local_listen_guest=1 id=%d skip lock check/);
+  assert.match(lockSource, /local_listen_guest=1 id=%d code=%s skip kick/);
+  const lockReject = lockSource.match(/rejectPlayer\(id, const reason\[\][\s\S]*?\n\}/);
+  assert.ok(lockReject, 'lock 必须存在 rejectPlayer');
+  const lockBypassAt = lockReject[0].indexOf('isLocalListenGuest(id)');
+  const lockKickAt = lockReject[0].indexOf('set_task(1.0, "taskKick"');
+  assert.ok(lockBypassAt > -1 && lockKickAt > lockBypassAt, 'lock 本地放行必须早于踢人');
+});
+
+test('local listen host can still pick a team without a platform account', () => {
+  const hook = rankedSource.match(/public hookJoint\(id\)\s*\{([\s\S]{0,600})/);
+  assert.ok(hook, 'test_ranked.sma 必须存在 hookJoint');
   assert.match(
-    lockSource,
-    /log_amx\("\[ESF-LOCK\] code=%s id=%d name=%s ip=%s local_bypass=1"/,
-    '127.0.0.1/::1 跳过踢人必须记录 local_bypass',
+    hook[1],
+    /!g_iBattle && !g_challengeActive && isLocalListenGuest\(id\)\)\s*return PLUGIN_CONTINUE/,
+    '本地开房（无进行中平台比赛）必须放行手动 jointeam',
   );
-  assert.match(lockSource, /if \(equal\(ip, "127\.0\.0\.1"\) \|\| equal\(ip, "::1"\)\)/);
+});
+
+test('valid tokens still go through full verification on listen server', () => {
+  // 本地放行只针对无凭证/校验失败的 guest，不能把 local-verify.cjs 的 token 链路短路掉
+  const verify = source.match(/public taskVerify\(taskid\)[\s\S]*?\n\}/);
+  assert.ok(verify, 'auth 必须存在 taskVerify');
+  assert.match(verify[0], /get_user_info\(id, "_platform_token"/);
+  assert.match(verify[0], /isValidToken\(token\)/);
+  assert.match(verify[0], /rejectPlayer|allowGuestEntry/);
+  assert.doesNotMatch(verify[0], /isLocalListenGuest/, 'taskVerify 入口不能整体跳过校验');
 });
 
 test('fail-open paths record verify_timeout=1 (AC-R6-4)', () => {
@@ -219,10 +274,10 @@ test('fail-open paths record verify_timeout=1 (AC-R6-4)', () => {
   );
 });
 
-test('both plugins report build 0.53', () => {
-  // 0.53 = 含开局自动分边修复的待发布包；auth VERSION 1.2.0 / lock VERSION 1.3.0
-  assert.match(source, /#define BUILD "0\.53"/, 'auth 构建号必须是 0.53');
-  assert.match(lockSource, /#define BUILD "0\.53"/, 'lock 构建号必须是 0.53');
+test('both plugins report build 0.54', () => {
+  // 0.54 = 含本地 listen server 开房放行；auth VERSION 1.2.0 / lock VERSION 1.3.0
+  assert.match(source, /#define BUILD "0\.54"/, 'auth 构建号必须是 0.54');
+  assert.match(lockSource, /#define BUILD "0\.54"/, 'lock 构建号必须是 0.54');
   assert.match(source, /#define VERSION "1\.2\.0"/, 'auth 版本必须是 1.2.0');
   assert.match(lockSource, /#define VERSION "1\.3\.0"/, 'lock 版本必须是 1.3.0');
 });
