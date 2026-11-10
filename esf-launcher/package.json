@@ -95,7 +95,7 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "https://updates.example.com/esf/"
+        "url": "https://119.29.82.217/updates/"
       }
     ],
     "nsis": {

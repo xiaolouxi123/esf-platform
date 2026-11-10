@@ -11,8 +11,8 @@
 
 | 探测 | 地址 | 通过条件 |
 | --- | --- | --- |
-| API | `http://119.91.99.176:3000/api/health` | HTTP 200，`ok=true`，`data.db=up` |
-| 备份心跳 | `http://119.91.99.176:3000/ops/backup.json` | `ok=true`，`lastSuccessAt` 不超过 30 小时 |
+| API | `https://119.29.82.217/api/health` | HTTP 200，`ok=true`，`data.db=up` |
+| 备份心跳 | `https://119.29.82.217/ops/backup.json` | `ok=true`，`lastSuccessAt` 不超过 30 小时 |
 | 静态官网 | `https://xiaolouxi123.github.io/esf-platform/` | HTTP 200，包含 `ESF China` |
 | 更新源 | GitHub `releases/latest/download/latest.yml` | HTTP 200，包含 `version:` |
 
@@ -21,8 +21,8 @@
 ## 手动检查
 
 ```powershell
-Invoke-RestMethod http://119.91.99.176:3000/api/health
-Invoke-RestMethod http://119.91.99.176:3000/ops/backup.json
+Invoke-RestMethod https://119.29.82.217/api/health
+Invoke-RestMethod https://119.29.82.217/ops/backup.json
 
 Invoke-WebRequest https://xiaolouxi123.github.io/esf-platform/ -UseBasicParsing |
   Select-Object StatusCode

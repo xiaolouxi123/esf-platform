@@ -43,5 +43,5 @@ updated: 2026-11-08T04:40:00+08:00
 
 ## 客户端
 
-- Electron 启动器，最新 0.4.10，更新源 `https://119.29.82.217/updates/`。
+- Electron 启动器，最新 0.6.1，更新源 `https://119.29.82.217/updates/`。
 - 安装位置默认 `%LOCALAPPDATA%\Programs\esf-launcher`；更新缓存 `%LOCALAPPDATA%\esf-launcher-updater`。

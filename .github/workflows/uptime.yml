@@ -27,7 +27,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          body="$(curl -fsS --retry 2 --retry-delay 3 --max-time 25 http://119.29.82.217:3000/api/health)"
+          body="$(curl -fsS --retry 2 --retry-delay 3 --max-time 25 https://119.29.82.217/api/health)"
           printf '%s\n' "$body"
           echo "$body" | jq -e '.ok == true and .data.db == "up"' >/dev/null
 
@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          body="$(curl -fsS --retry 2 --retry-delay 3 --max-time 25 http://119.29.82.217:3000/ops/backup.json)"
+          body="$(curl -fsS --retry 2 --retry-delay 3 --max-time 25 https://119.29.82.217/ops/backup.json)"
           printf '%s\n' "$body"
           BODY="$body" python3 - <<'PY'
           import json, os

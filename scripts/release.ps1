@@ -45,6 +45,12 @@ if ($LASTEXITCODE -ne 0) { Pop-Location; throw "bump failed" }
 node "..\scripts\update-releases.js" "$Version" "$Notes"
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "update releases.json failed" }
 
+# 以 package.json 为唯一来源，同步官网版本/下载链接/更新记录/sitemap
+node "..\scripts\sync-versions.cjs"
+if ($LASTEXITCODE -ne 0) { Pop-Location; throw "sync versions failed" }
+node "..\scripts\check-versions.cjs"
+if ($LASTEXITCODE -ne 0) { Pop-Location; throw "version consistency check failed" }
+
 # ---------------------------------------------------------------- 2. checks
 Step "lint + tests + build"
 npx.cmd eslint src main.cjs api.cjs preload.js store.cjs launcher-core.cjs

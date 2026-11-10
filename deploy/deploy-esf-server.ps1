@@ -24,8 +24,8 @@ $Root      = 'C:\esf'
 $SetupDir  = 'C:\esf-setup'
 $ApiPort   = 3000
 $DbPort    = 3307
-$LatestVer = '0.2.4'
-$ServerIp  = '119.91.99.176'
+$LatestVer = '0.6.1'   # 由 scripts/sync-versions.cjs 随发版同步，勿手改
+$ServerIp  = '119.29.82.217'
 # =================================================
 
 $NodeUrl  = 'https://npmmirror.com/mirrors/node/v18.20.8/node-v18.20.8-x64.msi'
