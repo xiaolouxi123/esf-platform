@@ -19,7 +19,8 @@ updated: 2026-11-08T04:40:00+08:00
 
 - 编译器：`amxxpc.exe` **1.10.0.5392**，固定 `-d1`。
   本机路径：`C:\Program Files (x86)\Steam\steamapps\common\Half-Life\esf\addons\amxmodx\scripting\amxxpc.exe`。
-- 构建：当前 0.52 用 **UTF-8 无 BOM 直编 + `scripts/publish-amxx.ps1` 打包**（产出 `esf-challenge-plugins-0.52.zip` + manifest）。
+- 构建：当前 0.52 用 **`amxx/tools/build-current.ps1`**（UTF-8 无 BOM 直编、amxxpc 1.10.0.5392 `-d1`、产出 `dist/amxx-<BUILD>/` + SHA256SUMS）
+  + `scripts/publish-amxx.ps1` 打包（产出 `esf-challenge-plugins-0.52.zip` + manifest）。2026-11-11 实测编译 0 error / 0 warning。
   `amxx/tools/build-r14.ps1` 是 r14/0.4.6 时代的**历史脚本**（先把源码转 GBK 再编译），
   2026-11-11 随分支合并进入 main，但**不能用于构建当前版本**（转 GBK 会导致中文乱码，见 [[known-issues]] 第 1 条）。
 - 禁止：PowerShell 文本管道处理 `.sma`（会双重转码并加 BOM），只用 edit/read 工具。

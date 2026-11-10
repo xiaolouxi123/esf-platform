@@ -177,10 +177,14 @@ EXECUTE ON PROCEDURE esf_platform.settle_challenge_match TO 'esf_amxx'@'<游戏�
 
 ## 构建链现状（2026-11-11）
 
-- **当前线上 0.52**：`amxxpc.exe` 1.10.0.5392 + `-d1` + **UTF-8 无 BOM 直编**，
-  再由 `scripts/publish-amxx.ps1` 打包成 `esf-challenge-plugins-0.52.zip` + `manifest.json`，
-  经 114 的 `ESFAmxxUpdate` 自动生效。权威状态见 `docs/kb/current-state.md`，
-  发布步骤见 `docs/kb/pattern/release-amxx.md`。
+- **可复现构建（2026-11-11 补齐）**：`amxx/tools/build-current.ps1`（ASCII-only），
+  从 `esf_platform_auth.sma` 的 `BUILD` 读版本，用 amxxpc 1.10.0.5392 + `-d1` +
+  **UTF-8 无 BOM 直编**编译 4 个插件到 `dist/amxx-<BUILD>/`，产出 `SHA256SUMS.txt`
+  与 `build.log`。实测 BUILD 0.52 编译 0 error / 0 warning。
+  之后用 `scripts/publish-amxx.ps1` 打包成 `esf-challenge-plugins-0.52.zip` + `manifest.json`，
+  经 114 的 `ESFAmxxUpdate` 自动生效；发布步骤见 `docs/kb/pattern/release-amxx.md`。
+  **待确认**：本次产物哈希需与线上 `C:\esf\updates\amxx\esf-challenge-plugins-0.52.zip` 比对，
+  才能证明线上二进制确由这份源码构建（线上包不在仓库）。
 - **`amxx/tools/build-r14.ps1` 是 r14/0.4.6 时代的历史脚本**：转 GBK 后编译、产出
   `esf-challenge-plugins-0.4.6-r14.zip`，**不要用于 0.52 及以后**，仅作历史参考。
 - 2026-11-11 已把线上分支 `fix/amxx-ascii-logs`（BUILD 0.52）合入 main，
