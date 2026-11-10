@@ -543,7 +543,7 @@ export default function RankedPage({ user, toast, servers = [] }) {
                   {busy === 'queue' ? '正在匹配…' : serverUnavailable ? '暂无可用服务器' : '开始匹配'}
                 </button>
                 {serverUnavailable && (
-                  <p className="rank-server-hint">暂时无服务器可提供排位（「单挑 1」正在比赛中），请稍后再试。</p>
+                  <p className="rank-server-hint">暂时无服务器可提供排位，请稍后再试。</p>
                 )}
               </>
             )}

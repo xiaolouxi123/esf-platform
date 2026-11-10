@@ -99,3 +99,22 @@ T2/T3 需要一台可控的本地 hlds（不用 114），用现有 `amxx_builds`
 - 开赛后实时修改胜利条件（需要新通道，收益低）
 - 胜利条件新增“限时/占点”等新模式
 - 观战拖拽调宽、观众席聊天
+
+
+## 实施记录（2026-11-10 晚）
+
+### P2 结算兜底（已完成，模拟验证）
+
+- 插件 0.52：结算失败时写 `addons/amxmodx/logs/esf_pending_result.json`（matchId / winner / players[userId,team,afk]），BUILD 0.52；已发布并被 114 自动拉取（心跳 0.52，08:37:18）。
+- 平台：新增 `POST /api/ranked/settle`（requireAuth）+ `settleFromClient()`，走 DB 过程 `settle_ranked_match` 以保留 AFK −30；重复调用幂等。
+- 启动器：启动 6 秒后与检测到 `esf_match_end.flag` 时各尝试补交一次，失败按 30 秒 / 2 分钟 / 10 分钟重试，成功后删除 JSON。
+- 模拟证据（match 7，A/B 各 1000 分）：首次 `alreadySettled=false`、二次 `true`；A 1000→1025（胜 +25），B 1000→970（AFK 判负 −30）；profiles 各 1W/1L，二次调用未重复加分。
+
+### P3 排位无服置灰（已完成，模拟验证）
+
+- `RankedPage` 收到 `servers` 后计算 `availableServers = online && !locked`；为 0 时开始匹配按钮禁用、文案「暂无可用服务器」、下方提示「暂时无服务器可提供排位，请稍后再试。」
+- 模拟证据：两台服各插一场 live 排位（fcx-1v1-1 / fcx-1v1-2 → `locked=true, lockType=ranked`），真机 CDP 读取 `{disabled:true, text:'暂无可用服务器', hint:'暂时无服务器可提供排位，请稍后再试。'}`，截图 `rank-no-server.png`；随后清理模拟比赛。
+
+### 仍待真人验收（P4）
+
+- 观战 4 人上限与「观战 X/4」按钮、锁服排队、AFK 180s 提醒 / 300s 判负、赛后 10 秒退出与结算补交——需要你与朋友实战一局（可用 1v1 单挑房）。
