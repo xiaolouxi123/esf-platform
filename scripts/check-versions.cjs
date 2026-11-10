@@ -67,9 +67,14 @@ check('官网 JS 兜底版本与下载链接', () => {
   assert(html.includes("fetch('./version.json'"), '静态托管未读取 version.json');
 });
 
-check('官网更新记录首条为当前版本', () => {
+check('官网更新记录含全部历史版本且首条为当前版本', () => {
   const m = html.match(/<!-- UPDATES:START -->\s*<article[^>]*>\s*<div class="v"><b>([^<]+)<\/b>/);
   assert(m && m[1].trim() === version, `更新记录首条 ${m ? m[1] : '未找到'}，应为 ${version}`);
+  const list = JSON.parse(read('esf-launcher/src/data/releases.json'));
+  const oldest = list[list.length - 1].version;
+  assert(html.includes(`<b>${oldest}</b>`), `更新记录应包含最老的历史版本 ${oldest}`);
+  assert((html.match(/class="update-item"/g) || []).length === list.length,
+    `更新记录条数应等于 releases.json 的 ${list.length} 条`);
 });
 
 check('客户端 releases.json 首项', () => {

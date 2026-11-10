@@ -72,19 +72,19 @@ substitute(/(const DEFAULT_VERSION = ')[^']*(')/,
 substitute(/href="https:\/\/github\.com\/xiaolouxi123\/esf-platform\/releases\/download\/v[^"]+"/g,
   () => `href="${downloadUrl}"`);
 
-// 更新记录：取 releases.json 前 8 条，替换锚点之间的内容
+// 更新记录：releases.json 的全部条目（历史版本 + 当前版本），替换锚点之间的内容
 const releases = JSON.parse(
   fs.readFileSync(path.join(root, 'esf-launcher', 'src', 'data', 'releases.json'), 'utf8')
 );
 if (!Array.isArray(releases) || releases.length === 0) throw new Error('releases.json 为空');
-const items = releases.slice(0, 8).map((r) =>
+const items = releases.map((r) =>
   `        <article class="update-item"><div class="v"><b>${escapeHtml(r.version)}</b><span>${escapeHtml(r.date)}</span></div><p>${escapeHtml(r.summary || '')}</p></article>`
 ).join('\n');
 substitute(/(<!-- UPDATES:START -->)[\s\S]*?(<!-- UPDATES:END -->)/,
   (m, a, b) => `${a}\n${items}\n        ${b}`);
 
 fs.writeFileSync(htmlPath, html, 'utf8');
-console.log(`index.html          -> ${version} / 下载链接 / ${Math.min(8, releases.length)} 条更新记录`);
+console.log(`index.html          -> ${version} / 下载链接 / ${releases.length} 条更新记录（全部历史 + 当前）`);
 
 // ---- 3. sitemap / robots ----
 const sitemapPath = path.join(root, 'website', 'sitemap.xml');

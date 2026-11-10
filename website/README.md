@@ -22,7 +22,7 @@ node scripts/check-versions.cjs    # CI 与发版前校验，不一致即失败
 ```
 
 同步器会生成 `website/version.json`（版本 + 下载地址），并更新 `index.html` 的
-3 处版本展示、JS 兜底值、下载按钮链接、更新记录（取 `src/data/releases.json` 前 8 条），
+3 处版本展示、JS 兜底值、下载按钮链接、更新记录（`src/data/releases.json` 的**全部历史版本 + 当前版本**），
 以及 `sitemap.xml` / `robots.txt`。
 
 > 为什么需要 `version.json`：GitHub Pages 是纯静态托管，请求不到 `/api/config`。
