@@ -1,0 +1,18 @@
+{
+  "meta": {
+    "style": "swiss",
+    "theme": "safety-orange",
+    "brand": "#ff8a1f",
+    "embed": true,
+    "title": "0.6.x 约战页面与三项必做",
+    "subtitle": "方案树 · 诊断 · 测试与验收（待审）",
+    "author": "ESF PLATFORM · 工程记录",
+    "date": "2026.11.10",
+    "reading_time": "5 min",
+    "tags": ["约战", "插件", "AFK", "观战", "验收"]
+  },
+  "upgrades": [
+    { "type": "aside", "line": 3, "text": "所有结论都来自代码与实测：A2 的次数限制、A3 的 2v2 失效，都有具体行号与 SQL 列序。" },
+    { "type": "checklist", "lines": [99, 100, 101] }
+  ]
+}
