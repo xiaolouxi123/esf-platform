@@ -23,6 +23,7 @@
     "smoke:updates": "node scripts/smoke-updates.cjs",
     "token": "node scripts/issue-token.cjs",
     "test": "node --test test/api.test.js test/amxx-auth.test.js test/amxx-challenge.test.js test/amxx-query.test.js test/challenges.test.js test/profile.test.js test/ranked.test.js test/ranks.test.js test/titles.test.js test/updates.test.js",
+    "test:acceptance": "node scripts/acceptance-sim.cjs",
     "user:passwd": "node scripts/user-passwd.cjs",
     "user:role": "node scripts/user-role.cjs"
   },

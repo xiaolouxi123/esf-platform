@@ -632,10 +632,7 @@ async function settleFromClient(matchId, winner, players, callerId) {
       await conn.rollback();
       throw new Error('比赛不存在');
     }
-    if (!['waiting', 'live'].includes(match.status)) {
-      await conn.rollback();
-      return { alreadySettled: true, match: await getMatch(matchId, null) };
-    }
+    // 先校验参赛者身份，再做幂等短路：否则任何登录用户都能借「已结算」分支拿到比赛详情
     const [[mine]] = await conn.query(
       'SELECT 1 AS ok FROM ranked_match_players WHERE match_id = ? AND user_id = ? LIMIT 1',
       [matchId, callerId]
@@ -643,6 +640,10 @@ async function settleFromClient(matchId, winner, players, callerId) {
     if (!mine) {
       await conn.rollback();
       throw new Error('只有参赛玩家可以补交结算');
+    }
+    if (!['waiting', 'live'].includes(match.status)) {
+      await conn.rollback();
+      return { alreadySettled: true, match: await getMatch(matchId, callerId) };
     }
     if (Array.isArray(players)) {
       const ids = players.map((p) => Number(p?.userId)).filter((n) => Number.isInteger(n) && n > 0);
