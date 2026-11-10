@@ -34,9 +34,20 @@
 #define TASK_CHALLENGE_RETRY 4600
 #define CHALLENGE_RETRY_LIMIT 30
 #define TASK_CHALLENGE_END 4700
+#define TASK_CHALLENGE_STATS 4750
+#define TASK_CHALLENGE_PARTIAL 4760
+#define TASK_CHALLENGE_TIMEOUT 4950
+#define TASK_CHALLENGE_FORFEIT 4920
+#define TASK_CHALLENGE_SETTLE 4900
+#define TASK_CHALLENGE_QUORUM 4930
+#define TASK_CHALLENGE_SPECTATE 4940
+#define TASK_AFK_TICK 4960
+#define TASK_MATCH_END_COUNT 4961
 #define TASK_RANKED_END 4800
 #define TASK_QUIT   4300
 #define esf_get_advancedmelee(%1) get_pdata_int(%1, 298)
+
+forward armChallengeQuorum();
 
 enum _:PlayerStats {
     bool:PS_IS_REGISTERED,    // 是否已注册
@@ -85,7 +96,11 @@ new g_rankedKnown = 0;
 new g_rankedSeenA = 0;
 new g_rankedSeenB = 0;
 new g_rankedTeam[33];
+new g_rankedUserId[33];
 new bool:g_rankedSettled = false;
+new g_pendingMatchId = 0;
+new g_pendingWinner[2];
+new bool:g_pendingArmed = false;
 
 // 约战（challenge）平台模式：独立于排位，不写 ELO
 new g_challengeRoomId = 0;
@@ -102,12 +117,38 @@ new g_challengeVictory[16];
 new g_challengeWinner[2];
 new g_challengeScoreA = 0;
 new g_challengeScoreB = 0;
+new g_challengeRemaining = 0;
+new Float:g_lastActivity[33];
+new bool:g_afkWarned[33];
+new bool:g_afkMarked[33];
+new bool:g_challengeAfk[33];
+new g_matchEndLeft = 0;
 new g_challengeSettleQuery[320];
+new g_challengeStatsQuery[1100];
+new g_challengeSlots = 0;
+new g_challengeExpected = 0;
+new g_challengeStatsTries = 0;
+new g_challengeSettleTries = 0;
+new bool:g_challengeStartArmed = false;
+new bool:g_challengeForfeitPending = false;
+new g_challengeForfeitTeam = 0;
+new g_challengeForfeitReason[16];
+new bool:g_challengeQuorumArmed = false;
+new g_challengeName[33][32];
 new bool:g_challengeActive = false;
 new bool:g_challengeSettled = false;
 new g_pcRankedHost, g_pcRankedUser, g_pcRankedPass, g_pcRankedDb, g_pcRankedServerKey;
 new g_pcQuitEnable, g_pcQuitDelay;
 new g_pcPlatformLogin;
+
+/** 平台观战者标记（由 esf_platform_auth / esf_ranked_lock 写入 userinfo） */
+bool:isPlatformSpectator(id)
+{
+    if(!is_user_connected(id)) return false;
+    new spec[2];
+    get_user_info(id, "_platform_spectator", spec, charsmax(spec));
+    return (spec[0] == '1');
+}
 
 // new OrpheuHook:HandleCmd_ArgsHook;
 
@@ -131,6 +172,7 @@ public client_putinserver(id)
     g_challengeUserId[id]=0;
     g_challengeKills[id]=0;
     g_challengeDeaths[id]=0;
+    g_challengeName[id][0]=0;
     g_challengeBaseKills[id]=get_user_frags(id);
     g_challengeBaseDeaths[id]=get_user_deaths(id);
 
@@ -169,6 +211,10 @@ public client_putinserver(id)
     set_task(12.2, "taskChallengeIdentify", TASK_CHALLENGE + id);
     // 约战房间可能在进服 12 秒后才开赛；低频重试最多约 10 分钟，避免漏识别。
     set_task(20.0, "taskChallengeRetry", TASK_CHALLENGE_RETRY + id, _, _, "b");
+
+    // 比赛中进服的平台观战者：2 秒内确认观战标记并切到观战视角。
+    if(g_challengeActive && g_iBattle)
+        set_task(2.0, "taskForceSpectate", TASK_CHALLENGE_SPECTATE + id);
 }
 
 public taskChallengeRetry(taskid)
@@ -184,6 +230,22 @@ public taskChallengeRetry(taskid)
 
     g_challengeRetry[id]++;
     taskChallengeIdentify(TASK_CHALLENGE + id);
+}
+
+// 约战比赛中锁定玩家改名：立即还原为识别时保存的名字
+public client_infochanged(id)
+{
+    if(!g_challengeActive || g_challengeSettled) return;
+    if(!is_user_connected(id)) return;
+    if(g_challengeName[id][0] == 0) return;
+
+    new newName[32];
+    get_user_info(id, "name", newName, charsmax(newName));
+    if(newName[0] == 0 || equal(newName, g_challengeName[id])) return;
+
+    set_user_info(id, "name", g_challengeName[id]);
+    client_print(id, print_chat, "[约战] 比赛中禁止改名");
+    log_amx("[ESF-CHALLENGE] code=RENAME_BLOCKED rename_blocked id=%d user=%s", id, g_challengeName[id]);
 }
 
 // 处理玩家修改名字函数
@@ -230,6 +292,25 @@ public client_disconnected(id)
         if(!challengeEnded && checkRankedFinish())
         {
             resetAll();
+        }
+    }
+
+    // 约战早退：某队在线参赛者归零时先进入 20 秒宽限；宽限内回来并重新识别则取消。
+    // 开赛前也适用（quorum 不满足时由 armChallengeQuorum 另行兜底）。
+    if(g_challengeActive && !g_challengeSettled && g_challengeRoomId > 0)
+    {
+        new leavingTeam = g_challengeTeam[id];
+        if(leavingTeam != 0)
+        {
+            new teamAAlive = challengeTeamCount(1, id);
+            new teamBAlive = challengeTeamCount(2, id);
+
+            if(teamAAlive == 0 && teamBAlive == 0)
+                armChallengeForfeit("all_left", 0);
+            else if(leavingTeam == 1 && teamAAlive == 0)
+                armChallengeForfeit("team_empty", 1);
+            else if(leavingTeam == 2 && teamBAlive == 0)
+                armChallengeForfeit("team_empty", 2);
         }
     }
 
@@ -283,7 +364,9 @@ public SQL_Init()
     get_cvar_string("amx_sql_pass",pass,charsmax(pass));
     get_cvar_string("amx_sql_db",db,charsmax(db));
 
-    server_print("host:%s,user:%s,pass:%s,db:%s",host,user,pass,db);
+    // 不打印明文密码；仅调试等级 >=2 时确认密码已读取。
+    if(get_cvar_num("amx_debug") >= 2)
+        server_print("host:%s,user:%s,pass=***,db:%s",host,user,db);
 
     g_sqlTuple = SQL_MakeDbTuple(host,user,pass,db);
 
@@ -327,23 +410,23 @@ public RankedInit() {
     get_pcvar_string(g_pcRankedDb, db, charsmax(db));
 
     if (host[0] == 0) {
-        log_amx("[排位] ranked_sql_host 未配置，胜负不会自动回写");
+        log_amx("[Ranked] ranked_sql_host not configured; results will not be written back");
         return;
     }
 
     g_rankedTuple = SQL_MakeDbTuple(host, user, pass, db, 5);
     if (g_rankedTuple == Empty_Handle) {
-        log_amx("[排位] SQL_MakeDbTuple 失败");
+        log_amx("[Ranked] SQL_MakeDbTuple failed");
         return;
     }
 
     SQL_ThreadQuery(g_rankedTuple, "OnRankedPing", "SELECT 1");
-    log_amx("[排位] 平台库已初始化 (%s)", host);
+    log_amx("[Ranked] platform db initialized (%s)", host);
 }
 
 public OnRankedPing(failstate, Handle:query, error[], errnum, data[], dataSize) {
     if (failstate != TQUERY_SUCCESS) {
-        log_amx("[排位] 平台库连接失败: %s", error);
+        log_amx("[Ranked] platform db connection failed: %s", error);
     }
     SQL_FreeHandle(query);
 }
@@ -365,7 +448,7 @@ public taskRankedIdentify(taskid) {
 
     new query[640];
     formatex(query, charsmax(query),
-        "SELECT m.id, p.team \
+        "SELECT m.id, p.team, t.user_id \
            FROM launch_tokens t \
            JOIN ranked_match_players p ON p.user_id = t.user_id \
            JOIN ranked_matches m ON m.id = p.match_id \
@@ -382,7 +465,7 @@ public taskRankedIdentify(taskid) {
 public OnRankedIdentify(failstate, Handle:query, error[], errnum, data[], dataSize) {
     new id = data[0];
     if (failstate != TQUERY_SUCCESS) {
-        log_amx("[排位] 身份查询失败 id=%d err=%s", id, error);
+        log_amx("[Ranked] identity query failed id=%d err=%s", id, error);
         return;
     }
     if (SQL_NumResults(query) == 0) return;
@@ -392,6 +475,7 @@ public OnRankedIdentify(failstate, Handle:query, error[], errnum, data[], dataSi
     SQL_ReadResult(query, 1, team, 1);
     g_rankedMatchId = SQL_ReadResult(query, 0);
     g_rankedTeam[id] = (team[0] == 'a') ? 1 : 2;
+    g_rankedUserId[id] = SQL_ReadResult(query, 2);
     g_rankedKnown++;
     if (g_rankedTeam[id] == 1) g_rankedSeenA++;
     else g_rankedSeenB++;
@@ -415,6 +499,13 @@ public taskChallengeIdentify(taskid) {
     if (!is_user_connected(id) || g_rankedTuple == Empty_Handle) return;
     if (g_challengeTeam[id] != 0 && !g_challengeSettled) return;
 
+    // 平台观战者不参与识别/quorum/统计；比赛 live 时 2 秒内切观战视角。
+    if (isPlatformSpectator(id)) {
+        if (g_challengeActive && g_iBattle)
+            set_task(2.0, "taskForceSpectate", TASK_CHALLENGE_SPECTATE + id);
+        return;
+    }
+
     new token[40];
     get_user_info(id, "_platform_token", token, charsmax(token));
     if (!isValidRankedToken(token)) return;
@@ -423,9 +514,9 @@ public taskChallengeIdentify(taskid) {
     get_pcvar_string(g_pcRankedServerKey, serverKey, charsmax(serverKey));
     if (serverKey[0] == 0) return;
 
-    new query[720];
+    new query[1024];
     formatex(query, charsmax(query),
-        "SELECT r.id, p.team, COALESCE(c.victory_type, 'kills'), COALESCE(c.victory_limit, 10), t.user_id \
+        "SELECT r.id, p.team, COALESCE(c.victory_type, 'kills'), COALESCE(c.victory_limit, 10), t.user_id, r.time_limit_sec, TIMESTAMPDIFF(SECOND, r.started_at, NOW()), r.mode \
            FROM launch_tokens t \
            JOIN challenge_room_players p ON p.user_id = t.user_id \
            JOIN challenge_rooms r ON r.id = p.room_id \
@@ -443,7 +534,7 @@ public taskChallengeIdentify(taskid) {
 public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dataSize) {
     new id = data[0];
     if (failstate != TQUERY_SUCCESS) {
-        log_amx("[约战] 身份查询失败 id=%d err=%s", id, error);
+        log_amx("[ESF-CHALLENGE] identify_failed id=%d err=%s", id, error);
         return;
     }
     if (SQL_NumResults(query) == 0 || (g_challengeTeam[id] != 0 && !g_challengeSettled)) return;
@@ -451,26 +542,38 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
     new roomId = SQL_ReadResult(query, 0);
     if (roomId <= 0) return;
 
-    if (g_challengeRoomId != roomId) {
-        g_challengeRoomId = roomId;
-        g_challengeKnown = 0;
-        g_challengeSettled = false;
-        g_challengeActive = true;
-        for (new i = 1; i <= get_maxplayers(); i++) {
-            g_challengeTeam[i] = 0;
-            g_challengeUserId[i] = 0;
-            g_challengeKills[i] = 0;
-            g_challengeDeaths[i] = 0;
-        }
-    }
-
     new team[2];
     SQL_ReadResult(query, 1, team, 1);
     new type[16];
     SQL_ReadResult(query, 2, type, charsmax(type));
     new limit = SQL_ReadResult(query, 3);
-    g_challengeUserId[id] = SQL_ReadResult(query, 4);
+    new userId = SQL_ReadResult(query, 4);
+    new mode[8];
+    SQL_ReadResult(query, 7, mode, charsmax(mode));
 
+    if (g_challengeRoomId != roomId) {
+        g_challengeRoomId = roomId;
+        g_challengeKnown = 0;
+        g_challengeSettled = false;
+        g_challengeActive = true;
+        // 换房后旧的 8 秒兜底任务不能再作用于新房间。
+        g_challengeStartArmed = false;
+        remove_task(TASK_CHALLENGE_PARTIAL);
+        g_challengeSlots = equal(mode, "2v2") ? 2 : 1;
+        g_challengeExpected = g_challengeSlots * 2;
+        for (new i = 1; i <= get_maxplayers(); i++) {
+            g_challengeTeam[i] = 0;
+            g_challengeUserId[i] = 0;
+            g_challengeKills[i] = 0;
+            g_challengeDeaths[i] = 0;
+            g_challengeName[i][0] = 0;
+        }
+    } else if (g_challengeSlots <= 0) {
+        g_challengeSlots = equal(mode, "2v2") ? 2 : 1;
+        g_challengeExpected = g_challengeSlots * 2;
+    }
+
+    g_challengeUserId[id] = userId;
     g_challengeTeam[id] = (team[0] == 'a') ? 1 : 2;
     g_challengeKills[id] = 0;
     g_challengeDeaths[id] = 0;
@@ -478,12 +581,298 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
     g_challengeBaseDeaths[id] = get_user_deaths(id);
     g_challengeKnown++;
     copy(g_challengeVictory, charsmax(g_challengeVictory), type);
-    g_challengeLimit = (limit >= 3 && limit <= 50) ? limit : 10;
+    g_challengeLimit = (limit == 3 || limit == 5 || limit == 10) ? limit : 10;
+    new limitSec = SQL_ReadResult(query, 5);
+    new elapsedSec = SQL_ReadResult(query, 6);
+    if (limitSec <= 0) limitSec = 900;
+    g_challengeRemaining = limitSec - elapsedSec;
+    if (g_challengeRemaining < 0) g_challengeRemaining = 0;
+    if (task_exists(TASK_CHALLENGE_TIMEOUT)) remove_task(TASK_CHALLENGE_TIMEOUT);
+    set_task(10.0, "taskChallengeTimeout", TASK_CHALLENGE_TIMEOUT, _, _, "b");
+    get_user_name(id, g_challengeName[id], 31);
+
+    new teamStr[2];
+    teamStr[0] = (g_challengeTeam[id] == 1) ? 'a' : 'b';
+    teamStr[1] = 0;
+    log_amx("[ESF-CHALLENGE] identified room=%d mode=%s slots=%d team=%s known=%d expected=%d",
+        g_challengeRoomId, g_challengeSlots > 1 ? "2v2" : "1v1", g_challengeSlots, teamStr,
+        g_challengeKnown, g_challengeExpected);
+    challengeCancelForfeitIfBack();
 
     client_print(id, print_chat,
-        "[约战] 已进入平台房间 #%d，%s队；胜利条件：%s %d 次，结束后自动回平台",
-        g_challengeRoomId, g_challengeTeam[id] == 1 ? "A" : "B",
+        "[约战] 已进入平台房间 #%d（%s），%s队；胜利条件：%s %d 次，结束后自动回平台",
+        g_challengeRoomId, g_challengeSlots > 1 ? "2v2" : "1v1",
+        g_challengeTeam[id] == 1 ? "A" : "B",
         equal(g_challengeVictory, "deaths") ? "死亡" : "击杀", g_challengeLimit);
+
+    // 满员立即开赛；迟迟不满员则由 8 秒兜底任务按已识别人数开赛。
+    if (!g_iBattle) {
+        checkChallengeReadyToStart();
+        if (!g_iBattle && !g_challengeStartArmed) {
+            g_challengeStartArmed = true;
+            set_task(8.0, "taskChallengePartialStart", TASK_CHALLENGE_PARTIAL);
+        }
+        // quorum 不满足也不能无限等待：20 秒弃权宽限后按当前比分结算。
+        if (!g_iBattle) armChallengeQuorum();
+    }
+}
+
+/** 某队已识别且在线的人数（开赛门槛与结算门槛共用） */
+challengeTeamCount(team, exclude = 0) {
+    new count = 0;
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        if (i == exclude || !is_user_connected(i) || g_challengeTeam[i] != team) continue;
+        count++;
+    }
+    return count;
+}
+
+/** 满员开赛：1v1 需 2 人、2v2 需 4 人，且两队都有人 */
+checkChallengeReadyToStart() {
+    if (!g_challengeActive || g_challengeSettled || g_challengeRoomId == 0 || g_iBattle) return;
+    if (g_challengeExpected <= 0 || g_challengeKnown < g_challengeExpected) return;
+    if (challengeTeamCount(1) < 1 || challengeTeamCount(2) < 1) return;
+
+    log_amx("[ESF-CHALLENGE] start_full known=%d expected=%d", g_challengeKnown, g_challengeExpected);
+    startChallengeBattle();
+}
+
+startChallengeBattle() {
+    if (g_iBattle) return;
+
+    g_challengeStartArmed = false;
+    g_challengeQuorumArmed = false;
+    remove_task(TASK_CHALLENGE_PARTIAL);
+    remove_task(TASK_CHALLENGE_QUORUM);
+    g_autoTeamSize = (g_challengeSlots > 1) ? 2 : 1;
+
+    // 等待识别期间可能已有击杀/死亡，开赛时清零，保证计数从 0 开始。
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        g_challengeKills[i] = 0;
+        g_challengeDeaths[i] = 0;
+    }
+
+    g_iBattle = true;
+    g_BattleState = true;
+    InitilizeBattleStart();
+
+    // live 前已进服的平台观战者：2 秒内切到观战视角。
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        if (is_user_connected(i) && g_challengeTeam[i] == 0 && isPlatformSpectator(i))
+            set_task(2.0, "taskForceSpectate", TASK_CHALLENGE_SPECTATE + i);
+    }
+}
+
+/** 8 秒兜底：房间迟迟不满员时，按已识别人数提前开赛 */
+public taskChallengePartialStart() {
+    g_challengeStartArmed = false;
+    if (!g_challengeActive || g_challengeSettled || g_challengeRoomId == 0 || g_iBattle) return;
+
+    new bool:ready = false;
+    if (g_challengeSlots > 1) {
+        ready = (challengeTeamCount(1) >= 1 && challengeTeamCount(2) >= 1 && g_challengeKnown >= 2);
+    } else {
+        ready = (g_challengeKnown >= 1);
+    }
+
+    if (!ready) {
+        // 不再无限重挂 8 秒任务：交给 20 秒 quorum 弃权宽限统一处理。
+        armChallengeQuorum();
+        return;
+    }
+
+    log_amx("[ESF-CHALLENGE] start_partial known=%d expected=%d", g_challengeKnown, g_challengeExpected);
+    startChallengeBattle();
+}
+
+/** 统一进入结算：写个人统计 → 调存储过程；失败重试，12 秒兜底 */
+beginChallengeSettlement(const winner[], scoreA, scoreB) {
+    if (g_challengeSettled) return;
+
+    g_challengeSettled = true;
+    copy(g_challengeWinner, charsmax(g_challengeWinner), winner);
+    g_challengeScoreA = scoreA;
+    g_challengeScoreB = scoreB;
+    g_challengeStatsTries = 0;
+    g_challengeSettleTries = 0;
+
+    formatex(g_challengeSettleQuery, charsmax(g_challengeSettleQuery),
+        "CALL settle_challenge_match(%d, '%s', %d, %d, '%s', %d)",
+        g_challengeRoomId, g_challengeWinner, g_challengeScoreA, g_challengeScoreB,
+        g_challengeVictory, g_challengeLimit);
+
+    new stats[768];
+    new len = 0, count = 0;
+    stats[0] = 0;
+    new teamChar[2];
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        // 已识别即可写统计：断线玩家的比分仍要随结算一起落库。
+        if (g_challengeTeam[i] == 0 || g_challengeUserId[i] == 0) continue;
+        new kills = g_challengeKills[i];
+        new deaths = g_challengeDeaths[i];
+        teamChar[0] = (g_challengeTeam[i] == 1) ? 'a' : 'b';
+        teamChar[1] = 0;
+        if (count > 0) {
+            stats[len++] = ',';
+            stats[len] = 0;
+        }
+        len += formatex(stats[len], charsmax(stats) - len, "(%d,%d,'%s',%d,%d)",
+            g_challengeRoomId, g_challengeUserId[i], teamChar, kills, deaths, g_challengeAfk[i] ? 1 : 0);
+        count++;
+    }
+
+    g_challengeStatsQuery[0] = 0;
+    if (count > 0) {
+        formatex(g_challengeStatsQuery, charsmax(g_challengeStatsQuery),
+            "INSERT INTO challenge_player_stats (room_id,user_id,team,kills,deaths,afk) VALUES %s \
+             ON DUPLICATE KEY UPDATE team=VALUES(team), kills=VALUES(kills), deaths=VALUES(deaths), afk=VALUES(afk)",
+            stats);
+    }
+
+    log_amx("[ESF-CHALLENGE] finished room=%d winner=%s score=%d:%d rule=%s %d",
+        g_challengeRoomId, g_challengeWinner, g_challengeScoreA, g_challengeScoreB,
+        g_challengeVictory, g_challengeLimit);
+    client_print(0, print_chat, "[约战] 比赛结束，%s队获胜 %d:%d，正在上传战绩...",
+        g_challengeWinner[0] == 'a' ? "A" : "B", g_challengeScoreA, g_challengeScoreB);
+
+    // 25s 看门狗覆盖 stats+settle 最坏路径；末次失败会改为重挂 12s，避免竞态。
+    remove_task(TASK_CHALLENGE_END); set_task(25.0, "taskForceChallengeEnd", TASK_CHALLENGE_END);
+
+    if (g_challengeStatsQuery[0] != 0) {
+        SQL_ThreadQuery(g_rankedTuple, "OnChallengeStatsSaved", g_challengeStatsQuery);
+    } else {
+        settleChallengeResult();
+    }
+}
+
+/** 进入 20 秒弃权宽限；宽限内回来并重新识别会取消（PRD R8 AC-6） */
+armChallengeForfeit(const reason[], team)
+{
+    if(g_challengeSettled) return;
+    g_challengeForfeitPending = true;
+    g_challengeForfeitTeam = team;
+    copy(g_challengeForfeitReason, charsmax(g_challengeForfeitReason), reason);
+    log_amx("[ESF-CHALLENGE] forfeit_arm reason=%s team=%d grace=20", reason, team);
+    set_task(20.0, "taskChallengeForfeit", TASK_CHALLENGE_FORFEIT);
+}
+
+public taskChallengeForfeit()
+{
+    if(!g_challengeForfeitPending || g_challengeSettled) return;
+
+    new teamAAlive = challengeTeamCount(1);
+    new teamBAlive = challengeTeamCount(2);
+    new bool:stillEmpty = false;
+    if(g_challengeForfeitTeam == 0) stillEmpty = (teamAAlive == 0 && teamBAlive == 0);
+    else if(g_challengeForfeitTeam == 1) stillEmpty = (teamAAlive == 0);
+    else stillEmpty = (teamBAlive == 0);
+
+    if(!stillEmpty)
+    {
+        g_challengeForfeitPending = false;
+        log_amx("[ESF-CHALLENGE] forfeit_cancel team=%d reason=back", g_challengeForfeitTeam);
+        return;
+    }
+
+    log_amx("[ESF-CHALLENGE] forfeit_go reason=%s team=%d", g_challengeForfeitReason, g_challengeForfeitTeam);
+    g_challengeForfeitPending = false;
+    settleChallengeForfeit(g_challengeForfeitReason);
+}
+
+/** 重新识别后，若宽限原因已消失则取消弃权 */
+challengeCancelForfeitIfBack()
+{
+    if(!g_challengeForfeitPending) return;
+    new teamAAlive = challengeTeamCount(1);
+    new teamBAlive = challengeTeamCount(2);
+    new bool:ok = false;
+    if(g_challengeForfeitTeam == 0) ok = (teamAAlive > 0 || teamBAlive > 0);
+    else if(g_challengeForfeitTeam == 1) ok = (teamAAlive > 0);
+    else ok = (teamBAlive > 0);
+    if(ok)
+    {
+        remove_task(TASK_CHALLENGE_FORFEIT);
+        g_challengeForfeitPending = false;
+        log_amx("[ESF-CHALLENGE] forfeit_cancel team=%d", g_challengeForfeitTeam);
+    }
+}
+
+/** 开赛 quorum 不足时的 20 秒弃权宽限；满员/开赛/重识别会取消 */
+armChallengeQuorum()
+{
+    if(g_challengeSettled || g_iBattle || g_challengeRoomId == 0) return;
+    if(g_challengeQuorumArmed) return;
+    g_challengeQuorumArmed = true;
+    log_amx("[ESF-CHALLENGE] quorum_arm room=%d known=%d expected=%d grace=20",
+        g_challengeRoomId, g_challengeKnown, g_challengeExpected);
+    set_task(20.0, "taskChallengeQuorum", TASK_CHALLENGE_QUORUM);
+}
+
+public taskChallengeQuorum()
+{
+    g_challengeQuorumArmed = false;
+    if(!g_challengeActive || g_challengeSettled || g_iBattle || g_challengeRoomId == 0) return;
+    if(g_challengeKnown >= g_challengeExpected) return;
+
+    log_amx("[ESF-CHALLENGE] quorum_go room=%d known=%d expected=%d",
+        g_challengeRoomId, g_challengeKnown, g_challengeExpected);
+    settleChallengeForfeit("quorum_unmet");
+}
+
+/** 比赛 live 后把平台观战者切到观战视角（2 秒内） */
+public taskForceSpectate(taskid)
+{
+    new id = taskid - TASK_CHALLENGE_SPECTATE;
+    if(!is_user_connected(id)) return;
+    if(!g_challengeActive || g_challengeSettled || !g_iBattle) return;
+    if(g_challengeTeam[id] != 0) return;
+    if(!isPlatformSpectator(id)) return;
+
+    client_cmd(id, "spectate");
+    log_amx("[ESF-CHALLENGE] spectate_forced id=%d room=%d", id, g_challengeRoomId);
+}
+
+/** 约战早退：一方在线参赛者归零时进入宽限，超时后按当前比分结算 */
+settleChallengeForfeit(const reason[]) {
+    // 允许开赛前（quorum_unmet）与比赛中断线两类弃权；只要房间已识别即可结算。
+    if (!g_challengeActive || g_challengeRoomId == 0 ||
+        g_challengeSettled || g_rankedTuple == Empty_Handle) {
+        return;
+    }
+
+    new scoreA = 0, scoreB = 0;
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        // 按“已识别参赛者”汇总：已断线玩家的击杀/死亡仍属于当前比分，不能丢。
+        if (g_challengeTeam[i] == 0 || g_challengeUserId[i] == 0) continue;
+        new amount = equal(g_challengeVictory, "deaths") ? g_challengeDeaths[i] : g_challengeKills[i];
+        if (g_challengeTeam[i] == 1) {
+            scoreA += amount;
+        } else {
+            scoreB += amount;
+        }
+    }
+
+    new winner[2];
+    winner[0] = (equal(reason, "team_empty") && g_challengeForfeitTeam > 0) ? ((g_challengeForfeitTeam == 1) ? 'b' : 'a') : 0;
+    if (winner[0] == 0 && equal(g_challengeVictory, "deaths")) {
+        if (scoreA == scoreB) {
+            winner[0] = 'a';
+            log_amx("[ESF-CHALLENGE] tie_forfeit room=%d", g_challengeRoomId);
+        } else {
+            winner[0] = (scoreA < scoreB) ? 'a' : 'b';
+        }
+    } else if (winner[0] == 0) {
+        if (scoreA == scoreB) {
+            winner[0] = 'a';
+            log_amx("[ESF-CHALLENGE] tie_forfeit room=%d", g_challengeRoomId);
+        } else {
+            winner[0] = (scoreA > scoreB) ? 'a' : 'b';
+        }
+    }
+    winner[1] = 0;
+
+    log_amx("[ESF-CHALLENGE] forfeit reason=%s winner=%s", reason, winner);
+    beginChallengeSettlement(winner, scoreA, scoreB);
 }
 
 /** 约战结算：按击杀/死亡阈值判定，写个人统计并调用平台存储过程 */
@@ -493,14 +882,16 @@ bool:checkChallengeFinish() {
         return false;
     }
 
-    // 1v1 只要识别到任意一名参赛者即可结算；2v2 至少识别到一支完整队伍（2 人）。
+    // 1v1 单人到阈值即结算；2v2 要求两队各有人在线且至少识别到 2 人。
     // 不能要求房间内所有人都识别成功，否则某个 token 失效时比赛永远不会结算。
-    new need = (g_autoTeamSize > 1) ? g_autoTeamSize : 1;
+    new need = (g_challengeSlots > 1) ? 2 : 1;
     if (g_challengeKnown < need) return false;
+    if (g_challengeSlots > 1 && (challengeTeamCount(1) < 1 || challengeTeamCount(2) < 1)) return false;
 
     new scoreA = 0, scoreB = 0;
     for (new i = 1; i <= get_maxplayers(); i++) {
-        if (!is_user_connected(i) || g_challengeTeam[i] == 0) continue;
+        // 已识别即可计入：参赛者断线后其击杀/死亡仍属于当前比分。
+        if (g_challengeTeam[i] == 0 || g_challengeUserId[i] == 0) continue;
         new kills = g_challengeKills[i];
         new deaths = g_challengeDeaths[i];
         new amount = equal(g_challengeVictory, "deaths") ? deaths : kills;
@@ -528,70 +919,85 @@ bool:checkChallengeFinish() {
     }
     if (!reached) return false;
 
-    g_challengeSettled = true;
-    copy(g_challengeWinner, charsmax(g_challengeWinner), winner);
-    g_challengeScoreA = scoreA;
-    g_challengeScoreB = scoreB;
-    formatex(g_challengeSettleQuery, charsmax(g_challengeSettleQuery),
-        "CALL settle_challenge_match(%d, '%s', %d, %d, '%s', %d)",
-        g_challengeRoomId, g_challengeWinner, g_challengeScoreA, g_challengeScoreB,
-        g_challengeVictory, g_challengeLimit);
-
-    new stats[768];
-    new len = 0, count = 0;
-    stats[0] = 0;
-    new teamChar[2];
-    for (new i = 1; i <= get_maxplayers(); i++) {
-        if (!is_user_connected(i) || g_challengeTeam[i] == 0) continue;
-        new kills = g_challengeKills[i];
-        new deaths = g_challengeDeaths[i];
-        teamChar[0] = (g_challengeTeam[i] == 1) ? 'a' : 'b';
-        teamChar[1] = 0;
-        if (count > 0) {
-            stats[len++] = ',';
-            stats[len] = 0;
-        }
-        len += formatex(stats[len], charsmax(stats) - len, "(%d,%d,'%s',%d,%d)",
-            g_challengeRoomId, g_challengeUserId[i], teamChar, kills, deaths);
-        count++;
-    }
-
-    if (count > 0) {
-        new query[1100];
-        formatex(query, charsmax(query),
-            "INSERT INTO challenge_player_stats (room_id,user_id,team,kills,deaths) VALUES %s \
-             ON DUPLICATE KEY UPDATE team=VALUES(team), kills=VALUES(kills), deaths=VALUES(deaths)",
-            stats);
-        SQL_ThreadQuery(g_rankedTuple, "OnChallengeStatsSaved", query);
-    } else {
-        settleChallengeResult();
-    }
-
-    log_amx("[约战] room=%d finished, winner=%s, score=%d:%d, rule=%s %d",
-        g_challengeRoomId, g_challengeWinner, g_challengeScoreA, g_challengeScoreB,
-        g_challengeVictory, g_challengeLimit);
-    client_print(0, print_chat, "[约战] 比赛结束，%s队获胜 %d:%d，正在上传战绩...",
-        g_challengeWinner[0] == 'a' ? "A" : "B", g_challengeScoreA, g_challengeScoreB);
-
-    // 数据库/存储过程异常时兜底结束，避免玩家永远卡在“正在上传战绩”。
-    set_task(12.0, "taskForceChallengeEnd", TASK_CHALLENGE_END);
+    beginChallengeSettlement(winner, scoreA, scoreB);
     return true;
+}
+
+/** 15 分钟限时：每 10 秒扣一次，归零后按当前比分结束 */
+public taskChallengeTimeout()
+{
+    if (!g_iBattle || !g_challengeActive || g_challengeSettled) {
+        remove_task(TASK_CHALLENGE_TIMEOUT);
+        return;
+    }
+    g_challengeRemaining -= 10;
+    if (g_challengeRemaining > 0) {
+        if (g_challengeRemaining <= 300 && g_challengeRemaining % 60 == 0) {
+            client_print(0, print_chat, "[约战] 本局剩余 %d 分钟", g_challengeRemaining / 60);
+        }
+        return;
+    }
+    remove_task(TASK_CHALLENGE_TIMEOUT);
+    forceChallengeTimeout();
+}
+
+forceChallengeTimeout()
+{
+    if (!g_iBattle || !g_challengeActive || g_challengeSettled || g_challengeRoomId == 0) return;
+
+    new scoreA = 0, scoreB = 0;
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        if (g_challengeTeam[i] == 0) continue;
+        if (g_challengeTeam[i] == 1) scoreA += g_challengeKills[i];
+        else scoreB += g_challengeKills[i];
+    }
+
+    new winner[2];
+    copy(winner, charsmax(winner), scoreA >= scoreB ? "a" : "b");
+    copy(g_challengeVictory, charsmax(g_challengeVictory), "kills");
+    g_challengeLimit = (scoreA > scoreB ? scoreA : scoreB);
+    if (g_challengeLimit < 3) g_challengeLimit = 3;
+
+    log_amx("[ESF-CHALLENGE] timeout room=%d score=%d:%d winner=%s",
+        g_challengeRoomId, scoreA, scoreB, winner);
+    client_print(0, print_chat, "[约战] 时间到，%s队按比分获胜 %d:%d，正在上传战绩...",
+        winner[0] == 'a' ? "A" : "B", scoreA, scoreB);
+    beginChallengeSettlement(winner, scoreA, scoreB);
 }
 
 public taskForceChallengeEnd()
 {
-    if (!g_iBattle || !g_challengeSettled) return;
-    log_amx("[约战] 结算等待超时，强制结束 room=%d", g_challengeRoomId);
+    if (!g_challengeSettled) return;
+    if (!g_iBattle && !g_challengeActive) return;
+    log_amx("[ESF-SETTLE] room=%d attempts=0 code=SETTLE_TIMEOUT force_exit", g_challengeRoomId);
     client_print(0, print_chat, "[约战] 结算超时，已结束本场比赛。");
-    resetAll();
+    for(new i=1;i<=get_maxplayers();i++) if(is_user_connected(i) && !is_user_bot(i)) client_cmd(i,"disconnect"); resetAll();
 }
 
 public OnChallengeStatsSaved(failstate, Handle:query, error[], errnum, data[], dataSize) {
-    if (failstate != TQUERY_SUCCESS) {
-        log_amx("[约战] 个人战绩写入失败: %s", error);
-    }
     SQL_FreeHandle(query);
+
+    if (failstate != TQUERY_SUCCESS) {
+        if (g_challengeStatsTries < 3) {
+            g_challengeStatsTries++;
+            new Float:retryDelay = 2.0;
+            log_amx("[ESF-SETTLE] room=%d attempt=%d code=STATS_RETRY err=%s",
+                g_challengeRoomId, g_challengeStatsTries, error);
+            set_task(retryDelay, "taskRetryChallengeStats", TASK_CHALLENGE_STATS);
+            return;
+        }
+        log_amx("[ESF-SETTLE] room=%d attempts=4 code=STATS_FAILED err=%s", g_challengeRoomId, error);
+    } else {
+        log_amx("[ESF-SETTLE] stats_saved room=%d", g_challengeRoomId);
+        remove_task(TASK_CHALLENGE_STATS);
+    }
+
     settleChallengeResult();
+}
+
+public taskRetryChallengeStats() {
+    if (!g_challengeSettled || g_challengeStatsQuery[0] == 0 || g_rankedTuple == Empty_Handle) return;
+    SQL_ThreadQuery(g_rankedTuple, "OnChallengeStatsSaved", g_challengeStatsQuery);
 }
 
 settleChallengeResult() {
@@ -600,16 +1006,39 @@ settleChallengeResult() {
 }
 
 public OnChallengeSettled(failstate, Handle:query, error[], errnum, data[], dataSize) {
-    if (failstate != TQUERY_SUCCESS) {
-        log_amx("[约战] 结果写入失败: %s", error);
-    } else {
-        log_amx("[约战] 结果写入成功 room=%d", g_challengeRoomId);
-    }
     SQL_FreeHandle(query);
+
+    if (failstate != TQUERY_SUCCESS) {
+        if (g_challengeSettleTries < 3) {
+            g_challengeSettleTries++;
+            new Float:retryDelay = 2.0;
+            log_amx("[ESF-SETTLE] room=%d attempt=%d code=SETTLE_RETRY err=%s",
+                g_challengeRoomId, g_challengeSettleTries, error);
+            set_task(retryDelay, "taskRetryChallengeSettle", TASK_CHALLENGE_SETTLE);
+            return;
+        }
+        log_amx("[ESF-SETTLE] room=%d attempts=4 code=SETTLE_FAILED err=%s", g_challengeRoomId, error);
+        client_print(0, print_chat, "[约战] 结果上报失败，稍后自动返回平台。");
+        // 第 4 次仍失败：重新武装唯一的 12 秒兜底，超时后 force_exit。
+        remove_task(TASK_CHALLENGE_END);
+        set_task(12.0, "taskForceChallengeEnd", TASK_CHALLENGE_END);
+        return;
+    }
+
+    log_amx("[ESF-SETTLE] room=%d attempt=%d code=SETTLED", g_challengeRoomId, g_challengeSettleTries + 1);
+    remove_task(TASK_CHALLENGE_SETTLE);
 
     // 结果落库后再结束/退出，给平台留出读取 lastResult 的时间。
     remove_task(TASK_CHALLENGE_END);
     resetAll();
+}
+
+public taskRetryChallengeSettle() {
+    if (!g_challengeActive || !g_challengeSettled || // quorum 弃权也要重试，不要求 g_iBattle
+        g_challengeSettleQuery[0] == 0 || g_rankedTuple == Empty_Handle) {
+        return;
+    }
+    SQL_ThreadQuery(g_rankedTuple, "OnChallengeSettled", g_challengeSettleQuery);
 }
 
 /** 一方平台队员全部出局时，自动结算 */
@@ -634,6 +1063,9 @@ bool:checkRankedFinish() {
     new winner[2];
     formatex(winner, charsmax(winner), "%s", (aliveA > 0) ? "a" : "b");
     new query[128];
+    g_pendingMatchId = g_rankedMatchId;
+    formatex(g_pendingWinner, charsmax(g_pendingWinner), "%s", winner);
+    g_pendingArmed = true;
     formatex(query, charsmax(query), "CALL settle_ranked_match(%d, '%s')", g_rankedMatchId, winner);
     SQL_ThreadQuery(g_rankedTuple, "OnRankedSettled", query);
     log_amx("[Ranked] match %d settled, winner=%s", g_rankedMatchId, winner);
@@ -653,15 +1085,40 @@ public taskForceRankedEnd() {
     }
 }
 
+writePendingResult()
+{
+    if (!g_pendingArmed || g_pendingMatchId == 0) return;
+    new file[128];
+    formatex(file, charsmax(file), "addons/amxmodx/logs/esf_pending_result.json");
+    new fp = fopen(file, "wt");
+    if (!fp) {
+        log_amx("[Ranked] pending file open failed");
+        return;
+    }
+    fprintf(fp, "{^"matchId^":%d,^"winner^":^"%s^",^"players^":[", g_pendingMatchId, g_pendingWinner);
+    new bool:first = true;
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        if (g_rankedUserId[i] == 0) continue;
+        if (!first) fprintf(fp, ",");
+        first = false;
+        fprintf(fp, "{^"userId^":%d,^"team^":^"%s^",^"afk^":%d}", g_rankedUserId[i], (g_rankedTeam[i] == 1) ? "a" : "b", g_afkMarked[i] ? 1 : 0);
+    }
+    fprintf(fp, "]}");
+    fclose(fp);
+    log_amx("[Ranked] pending result written match=%d", g_pendingMatchId);
+}
+
 public OnRankedSettled(failstate, Handle:query, error[], errnum, data[], dataSize) {
     if (failstate != TQUERY_SUCCESS) {
-        log_amx("[排位] 结算写入失败: %s", error);
+        log_amx("[Ranked] result write failed: %s", error);
+        writePendingResult();
     } else {
-        log_amx("[排位] 结算写入成功");
+        log_amx("[Ranked] result written");
     }
     SQL_FreeHandle(query);
 
     // 给平台留出读取 lastResult 的时间，再结束本局；平台收到结果后会关闭游戏。
+    g_pendingArmed = false;
     remove_task(TASK_RANKED_END);
     resetAll();
 }
@@ -688,8 +1145,8 @@ public CheckPlayerRegistration(id)
     data[0] = id;
     copy(data[1],64,name);
 
-    server_print("[ Debug ] 查询玩家名字:%s",name);
-    server_print("[ Debug ] 查询玩家名字:%s",data);
+    server_print("[ Debug ] query player name:%s",name);
+    server_print("[ Debug ] query player name:%s",data);
 
     //执行异步查询,并指定回调函数onPlayerRegistrationCheck进行处理结果
     SQL_ThreadQuery(g_sqlTuple,"onPlayerRegistrationCheck",query,data,sizeof(data));
@@ -713,8 +1170,8 @@ public onPlayerRegistrationCheck(FailState,Handle:query,error[],errNum,data[],da
     // 检查数据库是否正常运行/未连接/查询失败
     if(FailState != TQUERY_SUCCESS)
     {
-        server_print("[ MySql ] 查询失败:%s 错误码(%d)",error,errNum);
-        log_amx("时间:%s -- 插件[ fcx_battle.amxx] -> [ MySql ] 查询失败:%s 错误码(%d)",time,error,errNum);
+        server_print("[ MySql ] query failed:%s code(%d)",error,errNum);
+        log_amx("time:%s -- plugin[ fcx_battle.amxx] -> [ MySql ] query failed:%s code(%d)",time,error,errNum);
     }
 
     //检查函数传来的query命令中的数据是否存在 -> 已经存在的情况
@@ -731,7 +1188,7 @@ public onPlayerRegistrationCheck(FailState,Handle:query,error[],errNum,data[],da
             g_PlayerStats[id][PS_IS_LOGGED] = true;
 
             client_print(id, print_chat, "[系统] 玩家%s ,自动登录成功(Ip验证通过)",name);
-            server_print("[ MySql ] 玩家 %s 自动登录成功(Ip验证通过)", name);
+            server_print("[ MySql ] player %s auto login ok (IP verified)", name);
 
         }
         else
@@ -743,7 +1200,7 @@ public onPlayerRegistrationCheck(FailState,Handle:query,error[],errNum,data[],da
             // debug_ChangeName(id,"Un-Login");
 
             client_print(0, print_chat, "[ MySql ] 该名称'%s'已经注册过,请登录账号!!!忘记账号密码请联系管理员!", name);
-            server_print("[ MySql ] 玩家 %s 尝试使用已注册的名字登录", name);
+            server_print("[ MySql ] player %s tried to use a registered name", name);
         }
     }
     else
@@ -756,7 +1213,7 @@ public onPlayerRegistrationCheck(FailState,Handle:query,error[],errNum,data[],da
         // debug_ChangeName(id,"Un-Enroll");
 
         client_print(0, print_chat, "[ MySql ] 该名称'%s'尚未注册,请注册账号!!!", name);
-        server_print("[ MySql ] 玩家 %s 的名字尚未注册", name);
+        server_print("[ MySql ] player %s name not registered", name);
     }
 
     SQL_FreeHandle(query);
@@ -782,13 +1239,13 @@ public HandleInsertNewPlayerData(FailState, Handle:query, error[], errNum, data[
     
     if (FailState != TQUERY_SUCCESS)
     {
-        log_amx("时间:%s -- [ MySql ] 异常 - 插入数据失败:%s 错误码(%d)", time, error, errNum);
+        log_amx("time:%s -- [ MySql ] error - insert failed:%s code(%d)", time, error, errNum);
         client_print(Client, print_chat, "[ MySql ] 数据保存失败，%s请联系管理员!",name);
         return;
     }
     
     client_print(0, print_chat, "[ MySql ] 账号'%s'已成功注册!", name);
-    server_print("[ MySql ] 新玩家 %s 数据保存成功", name);
+    server_print("[ MySql ] new player %s data saved", name);
 
     g_PlayerStats[Client][PS_IS_REGISTERED] = true;
     g_PlayerStats[Client][PS_IS_LOGGED] = true;
@@ -811,25 +1268,25 @@ public onConnectionCheck(FailState,Handle:query,error[],errNum,data[],dataSize)
         case TQUERY_SUCCESS:
         {
             //成功接收到结果(即使查询无实际数据也说明连接正常)
-            server_print("[ MySql ] 连接状态 : 成功连接到数据库!");
-            log_amx("时间:%s -- 插件[fcxbattle.amxx] -> [ MySql ] 连接状态 : 成功连接到数据库!",time);
+            server_print("[ MySql ] connection state : connected to database!");
+            log_amx("time:%s -- plugin[fcxbattle.amxx] -> [ MySql ] connection state : connected to database!",time);
 
             //可选:验证数据结果有效性(确保查询执行成功)
             if(SQL_NumResults(query)>0)
             {
-                server_print("[ MySql ] 测试查询验证通过");
-                log_amx("时间:%s -- 插件[fcxbattle.amxx] -> [ MySql ] 测试查询验证通过!",time);
+                server_print("[ MySql ] test query verified");
+                log_amx("time:%s -- plugin[fcxbattle.amxx] -> [ MySql ] test query verified!",time);
             }
         }
         case TQUERY_CONNECT_FAILED:
         {
-            server_print("[ MySql ] 连接失败:%s 错误码(%d)",error,errNum);
-            log_amx("时间:%s -- 插件[fcxbattle.amxx] -> [ MySql ] 连接失败:%s 错误码(%d)",time,error,errNum);
+            server_print("[ MySql ] connection failed:%s code(%d)",error,errNum);
+            log_amx("time:%s -- plugin[fcxbattle.amxx] -> [ MySql ] connection failed:%s code(%d)",time,error,errNum);
         }
         case TQUERY_QUERY_FAILED:
         {
-            server_print("[ MySql ] 查询失败:%s 错误码(%d)",error,errNum);
-            log_amx("时间:%s -- 插件[fcxbattle.amxx] -> [ My Sql ] 查询失败:%s 错误码(%d)",time,error,errNum);
+            server_print("[ MySql ] query failed:%s code(%d)",error,errNum);
+            log_amx("time:%s -- plugin[fcxbattle.amxx] -> [ My Sql ] query failed:%s code(%d)",time,error,errNum);
         }
     }
 
@@ -946,7 +1403,7 @@ public client_command(id)
 
         return PLUGIN_HANDLED_MAIN;
     }
-    else if(equal(sz_agv,"spectate") && g_iBattle == true && g_iWarrior[id]== false )
+    else if(equal(sz_agv,"spectate") && g_iBattle == true && g_iWarrior[id]==false && !isPlatformSpectator(id) )
     {
         szMsg = "[ Battle Start] You Cant Be Spectator"
         
@@ -1283,7 +1740,7 @@ public LoadPlayerStats(FailState, Handle:query, error[], errNum, data[], dataSiz
 {
     if(FailState != TQUERY_SUCCESS)
     {
-        server_print("[ MySql ] 查询失败:%s 错误码(%d)", error, errNum);
+        server_print("[ MySql ] query failed:%s code(%d)", error, errNum);
         return;
     }
 
@@ -1301,7 +1758,7 @@ public LoadPlayerStats(FailState, Handle:query, error[], errNum, data[], dataSiz
         client_print(id, print_chat, "[ MySql ] 玩家%s 数据加载成功!",name);
 
         //debug
-        server_print("[ MySql ] 玩家%s 总杀人数:%d 总死亡数:%d 胜场:%d 负场:%d"
+        server_print("[ MySql ] player %s kills:%d deaths:%d wins:%d losses:%d"
         ,name,
         g_PlayerStats[id][PS_TOTAL_KILLS],
         g_PlayerStats[id][PS_TOTAL_DEATHS],
@@ -1321,11 +1778,11 @@ public SQLOnIpUpdate(FailState, Handle:query, error[], errNum, data[], dataSize)
 
     if (FailState != TQUERY_SUCCESS)
     {
-        server_print("[ MySql ] 更新IP失败:%s 错误码(%d)", error, errNum);
+        server_print("[ MySql ] update IP failed:%s code(%d)", error, errNum);
     }
 
     client_print(id, print_chat, "[ MySql ] 账号'%s'更新IP数据!", name);
-    server_print("[ MySql ] 玩家 %s Ip数据保存成功", name);
+    server_print("[ MySql ] player %s IP data saved", name);
 
     g_PlayerStats[id][PS_IS_REGISTERED] = true;
     g_PlayerStats[id][PS_IS_LOGGED] = true;
@@ -1379,7 +1836,7 @@ public onPasswordCheck(FailState, Handle:query, error[], errNum, data[], dataSiz
 
     if (FailState != TQUERY_SUCCESS)
     {
-        server_print("[ MySql ] 查询失败:%s 错误码(%d)", error, errNum);
+        server_print("[ MySql ] query failed:%s code(%d)", error, errNum);
         client_print(id, print_chat, "[ MySql ] 查询失败，请稍后再试。");
         return;
     }
@@ -1394,7 +1851,7 @@ public onPasswordCheck(FailState, Handle:query, error[], errNum, data[], dataSiz
             g_PlayerStats[id][PS_IS_LOGGED] = true;
 
             client_print(id, print_chat, "[ MySql ] 登录成功，欢迎回来！");
-            server_print("[ MySql ] 玩家 %s 登录成功", name);
+            server_print("[ MySql ] player %s login ok", name);
 
             new ip[16];
             get_user_ip(id, ip, 15, 1);
@@ -1411,13 +1868,13 @@ public onPasswordCheck(FailState, Handle:query, error[], errNum, data[], dataSiz
         else
         {
             client_print(id, print_chat, "[ MySql ] 密码错误，请重试。");
-            server_print("[ MySql ] 玩家 %s 尝试登录，但密码错误", pev(id,pev_netname));
+            server_print("[ MySql ] player %s tried to login, wrong password", pev(id,pev_netname));
         }
     }
     else
     {
         client_print(id, print_chat, "[ MySql ] 未找到用户数据，请注册。");
-        server_print("[ MySql ] 玩家 %s 尝试登录，但未找到用户数据", pev(id,pev_netname));
+        server_print("[ MySql ] player %s tried to login, no user data", pev(id,pev_netname));
     }
 }
 
@@ -1632,7 +2089,7 @@ public PlayerPostThink(id)
 
     if(g_userCount[id]==2)
     {
-        KickPlayer(id);
+        KickPlayer(id, "LEGACY_ABUSE");
         client_print(0,print_chat,"这位少侠跟着他的梦想被放逐到另外的世界了..");
     }
 
@@ -1691,6 +2148,10 @@ public PlayerPreThink(id)
 {
     if(g_BattleState == false ) return FMRES_IGNORED;
 
+    new Float:afkVel[3];
+    pev(id, pev_velocity, afkVel);
+    if (get_user_button(id) != 0 || vector_length(afkVel) > 30.0) g_lastActivity[id] = halflife_time();
+
     // 约战优先：按击杀/死亡阈值结算；排位则按队伍全灭结算
     // 约战必须先等异步战绩/结果落库，不能立即 resetAll 排 5 秒 quit，
     // 否则数据库慢时客户端已经退出，平台拿不到结果。
@@ -1703,6 +2164,14 @@ public PlayerPreThink(id)
     {
         // 等 OnRankedSettled 落库后再 resetAll，避免平台还来不及读结果。
         return FMRES_HANDLED;
+    }
+
+    // 平台比赛（约战/已识别的排位）只走上面的异步结算，禁止 legacy 胜负判定提前 resetAll。
+    // 排位若尚未识别成功（g_rankedKnown=0），仍回落到 legacy 兜底，避免卡局。
+    if(g_challengeActive || (g_rankedMatchId != 0 && g_rankedKnown > 0))
+    {
+        if(g_SpawnCount > 1 && g_iBattle == true) UpData();
+        return FMRES_IGNORED;
     }
 
     if(checkTeamWinner())
@@ -1801,6 +2270,10 @@ public event_deathmsg()
         if(g_challengeKnown > 0)
             checkChallengeFinish();
     }
+
+    // 约战不进 legacy 的 BattleLimt 强制观战/减员逻辑，否则会污染约战结算人数。
+    // 排位仍沿用 legacy 淘汰（g_iWarrior）作为 checkRankedFinish 的胜负依据。
+    if(g_challengeActive) return;
 
     // g_iWarrior[victim]=false;
 
@@ -2017,11 +2490,12 @@ public One()
 	PlaySound( 0, "battleplug/1.wav" );
 
 
-stock KickPlayer(Index)
+stock KickPlayer(Index, const code[] = "LEGACY_ABUSE")
 {
     if(!is_user_connected(Index))return ;
-
-    server_cmd("kick #%d",get_user_userid(Index));
+    log_amx("[ESF-CHALLENGE] kick code=%s id=%d reason=legacy_abuse", code, Index);
+    // 踢人原因统一带错误码，便于平台/日志定位；默认沿用 legacy 滥用码。
+    server_cmd("kick #%d ^"%s: 违反服务器规则^"", get_user_userid(Index), code);
 }
 
 stock Get_Team(Index)
@@ -2238,6 +2712,9 @@ build_menu()
 //监控比赛开始的状态
 UpData()
 {
+    // 约战不在这里提前判定/强制观战，胜负与淘汰由约战结算路径处理；排位保持原逻辑。
+    if(g_challengeActive) return;
+
     new GoodPlayerCount=0,
         EvilPlayerCount=0;
 
@@ -2387,7 +2864,8 @@ Is_SameData(frags,deaths,name[])
 
 resetAll()
 {
-    if(BattleFlag==0)return;
+    // 开赛前 quorum 弃权也可能需要 reset（此时 BattleFlag 仍为 0）。
+    if(BattleFlag==0 && !g_challengeActive)return;
 
     new bool:wasBattle = g_iBattle;
     new bool:wasChallenge = g_challengeActive;
@@ -2401,12 +2879,30 @@ resetAll()
     g_rankedSeenA=0;
     g_rankedSeenB=0;
     g_rankedSettled=false;
-    for(new i = 1; i <= get_maxplayers(); i++) g_rankedTeam[i]=0;
+    for(new i = 1; i <= get_maxplayers(); i++) { g_rankedTeam[i]=0; g_rankedUserId[i]=0; }
 
+    remove_task(TASK_CHALLENGE_TIMEOUT);
+    g_challengeRemaining = 0;
     g_challengeActive = false;
     g_challengeRoomId = 0;
     g_challengeKnown = 0;
     g_challengeSettled = false;
+    g_challengeSlots = 0;
+    g_challengeExpected = 0;
+    g_challengeStartArmed = false;
+    g_challengeForfeitPending = false;
+    g_challengeForfeitTeam = 0;
+    g_challengeForfeitReason[0] = 0;
+    g_challengeQuorumArmed = false;
+    g_challengeStatsTries = 0;
+    g_challengeSettleTries = 0;
+    g_challengeStatsQuery[0] = 0;
+    g_challengeSettleQuery[0] = 0;
+    remove_task(TASK_CHALLENGE_PARTIAL);
+    remove_task(TASK_CHALLENGE_FORFEIT);
+    remove_task(TASK_CHALLENGE_QUORUM);
+    remove_task(TASK_CHALLENGE_STATS);
+    remove_task(TASK_CHALLENGE_SETTLE);
     for(new i = 1; i <= get_maxplayers(); i++)
     {
         g_challengeTeam[i] = 0;
@@ -2415,6 +2911,8 @@ resetAll()
         g_challengeBaseDeaths[i] = 0;
         g_challengeKills[i] = 0;
         g_challengeDeaths[i] = 0;
+        g_challengeName[i][0] = 0;
+        remove_task(TASK_CHALLENGE_SPECTATE + i);
     }
 
     g_iBattle     = false;
@@ -2428,8 +2926,8 @@ resetAll()
 
     client_print(0,print_chat,"比赛结束!");
 
-    // 约战结束必须回平台；排位仍尊重 battle_quit_enable 开关。
-    if(wasBattle && (get_pcvar_num(g_pcQuitEnable) || wasChallenge))
+    // 约战结束必须回平台（含开赛前 quorum 弃权）；排位仍尊重 battle_quit_enable 开关。
+    if((wasBattle || wasChallenge) && (get_pcvar_num(g_pcQuitEnable) || wasChallenge))
     {
         set_task(get_pcvar_float(g_pcQuitDelay), "taskQuitToPlatform", TASK_QUIT);
     }
@@ -2447,6 +2945,9 @@ public taskQuitToPlatform()
 
 autoPlayerStart()
 {
+    // 平台约战房间由识别/满员逻辑开赛，禁止 legacy 自动凑人提前开。
+    if (g_challengeRoomId) return;
+
     g_SpawnCount = 0;
 
     new goodCount = 0, evilCount = 0;
@@ -2474,86 +2975,87 @@ autoPlayerStart()
     }
 }
 
-//更新icon数组动态居中
+// 平台约战 HUD：单条 DHUD（channel 4，x=-1.0 居中），两行：比分 + ASCII 规则
 public showIconDisplay(id)
 {
-    if(!g_iBattle || GoodIndex == 0 || EvilIndex == 0)return;
-
-    // 2v2 队伍 HUD：显示双方队伍名和总击杀
-    if(g_autoTeamSize == 2)
+    if(g_challengeActive && !g_challengeSettled && g_challengeRoomId > 0)
     {
-        new goodNames[128], evilNames[128], gScore = 0, eScore = 0;
-        new name[32];
+        new slots = (g_challengeSlots > 1) ? 2 : 1;
+        new nameA[2][32], nameB[2][32];
+        new countA = 0, countB = 0, scoreA = 0, scoreB = 0;
         for(new i = 1; i <= get_maxplayers(); i++)
         {
-            if(!is_user_connected(i) || g_iWarrior[i]) continue;
-            get_user_name(i, name, charsmax(name));
-            if(Get_Team(i) == 1)
+            if(!is_user_connected(i) || g_challengeTeam[i] == 0) continue;
+            new amount = equal(g_challengeVictory, "deaths") ? g_challengeDeaths[i] : g_challengeKills[i];
+            if(g_challengeTeam[i] == 1)
             {
-                gScore += get_user_frags(i);
-                if(goodNames[0] != 0) add(goodNames, charsmax(goodNames), " + ");
-                add(goodNames, charsmax(goodNames), name);
+                scoreA += amount;
+                if(countA < slots) { copy(nameA[countA], 31, g_challengeName[i]); countA++; }
             }
-            else if(Get_Team(i) == 2)
+            else
             {
-                eScore += get_user_frags(i);
-                if(evilNames[0] != 0) add(evilNames, charsmax(evilNames), " + ");
-                add(evilNames, charsmax(evilNames), name);
+                scoreB += amount;
+                if(countB < slots) { copy(nameB[countB], 31, g_challengeName[i]); countB++; }
             }
         }
-        new icon[512];
-        format(icon, charsmax(icon), "[ %s ]  %d  :  %d  [ %s ]", goodNames, gScore, eScore, evilNames);
-        set_hudmessage(133, 166, 255, 0.44, 0.0, 0, 0.0, 3.0, 1.0, 2.0, 121);
-        show_dhudmessage(0, icon);
+
+        new line[512], rule[8];
+        copy(rule, charsmax(rule), equal(g_challengeVictory, "deaths") ? "DEATHS" : "KILLS");
+        if(slots > 1)
+            format(line, charsmax(line), "%s + %s    %d : %d    %s + %s^nFIRST TO %d %s",
+                countA > 0 ? nameA[0] : "-", countA > 1 ? nameA[1] : "-",
+                scoreA, scoreB,
+                countB > 0 ? nameB[0] : "-", countB > 1 ? nameB[1] : "-",
+                g_challengeLimit, rule);
+        else
+            format(line, charsmax(line), "%s    %d : %d    %s^nFIRST TO %d %s",
+                countA > 0 ? nameA[0] : "-", scoreA, scoreB,
+                countB > 0 ? nameB[0] : "-", g_challengeLimit, rule);
+
+        // channel 4 + x=-1.0：单条居中，避免三条 DHUD 相互覆盖/错位；观战者不显示。
+        for(new i = 1; i <= get_maxplayers(); i++)
+        {
+            if(!is_user_connected(i) || g_challengeTeam[i] == 0 || g_iWarrior[i]) continue;
+            set_hudmessage(133, 166, 255, -1.0, 0.02, 0, 0.0, 5.0, 0.0, 0.0, 4);
+            show_dhudmessage(i, "%s", line);
+        }
         return;
     }
 
-    new fGood[32],fEvil[32],icon[1024],Float:GFrags,Float:EFrags;
-    new Gstr_frags[32],Estr_frags[32];
-
-    pev(GoodIndex,pev_netname,fGood,31);pev(EvilIndex,pev_netname,fEvil,31);pev(GoodIndex,pev_frags,GFrags);pev(EvilIndex,pev_frags,EFrags);
-
-    //计算和塞入空格
-    calculate_InsetStrl(fGood,Gstr_frags,GFrags);
-    calculate_InsetStrl(fEvil,Estr_frags,EFrags);
-    
-    format(icon,1023,"[  %s  ]   VS   [  %s  ] ^n    %s      :      %s   ",fGood,fEvil,Gstr_frags,Estr_frags);
-
-    set_hudmessage( 133,166,255, 0.44, 0.0, 0, 0.0, 3.0, 1.0, 2.0, 121 );
-    show_dhudmessage( 0, icon);
-
+    showLegacyIconDisplay();
 }
 
-
-stock calculate_InsetStrl(str1[],str2[],Float:InValue)
+// legacy（非约战）比分 HUD：保持原战斗显示，单行居中，不做空格补位
+stock showLegacyIconDisplay()
 {
-    new len = strlen(str1) + 3 ;
-    new mid = len / 2 ;
-    new spe = 0 ; 
+    if(!g_iBattle || GoodIndex == 0 || EvilIndex == 0) return;
 
-    new tempStr[3];
-    format(tempStr, sizeof(tempStr), "%.f", InValue);
-
-    for(new i = 0 ; i < len ; i++)
+    new goodNames[128], evilNames[128], gScore = 0, eScore = 0, name[32], line[512];
+    for(new i = 1; i <= get_maxplayers(); i++)
     {
-        if(i < mid)
+        if(!is_user_connected(i) || g_iWarrior[i]) continue;
+        get_user_name(i, name, charsmax(name));
+        if(Get_Team(i) == 1)
         {
-            str2[i] = 0x20;
+            gScore += get_user_frags(i);
+            if(goodNames[0] != 0) add(goodNames, charsmax(goodNames), " + ");
+            add(goodNames, charsmax(goodNames), name);
         }
-        else if (i == mid)
+        else if(Get_Team(i) == 2)
         {
-            spe = i ;
-            copy(str2[i],strlen(str2),tempStr);
+            eScore += get_user_frags(i);
+            if(evilNames[0] != 0) add(evilNames, charsmax(evilNames), " + ");
+            add(evilNames, charsmax(evilNames), name);
         }
-        else if (i > mid && spe !=0 )
-        {
-            str2[i] = 0x20;
-            spe--;
-        }
-        else if(i > mid && spe == 0)
-        {
-            break;
-        }
+    }
+    if(goodNames[0] == 0 || evilNames[0] == 0) return;
+
+    format(line, charsmax(line), "[ %s ]  %d : %d  [ %s ]", goodNames, gScore, eScore, evilNames);
+    for(new i = 1; i <= get_maxplayers(); i++)
+    {
+        if(!is_user_connected(i)) continue;
+        set_hudmessage(133, 166, 255, -1.0, 0.02, 0, 0.0, 3.0, 0.0, 0.0, 4);
+        show_dhudmessage(i, "%s", line);
     }
 }
 
@@ -2581,9 +3083,115 @@ public plugin_end()
         SQL_FreeHandle(g_sqlTuple);
 }
 
+
+// ===== AFK detection (0.50) =====
+stock bool:afkMatchActive()
+{
+    if (g_challengeActive && !g_challengeSettled) return true;
+    if (g_rankedMatchId != 0 && !g_rankedSettled && g_rankedKnown > 0) return true;
+    return false;
+}
+
+stock writeMatchEndFlag(const reason[])
+{
+    new fp = fopen("addons/amxmodx/logs/esf_match_end.flag", "wt");
+    if (!fp) return;
+    fprintf(fp, "reason=%s%stime=%d%s", reason, "^n", get_systime(), "^n");
+    fclose(fp);
+}
+
+public taskMatchEndTick()
+{
+    if (g_matchEndLeft <= 0)
+    {
+        client_print(0, print_chat, "[平台] 正在退出游戏…");
+        return;
+    }
+    client_print(0, print_chat, "[平台] 比赛已结束，%d 秒后自动退出游戏", g_matchEndLeft);
+    g_matchEndLeft--;
+    set_task(1.0, "taskMatchEndTick", TASK_MATCH_END_COUNT);
+}
+
+stock startMatchEndCountdown()
+{
+    if (g_matchEndLeft > 0) return;
+    g_matchEndLeft = 10;
+    set_task(1.0, "taskMatchEndTick", TASK_MATCH_END_COUNT);
+}
+
+public taskAfkTick()
+{
+    if (!afkMatchActive())
+    {
+        for (new i = 1; i <= get_maxplayers(); i++) g_afkWarned[i] = false;
+        return;
+    }
+    new warnSec = get_cvar_num("esf_afk_warn");
+    new limitSec = get_cvar_num("esf_afk_limit");
+    new Float:now = halflife_time();
+    for (new i = 1; i <= get_maxplayers(); i++)
+    {
+        if (!is_user_connected(i) || is_user_bot(i)) continue;
+        if (g_challengeActive && g_challengeTeam[i] == 0) continue;
+        if (!g_challengeActive && g_rankedTeam[i] == 0) continue;
+        new Float:idle = now - g_lastActivity[i];
+        if (idle >= float(limitSec))
+        {
+            markAfk(i);
+        }
+        else if (idle >= float(warnSec) && !g_afkWarned[i])
+        {
+            g_afkWarned[i] = true;
+            new name[32];
+            get_user_name(i, name, charsmax(name));
+            client_print(0, print_chat, "[AFK] %s 已挂机 %d 秒，%d 秒后判负", name, warnSec, limitSec - warnSec);
+            log_amx("[AFK] warn id=%d idle=%d", i, warnSec);
+        }
+    }
+}
+
+markAfk(id)
+{
+    if (g_afkMarked[id]) return;
+    g_afkMarked[id] = true;
+
+    new name[32];
+    get_user_name(id, name, charsmax(name));
+    log_amx("[AFK] marked id=%d name=%s", id, name);
+    client_print(0, print_chat, "[AFK] %s 挂机超过限制，本局判对手获胜", name);
+    writeMatchEndFlag("afk");
+
+    if (g_rankedMatchId != 0 && g_rankedTeam[id] != 0 && !g_rankedSettled)
+    {
+        new winner = (g_rankedTeam[id] == 1) ? 'b' : 'a';
+        new query[320];
+        formatex(query, charsmax(query),
+            "UPDATE ranked_match_players SET afk=1 WHERE match_id=%d AND user_id=%d",
+            g_rankedMatchId, g_rankedUserId[id]);
+        SQL_ThreadQuery(g_rankedTuple, "OnAfkMarked", query);
+        g_pendingMatchId = g_rankedMatchId;
+        formatex(g_pendingWinner, charsmax(g_pendingWinner), "%c", winner);
+        g_pendingArmed = true;
+        formatex(query, charsmax(query), "CALL settle_ranked_match(%d, '%c')", g_rankedMatchId, winner);
+        SQL_ThreadQuery(g_rankedTuple, "OnRankedSettled", query);
+        g_rankedSettled = true;
+        log_amx("[AFK] ranked match=%d winner=%c", g_rankedMatchId, winner);
+    }
+    else if (g_challengeActive && !g_challengeSettled && g_challengeTeam[id] != 0)
+    {
+        g_challengeAfk[id] = true;
+        new w[2];
+        w[0] = (g_challengeTeam[id] == 1) ? 'b' : 'a';
+        w[1] = 0;
+        beginChallengeSettlement(w, g_challengeScoreA, g_challengeScoreB);
+        log_amx("[AFK] challenge room=%d winner=%c", g_challengeRoomId, w[0]);
+    }
+    startMatchEndCountdown();
+}
+
 public plugin_init()
 {
-    register_plugin("FCX_BATTLE", "1.0.0-ranked", "CLOUD / ESF Platform");
+    register_plugin("FCX_BATTLE", "1.2.0-r14", "CLOUD / ESF Platform");
 
 //--------------------START_PRE--------------------
     // 自动检测模式：沿用启动器/地图的 mp_gamemode（0=混战，2=组队），不再强制覆盖
@@ -2602,6 +3210,9 @@ public plugin_init()
 
 //----------------Register_Cvar-----------------
     register_cvar("BattleLimt","10");
+    register_cvar("esf_afk_warn","180");
+    register_cvar("esf_afk_limit","300");
+    set_task(5.0, "taskAfkTick", TASK_AFK_TICK, _, _, "b");
 
     g_pcRankedHost      = register_cvar("ranked_sql_host", "");
     g_pcRankedUser      = register_cvar("ranked_sql_user", "esf_amxx");
@@ -2651,7 +3262,7 @@ public plugin_init()
     register_concmd("spec_mode","hookcmd",-1);
     // register_concmd("change_class","hookClass");
 
-    set_task(5.0,"showIconDisplay",TASK_TIMEREMAIN_LARGE,"",0,"b");
+    set_task(1.0,"showIconDisplay",TASK_TIMEREMAIN_LARGE,"",0,"b");
 
 //---------------------SQL----------------------
     set_task(1.0, "DelayedSQLInit");
