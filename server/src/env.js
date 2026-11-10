@@ -98,4 +98,10 @@ if (!env.jwtSecret || env.jwtSecret.length < 16) {
   throw new Error('JWT_SECRET 缺失或少于 16 字符，请检查 server/.env（参考 .env.example）');
 }
 
+// 公开仓库 + 小范围邀请制：生产必须配置 INVITE_CODE，否则注册接口没有门槛。
+// 只告警不抛错，避免运维尚未配置时线上 API 直接起不来；配置要求见 KB accounts-secrets。
+if (env.nodeEnv === 'production' && !env.inviteCode) {
+  console.warn('[env] INVITE_CODE 未配置：注册当前无邀请码门槛，请尽快在 server/.env 配置');
+}
+
 module.exports = env;

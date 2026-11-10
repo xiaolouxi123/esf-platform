@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>隐私说明 · ESF China</title>
+  <meta name="description" content="ESF China 平台收集哪些信息、如何存储与留存、如何申请删除。" />
+  <link rel="icon" href="assets/icon.png" />
+  <link rel="canonical" href="https://xiaolouxi123.github.io/esf-platform/privacy.html" />
+  <style>
+    :root{--bg:#080b12;--panel:#0f1521;--line:rgba(255,255,255,.09);--text:#f4f7fc;--muted:#a3aec2;--gold:#ffb257}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased}
+    a{color:var(--gold);text-decoration:none}
+    .wrap{width:min(820px,calc(100% - 40px));margin:0 auto;padding:48px 0 80px}
+    header{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:32px}
+    header img{width:36px;height:36px;border-radius:10px}
+    header b{font-size:17px;letter-spacing:.02em}
+    header .back{margin-left:auto;color:var(--muted)}
+    h1{font-size:28px;margin:0 0 8px}
+    .lead{color:var(--muted);margin:0 0 32px}
+    h2{font-size:17px;margin:32px 0 10px;color:var(--gold)}
+    p,li{color:var(--muted);font-size:14px}
+    ul{padding-left:20px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:14px 0}
+    code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:5px;font-size:13px;color:var(--text)}
+    footer{border-top:1px solid var(--line);margin-top:40px;padding-top:18px;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="assets/icon.png" alt="" />
+    <b>ESF China</b>
+    <a class="back" href="index.html">← 返回官网</a>
+  </header>
+
+  <h1>隐私说明</h1>
+  <p class="lead">适用范围：ESF China 平台（Electron 启动器、账号与排位后端、AMXX 游戏服插件）。本平台为<strong>小范围邀请制社区</strong>，非公开商业运营。最近更新：2026-11-11。</p>
+
+  <div class="card">
+    <strong>一句话说明</strong>：我们只保存「让平台能跑起来」所必需的账号与对局数据，不投放广告、不出售数据、不做用户画像。
+  </div>
+
+  <h2>1. 收集哪些信息</h2>
+  <ul>
+    <li><strong>账号</strong>：用户名、游戏昵称、密码哈希（bcrypt）、角色权限、头像、自定义状态与头衔。</li>
+    <li><strong>邮箱</strong>：仅在绑定邮箱 / 找回密码时提供，用于发送验证码；未绑定则不保存。</li>
+    <li><strong>登录与会话</strong>：登录时间、来源 IP、设备 UA、会话标识与撤销状态；登录失败次数用于锁定保护。</li>
+    <li><strong>游戏行为</strong>：在线时长、金币与流水、格斗等级、排位分数与胜负、约战房间与战绩、观战记录、竞猜下注。</li>
+    <li><strong>本地文件</strong>：启动器在本机保存设置、登录态（Windows DPAPI 加密）与启动日志；这些数据留在你的电脑上。</li>
+  </ul>
+
+  <h2>2. 用途</h2>
+  <p>用于登录鉴权、找回密码与两步验证、一键连服的身份校验、排位/约战匹配与结算、金币结算、资源审核、公告下发以及故障排查。不用于广告投放、不向第三方出售或共享。</p>
+
+  <h2>3. 存储、留存与安全</h2>
+  <ul>
+    <li>数据存放在平台自建的 MySQL 中，MySQL 不对公网开放；公网入口由反向代理提供 HTTPS。</li>
+    <li>数据库每日自动备份，<strong>保留 14 天</strong>，备份文件含个人信息，仅存放于受限目录，不进入公开仓库。</li>
+    <li>密码只存哈希；登录态使用 JWT + 会话撤销；游戏服插件使用最小权限数据库账号，不接触密码哈希。</li>
+    <li>运维审计日志会记录管理操作与来源 IP。</li>
+  </ul>
+
+  <h2>4. 第三方</h2>
+  <ul>
+    <li><strong>QQ 邮箱 SMTP</strong>：仅用于发送邮箱验证码 / 找回密码邮件。</li>
+    <li><strong>GitHub Releases</strong>：用于分发客户端安装包与更新元数据；下载行为由 GitHub 记录。</li>
+    <li>平台本身不接入统计、广告或行为分析 SDK。</li>
+  </ul>
+
+  <h2>5. 删除与导出</h2>
+  <p>账号可在管理台注销：会清空邮箱、密码与会话，保留历史对局记录以维持排位与战绩一致性。如需彻底删除或导出个人数据，请通过下节方式联系维护者，我们会人工处理并从备份轮换周期中一并清除。</p>
+
+  <h2>6. 联系与漏洞报告</h2>
+  <p>本平台开源仓库为 <a href="https://github.com/xiaolouxi123/esf-platform" target="_blank" rel="noreferrer">xiaolouxi123/esf-platform</a>。隐私相关请求与安全问题请通过仓库维护者私信或 GitHub 的私密漏洞报告（Security Advisory）提交，<strong>不要公开 Issue</strong>；详见 <a href="https://github.com/xiaolouxi123/esf-platform/blob/main/SECURITY.md" target="_blank" rel="noreferrer">SECURITY.md</a>。</p>
+
+  <h2>7. 其他</h2>
+  <ul>
+    <li>客户端安装包<strong>未做代码签名</strong>，Windows SmartScreen 会提示；请只从官网给出的 GitHub Releases 链接下载并核对版本。</li>
+    <li>本平台基于 Half-Life / ESF 模组，与游戏版权方无关联；仅限小范围社区内部使用。</li>
+  </ul>
+
+  <footer>© 2026 ESF China · 本说明随平台功能变化更新，最新版本以官网页面为准。</footer>
+</div>
+</body>
+</html>

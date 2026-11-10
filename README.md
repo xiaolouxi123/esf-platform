@@ -130,7 +130,7 @@ amxxpc.exe ..\..\amxx\test_ranked.sma -i"include" -o"..\plugins\test_ranked.amxx
 - 更新包上传需要独立 token
 - 仓库不包含生产 `.env`、数据库密码、AMXX 安装包
 
-发现安全问题请不要公开 Issue，见 [SECURITY.md](SECURITY.md)。
+发现安全问题请不要公开 Issue，见 [SECURITY.md](SECURITY.md)；玩家数据处理说明见 [website/privacy.html](website/privacy.html)。
 
 ## 参与开发
 

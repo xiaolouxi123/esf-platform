@@ -9,6 +9,24 @@ updated: 2026-11-10T08:00:00+08:00
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-11 · **版本单一来源**：新增 `scripts/sync-versions.cjs`（发版时由 `release.ps1` 调用）与
+  `scripts/check-versions.cjs`（已接入 CI，11 PASS / 0 FAIL）。唯一来源为 `esf-launcher/package.json` 0.6.1；
+  同步官网 3 处版本、JS 兜底值、下载链接、更新记录（取 releases.json 前 8 条）、`website/version.json`、
+  sitemap/robots。清理的漂移：`website/index.html` 0.4.7→0.6.1（静态托管改读 `./version.json`，不再永久显示旧版）、
+  `package.json:98` 占位 `updates.example.com`→`https://119.29.82.217/updates/`、部署脚本 0.2.4→0.6.1 且老机 IP→新机、
+  `uptime.yml`/`MONITORING.md` 改走 Caddy HTTPS、KB servers.md 0.4.10→0.6.1、官网 README 重写、
+  未备案域名 `esfcn.cn` 从 canonical/og/sitemap/robots 移除。`release/latest.yml`(0.5.21)、
+  `server/updates/latest.yml`(0.2.4) 是未入库的历史构建产物，含真实 sha512，**不伪造哈希**，仅给 WARN。
+- 2026-11-11 · **AMXX 可复现构建补齐**：新增 `amxx/tools/build-current.ps1`（ASCII-only、UTF-8 无 BOM 直编、
+  amxxpc 1.10.0.5392 `-d1`、版本从 `BUILD` 常量读取），实测产出 0.52 的 4 个 `.amxx` +
+  `SHA256SUMS.txt`，编译日志 0 error / 0 warning。`build-r14.ps1` 明确标为历史脚本（转 GBK，不可用于 0.52）。
+  产物哈希仍需与线上 `esf-challenge-plugins-0.52.zip` 比对才能确认二进制一致（线上包不在仓库）。
+- 2026-11-11 · **仓库确认 public + 合规收口**：平台定位小范围邀请制。`SECURITY.md` 补私密漏洞报告、
+  7 天响应 SLA、支持版本（仅 0.6.x）、历史泄露事项；新增 `website/privacy.html`（收集范围/留存/删除/第三方）
+  并在官网 footer 挂入口；`server/src/env.js` 生产环境未配 `INVITE_CODE` 时告警（**不抛错**，避免线上起不来），
+  生产 `.env` 必须配置邀请码。维持「不重写 git 历史」决定（旧口令已轮换作废）。
+  新增 `docs/GAME-ACCEPTANCE-RUNBOOK.md`：4 项游戏侧验收需真人/双开 hl.exe，明确当前 token 写
+  `launcher.cfg` 导致双开互相覆盖，正解是待办 3 的 `+setinfo`；开局自动分边已知 FAIL。
 - 2026-11-11 · **插件源码基线统一**：`fix/amxx-ascii-logs`（13 个提交，含线上 0.49–0.52 与 `amxx/tools/`）合并进 main，冲突仅 `amxx/README.md`，已解决并清掉 r14/0.4.6 过期版本号。合并后源码 `BUILD="0.52"`（auth/lock）、lock `VERSION=1.3.0`。**重要更正**：`amxx/tools/build-r14.ps1` 是 r14 历史脚本（转 GBK 编译、产出 0.4.6-r14 包），**不能复现当前 0.52**；当前用 UTF-8 无 BOM 直编 + `scripts/publish-amxx.ps1` 打包，见 [[toolchain]] / [[release-amxx]]。合并把 3 个 r14 静态断言带成红灯（版本串、约战 SELECT 列、SQL 缓冲区抓错心跳语句），已对齐 0.52 实现；后端 **99/99 全绿**、启动器 3 文件 / 66 检查点通过、模拟验收 9/9 通过。
 - 2026-11-11 · 本机模拟验收 9 项全通过：新增 `server/scripts/acceptance-sim.cjs` + `npm run test:acceptance`，覆盖观战 4 人上限、锁服排队排位优先、AFK −30 结算与战绩标记、结算补交幂等与鉴权；记录见 `docs/ACCEPTANCE-SIM-2026-11-11.md`，`current-state` 待办 1 已拆为「服务端已验收 / 游戏端待验」。验收中发现并修复 `/api/ranked/settle` 信息泄露：`settleFromClient` 原先在参赛者校验前做「已结算」短路，任何登录用户可拿走比赛详情；已把鉴权提前并用 `callerId` 取详情。后端回归 81/81 全绿。
 - 2026-11-11 · administrator 口令轮换**完成**（两台）：新机用 `rotate-admin-password.ps1` 复连验证通过；114 用 RDP + `net user administrator *` 回显「命令成功完成」（前两次因两次输入不一致报「密码不匹配」，最初一次 `net administrator *` 是语法错误、无副作用）。两台使用不同口令，均不记明文。旧值仅留在 git 历史但已失效，**决定不重写历史**（force push 会波及未合并分支）。剩余收尾：本机 `cmdkey` 删除 `TERMSRV/119.29.82.217`、`TERMSRV/114.132.84.150`（Domain + LegacyGeneric 两条）后重新保存；确认 114 `AutoAdminLogon` 未使用旧口令；复核 27016/27017 与 `amxx_builds` 心跳。
