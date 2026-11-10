@@ -9,6 +9,17 @@ updated: 2026-11-10T08:00:00+08:00
 
 新在上。一行一条：日期 · 改了什么 · 依据。
 
+- 2026-11-11 · **0.53 插件包已上传生产更新源**：`esf-challenge-plugins-0.53.zip` + manifest →
+  新机 `C:\esf\updates\amxx\`（远端已有 0.45~0.53 全部历史包，manifest.version=0.53），
+  114 的 `ESFAmxxUpdate` 会在 10 分钟内自动替换并重启游戏服；心跳与哈希待确认。
+  只读探测生产更新源：`C:\esf\updates` 已有 0.4.7~0.6.1 共 18 个历史 exe + blockmap，
+  `latest.yml` 指向 0.6.1，`.env` 版本项均正确 —— 客户端「历史版本 + 目前版本」已齐备，
+  **无需重发安装包或打新 tag**；官网更新记录已改为展示全部 25 个历史版本 + 当前版本。
+  `release.yml` 加固：tag 格式校验（避免 workflow_dispatch 把 main 当版本号）、
+  `fail_on_unmatched_files: true`、把**所有历史版本**的 blockmap 带到新 Release（原先只带上一版）。
+  探测同时发现 3 个待确认的生产配置项：`MIN_LAUNCHER_VERSION=0.2.4` 过时、
+  生产 `.env` 未显式写 `AMXX_EXPECTED_*`（服务器 env.js 仍是旧默认值，会与新插件 drift）、
+  缺 `INVITE_CODE`（小范围邀请制未落地），修这些需要重启 API，待维护者确认。
 - 2026-11-11 · **部署包重建 + 0.53 发布准备**：新增 `scripts/build-server-bundle.py`，重建
   `deploy/esf-server-bundle.zip`（45→73 文件、7→16 个 SQL、含 `settle_*` 过程、53 项 env 模板），
   产出 manifest 并接入 `check-versions.cjs`（12 PASS / 0 FAIL）。`server/.env.example` 补全应用与

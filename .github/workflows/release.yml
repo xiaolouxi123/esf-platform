@@ -27,7 +27,12 @@ jobs:
         working-directory: esf-launcher
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
+          $tag = "${{ github.ref_name }}"
+          # workflow_dispatch 时 ref_name 是分支名（如 main），不能拿它当版本号
+          if ($tag -notmatch '^v\d+\.\d+\.\d+$') {
+            throw "release must be triggered by a vX.Y.Z tag; got: $tag"
+          }
+          $version = $tag.Substring(1)
           npm version $version --no-git-tag-version --allow-same-version
 
       - name: Install dependencies
@@ -51,33 +56,40 @@ jobs:
             esf-launcher/release/ESF-Platform-Setup-*.exe
             esf-launcher/release/*.blockmap
             esf-launcher/release/latest.yml
-          fail_on_unmatched_files: false
+          # 安装包 / blockmap / latest.yml 缺一不可，缺产物必须让发布失败
+          fail_on_unmatched_files: true
           generate_release_notes: false
 
-      - name: Carry previous blockmap forward
-        # The generic feed resolves the old blockmap through
-        # releases/latest/download/<old>.blockmap. Keep the previous
-        # release's blockmap on the new release so differential updates
-        # do not fall back to a full 128 MB download.
+      - name: Carry all historical blockmaps forward
+        # The generic feed resolves an old blockmap through
+        # releases/latest/download/<old>.blockmap. Keep EVERY historical
+        # release's blockmap on the new release so any old client can do a
+        # differential update instead of falling back to a full 128 MB download.
         if: success()
         continue-on-error: true
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $prev = gh release list --limit 20 --json tagName --jq '.[].tagName' |
-            Where-Object { $_ -ne "${{ github.ref_name }}" } |
-            Select-Object -First 1
-          if (-not $prev) {
-            Write-Host "No previous release found."
+          $current = "${{ github.ref_name }}"
+          $tags = @(gh release list --limit 100 --json tagName --jq '.[].tagName' |
+            Where-Object { $_ -ne $current })
+          if ($tags.Count -eq 0) {
+            Write-Host "No previous releases found."
             exit 0
           }
-          $dir = Join-Path $env:RUNNER_TEMP "previous-blockmaps"
+          $dir = Join-Path $env:RUNNER_TEMP "historical-blockmaps"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
-          gh release download $prev --pattern "*.blockmap" --dir $dir
+          foreach ($tag in $tags) {
+            # Early releases may have no blockmap asset; skip them, do not fail the publish.
+            gh release download $tag --pattern "*.blockmap" --dir $dir --clobber 2>$null
+            if ($LASTEXITCODE -ne 0) { Write-Host "Skip $tag (no blockmap asset)" }
+          }
           $files = @(Get-ChildItem $dir -Filter *.blockmap | ForEach-Object FullName)
           if ($files.Count -eq 0) {
-            Write-Host "No blockmap assets in $prev."
+            Write-Host "No historical blockmaps found."
             exit 0
           }
-          gh release upload "${{ github.ref_name }}" $files --clobber
+          Write-Host ("Carrying " + $files.Count + " historical blockmaps:")
+          $files | ForEach-Object { Write-Host ("  " + (Split-Path $_ -Leaf)) }
+          gh release upload $current $files --clobber
