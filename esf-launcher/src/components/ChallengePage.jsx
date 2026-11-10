@@ -563,6 +563,7 @@ export default function ChallengePage({
                   <button
                     key={key}
                     type="button"
+                    data-mode={key}
                     className={form.mode === key ? 'is-active' : ''}
                     onClick={() => setForm((prev) => ({ ...prev, mode: key }))}
                   >
@@ -632,16 +633,16 @@ export default function ChallengePage({
                     <option value="kills">击杀数达到</option>
                     <option value="deaths">死亡数达到</option>
                   </select>
-                  <input
-                    type="number"
-                    min={3}
-                    max={50}
-                    inputMode="numeric"
+                  <select
                     value={form.victoryLimit}
                     onChange={(event) =>
-                      setForm((prev) => ({ ...prev, victoryLimit: event.target.value }))
+                      setForm((prev) => ({ ...prev, victoryLimit: Number(event.target.value) }))
                     }
-                  />
+                  >
+                    <option value={3}>3</option>
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                  </select>
                   <em>次</em>
                 </div>
                 <p className="challenge-victory-hint">

@@ -13,7 +13,8 @@
     "test": "node --test tests/",
     "preview": "vite preview",
     "dist": "npm run build && electron-builder --win nsis",
-    "dist:dir": "npm run build && electron-builder --win --dir"
+    "dist:dir": "npm run build && electron-builder --win --dir",
+    "dev:test": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron . --test-profile\""
   },
   "dependencies": {
     "electron-updater": "^6.8.3",

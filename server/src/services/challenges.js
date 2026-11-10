@@ -16,6 +16,7 @@ const { badRequest, forbidden, notFound, conflict } = require('../lib/errors');
 const MODE_SLOTS = { '1v1': 1, '2v2': 2 };
 const MODES = Object.keys(MODE_SLOTS);
 const VICTORY_TYPES = ['kills', 'deaths'];
+const VICTORY_LIMITS = [3, 5, 10];
 const CHALLENGE_SERVER_KEY = 'fcx-1v1-1';
 const CHALLENGE_TIME_LIMIT_SEC = 900;
 const CHALLENGE_TIME_GRACE_SEC = 180;
@@ -64,8 +65,8 @@ function normalizeVictoryType(type) {
 
 function normalizeVictoryLimit(limit) {
   const value = Number(limit);
-  if (!Number.isInteger(value) || value < 3 || value > 50) {
-    throw badRequest('胜利目标需要在 3-50 之间');
+  if (!VICTORY_LIMITS.includes(value)) {
+    throw badRequest('胜利目标只能是 3 / 5 / 10 次');
   }
   return value;
 }
