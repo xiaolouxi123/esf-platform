@@ -98,6 +98,9 @@ new g_rankedSeenB = 0;
 new g_rankedTeam[33];
 new g_rankedUserId[33];
 new bool:g_rankedSettled = false;
+new g_pendingMatchId = 0;
+new g_pendingWinner[2];
+new bool:g_pendingArmed = false;
 
 // 约战（challenge）平台模式：独立于排位，不写 ELO
 new g_challengeRoomId = 0;
@@ -1060,6 +1063,9 @@ bool:checkRankedFinish() {
     new winner[2];
     formatex(winner, charsmax(winner), "%s", (aliveA > 0) ? "a" : "b");
     new query[128];
+    g_pendingMatchId = g_rankedMatchId;
+    formatex(g_pendingWinner, charsmax(g_pendingWinner), "%s", winner);
+    g_pendingArmed = true;
     formatex(query, charsmax(query), "CALL settle_ranked_match(%d, '%s')", g_rankedMatchId, winner);
     SQL_ThreadQuery(g_rankedTuple, "OnRankedSettled", query);
     log_amx("[Ranked] match %d settled, winner=%s", g_rankedMatchId, winner);
@@ -1079,15 +1085,40 @@ public taskForceRankedEnd() {
     }
 }
 
+writePendingResult()
+{
+    if (!g_pendingArmed || g_pendingMatchId == 0) return;
+    new file[128];
+    formatex(file, charsmax(file), "addons/amxmodx/logs/esf_pending_result.json");
+    new fp = fopen(file, "wt");
+    if (!fp) {
+        log_amx("[Ranked] pending file open failed");
+        return;
+    }
+    fprintf(fp, "{^"matchId^":%d,^"winner^":^"%s^",^"players^":[", g_pendingMatchId, g_pendingWinner);
+    new bool:first = true;
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        if (g_rankedUserId[i] == 0) continue;
+        if (!first) fprintf(fp, ",");
+        first = false;
+        fprintf(fp, "{^"userId^":%d,^"team^":^"%s^",^"afk^":%d}", g_rankedUserId[i], (g_rankedTeam[i] == 1) ? "a" : "b", g_afkMarked[i] ? 1 : 0);
+    }
+    fprintf(fp, "]}");
+    fclose(fp);
+    log_amx("[Ranked] pending result written match=%d", g_pendingMatchId);
+}
+
 public OnRankedSettled(failstate, Handle:query, error[], errnum, data[], dataSize) {
     if (failstate != TQUERY_SUCCESS) {
         log_amx("[Ranked] result write failed: %s", error);
+        writePendingResult();
     } else {
         log_amx("[Ranked] result written");
     }
     SQL_FreeHandle(query);
 
     // 给平台留出读取 lastResult 的时间，再结束本局；平台收到结果后会关闭游戏。
+    g_pendingArmed = false;
     remove_task(TASK_RANKED_END);
     resetAll();
 }
@@ -3138,6 +3169,9 @@ markAfk(id)
             "UPDATE ranked_match_players SET afk=1 WHERE match_id=%d AND user_id=%d",
             g_rankedMatchId, g_rankedUserId[id]);
         SQL_ThreadQuery(g_rankedTuple, "OnAfkMarked", query);
+        g_pendingMatchId = g_rankedMatchId;
+        formatex(g_pendingWinner, charsmax(g_pendingWinner), "%c", winner);
+        g_pendingArmed = true;
         formatex(query, charsmax(query), "CALL settle_ranked_match(%d, '%c')", g_rankedMatchId, winner);
         SQL_ThreadQuery(g_rankedTuple, "OnRankedSettled", query);
         g_rankedSettled = true;
