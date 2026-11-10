@@ -53,7 +53,7 @@ updated: 2026-11-10T09:10:00+08:00
 | 114 更新任务 | `ESFAmxxUpdate`，SYSTEM，每 10 分钟 |
 | 114 更新脚本 | `C:\esf-agent\amxx-updater.ps1`，版本记录 `C:\esf-agent\amxx-version.txt` |
 | 线上构建心跳 | 表 `amxx_builds`；fcx-1v1-1 于 2026-11-10 08:37 上报 0.52（platform_auth / ranked_lock） |
-| 源码分支 | `fix/amxx-ascii-logs`（提交 d086219，含 0.52 结算落盘；0.51 2v2 修正 6f1a761；r14 基线 c333c33） |
+| 源码基线 | **main**（2026-11-11 合并自 `fix/amxx-ascii-logs`，含 0.49–0.52 全部增量；该分支保留但不再作为基线） |
 | 版本一致性 | 0.52 已统一：`BUILD` = `"0.52"`，`esf_ranked_lock.sma` 的 `VERSION` = `1.3.0`；构建方式为 amxxpc 1.10.0.5392 + `-d1` + UTF-8 无 BOM 直编 |
 | 功能缺口 | 开局不会自动分边：`autoPlayerStart()` 只统计引擎队伍，未下发 `jointeam`；平台队伍已在 `g_challengeTeam` / `g_rankedTeam`，但未写回引擎。见待办 9 |
 
