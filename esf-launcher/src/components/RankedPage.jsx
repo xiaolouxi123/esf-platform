@@ -250,9 +250,11 @@ function HistoryPanel({ history, onOpen }) {
   );
 }
 
-export default function RankedPage({ user, toast }) {
+export default function RankedPage({ user, toast, servers = [] }) {
   const [mode, setMode] = useState('1v1');
   const [state, setState] = useState({ state: 'loading', profile: null });
+  const availableServers = (servers || []).filter((s) => s.online && !s.locked);
+  const serverUnavailable = availableServers.length === 0;
   const [leaderboard, setLeaderboard] = useState([]);
   const [history, setHistory] = useState([]);
   const [betTeam, setBetTeam] = useState('a');
@@ -530,10 +532,19 @@ export default function RankedPage({ user, toast }) {
                     </button>
                   ))}
                 </div>
-                <button type="button" className="btn btn-primary hero-cta rank-cta" onClick={queue} disabled={busy === 'queue'}>
+                <button
+                  type="button"
+                  className={`btn btn-primary hero-cta rank-cta${serverUnavailable ? ' is-disabled' : ''}`}
+                  onClick={queue}
+                  disabled={busy === 'queue' || serverUnavailable}
+                  title={serverUnavailable ? '暂时无服务器可提供排位' : '开始匹配'}
+                >
                   {busy === 'queue' ? <span className="spinner" /> : <Icon name="swords" size={16} />}
-                  {busy === 'queue' ? '正在匹配…' : '开始匹配'}
+                  {busy === 'queue' ? '正在匹配…' : serverUnavailable ? '暂无可用服务器' : '开始匹配'}
                 </button>
+                {serverUnavailable && (
+                  <p className="rank-server-hint">暂时无服务器可提供排位（「单挑 1」正在比赛中），请稍后再试。</p>
+                )}
               </>
             )}
 

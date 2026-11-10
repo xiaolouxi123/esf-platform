@@ -992,7 +992,7 @@ export default function Lobby({
 
         <main className="center">
           {activePage === 'ranked' ? (
-            <RankedPage user={user} toast={toast} />
+            <RankedPage user={user} toast={toast} servers={servers} />
           ) : activePage === 'challenges' ? (
             <ChallengePage
               user={user}

@@ -619,6 +619,64 @@ async function finishMatch(matchId, winner) {
   return getMatch(matchId, null);
 }
 
+async function settleFromClient(matchId, winner, players, callerId) {
+  if (!['a', 'b'].includes(winner)) throw new Error('获胜方不合法');
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [[match]] = await conn.query(
+      "SELECT id, status FROM ranked_matches WHERE id = ? FOR UPDATE",
+      [matchId]
+    );
+    if (!match) {
+      await conn.rollback();
+      throw new Error('比赛不存在');
+    }
+    if (!['waiting', 'live'].includes(match.status)) {
+      await conn.rollback();
+      return { alreadySettled: true, match: await getMatch(matchId, null) };
+    }
+    const [[mine]] = await conn.query(
+      'SELECT 1 AS ok FROM ranked_match_players WHERE match_id = ? AND user_id = ? LIMIT 1',
+      [matchId, callerId]
+    );
+    if (!mine) {
+      await conn.rollback();
+      throw new Error('只有参赛玩家可以补交结算');
+    }
+    if (Array.isArray(players)) {
+      const ids = players.map((p) => Number(p?.userId)).filter((n) => Number.isInteger(n) && n > 0);
+      if (ids.length) {
+        const [valid] = await conn.query(
+          `SELECT user_id FROM ranked_match_players WHERE match_id = ? AND user_id IN (${ids.map(() => '?').join(',')})`,
+          [matchId, ...ids]
+        );
+        const validIds = new Set(valid.map((r) => Number(r.user_id)));
+        for (const p of players) {
+          const uid = Number(p?.userId);
+          if (!validIds.has(uid)) continue;
+          await conn.query(
+            'UPDATE ranked_match_players SET afk = ? WHERE match_id = ? AND user_id = ?',
+            [p?.afk ? 1 : 0, matchId, uid]
+          );
+        }
+      }
+    }
+    await conn.query('CALL settle_ranked_match(?, ?)', [matchId, winner]);
+    await conn.commit();
+    return { alreadySettled: false, match: await getMatch(matchId, null) };
+  } catch (err) {
+    try {
+      await conn.rollback();
+    } catch {
+      /* ignore */
+    }
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 async function leaderboard(limit = 20) {
   const rows = await q(
     `SELECT p.rating, p.wins, p.losses, p.matches,
@@ -712,6 +770,7 @@ module.exports = {
   placeBet,
   spectate,
   finishMatch,
+  settleFromClient,
   leaderboard,
   activeMatchesByServer,
   canEnterServer,

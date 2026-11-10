@@ -84,6 +84,18 @@ router.post('/ranked/finish', requireAuth, async (req, res, next) => {
   }
 });
 
+router.post('/ranked/settle', requireAuth, async (req, res, next) => {
+  try {
+    const matchId = Number(req.body?.matchId);
+    const winner = String(req.body?.winner || '');
+    const players = Array.isArray(req.body?.players) ? req.body.players : [];
+    if (!Number.isInteger(matchId) || matchId <= 0) throw badRequest('比赛 ID 不合法');
+    res.json({ ok: true, data: await ranked.settleFromClient(matchId, winner, players, req.user.id) });
+  } catch (err) {
+    fail(err, next);
+  }
+});
+
 router.get('/ranked/leaderboard', requireAuth, async (req, res, next) => {
   try {
     const rows = await ranked.leaderboard(req.query.limit);

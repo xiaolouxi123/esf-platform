@@ -357,6 +357,9 @@ const rankedLeaderboard = (settings, token, limit) =>
 const rankedHistory = (settings, token, limit) =>
   request(settings, { path: `/api/ranked/history?limit=${encodeURIComponent(limit || 10)}`, token });
 
+const rankedSettle = (settings, token, payload) =>
+  request(settings, { method: 'POST', path: '/api/ranked/settle', token, body: payload });
+
 /* ---------------- 约战房间 ---------------- */
 
 const challengeState = (settings, token) => request(settings, { path: '/api/challenges', token });
@@ -484,6 +487,7 @@ module.exports = {
   rankedFinish,
   rankedLeaderboard,
   rankedHistory,
+  rankedSettle,
   challengeState,
   challengeCreate,
   challengeJoin,

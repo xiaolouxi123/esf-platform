@@ -387,6 +387,43 @@ function stopGameWatcher() {
 }
 
 const MATCH_END_FLAG = 'esf_match_end.flag';
+const PENDING_RESULT_FILE = 'esf_pending_result.json';
+
+function pendingResultPath() {
+  const modDir = settings && settings.esfModDir;
+  return modDir ? path.join(modDir, 'addons', 'amxmodx', 'logs', PENDING_RESULT_FILE) : '';
+}
+
+let pendingSettleTimer = null;
+const PENDING_RETRY_DELAYS = [30000, 120000, 600000];
+
+/** 插件结算落库失败时会把结果写成 JSON；这里补交到平台，带退避重试 */
+async function submitPendingResult(attempt = 0) {
+  const file = pendingResultPath();
+  if (!file || !fs.existsSync(file)) return;
+  let payload;
+  try {
+    payload = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (err) {
+    log('❌ 补交结算文件解析失败:', err.message);
+    return;
+  }
+  try {
+    const res = await apiCall(api.rankedSettle, getSettings(), requireToken(), payload);
+    fs.rmSync(file, { force: true });
+    log(`✅ 补交排位结算成功 match=${payload.matchId}${res && res.alreadySettled ? '（平台已结算）' : ''}`);
+  } catch (err) {
+    if (attempt < PENDING_RETRY_DELAYS.length) {
+      const delay = PENDING_RETRY_DELAYS[attempt];
+      log(`⚠️ 补交结算失败（${attempt + 1}/${PENDING_RETRY_DELAYS.length}）：${err.message}，${Math.round(delay / 1000)}s 后重试`);
+      if (pendingSettleTimer) clearTimeout(pendingSettleTimer);
+      pendingSettleTimer = setTimeout(() => submitPendingResult(attempt + 1), delay);
+    } else {
+      log('❌ 补交结算最终失败，保留文件待下次启动重试');
+    }
+  }
+}
+
 
 function matchEndFlagPath() {
   const modDir = settings && settings.esfModDir;
@@ -436,6 +473,7 @@ function hideToTrayForGame() {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('game:match-end', { seconds: 10 });
         }
+        submitPendingResult(0);
         clearMatchEndFlag();
         setTimeout(() => {
           stopGameForSwitch()
@@ -1850,6 +1888,7 @@ if (!gotLock) {
     setupAutoUpdater();
     createWindow();
     createTray();
+    setTimeout(() => submitPendingResult(0), 6000);
 
     // 启动 8 秒后静默检查一次；没配更新源就跳过
     setTimeout(() => {

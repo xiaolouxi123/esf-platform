@@ -12392,3 +12392,6 @@ select:focus {
   font-size: 12px;
   color: var(--dim);
 }
+
+.rank-cta.is-disabled { opacity: .55; filter: grayscale(.4); }
+.rank-server-hint { margin: 6px 0 0; font-size: 12px; color: var(--tx-2, #a4adc2); }
