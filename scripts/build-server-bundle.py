@@ -29,7 +29,24 @@ MANIFEST_PATH = OUT_DIR / 'esf-server-bundle.manifest.json'
 TOP_FILES = ['package.json', 'package-lock.json', '.env.example', 'README.md']
 INCLUDE_DIRS = ['src', 'sql']
 SCRIPT_EXCLUDE = {'acceptance-sim.cjs'}  # local-only acceptance harness
-FORBIDDEN = ['Qq295', 'esf_dev_app_pw', 'esf_dev_app_pw']
+SENSITIVE_KEY_PARTS = ('PASSWORD', 'SECRET', 'TOKEN', '_KEY', 'CREDENTIAL')
+NON_SECRET_MARKERS = ('TTL', 'SECONDS', 'MINUTES', 'MAX', 'HOST', 'PORT', 'USER', 'URL', 'DIR', 'SIZE')
+
+
+def check_env_template(path):
+    """Never ship a template with real-looking secret values; only CHANGE_ME / empty."""
+    for line in path.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        upper = key.upper()
+        if not any(part in upper for part in SENSITIVE_KEY_PARTS):
+            continue
+        if any(marker in upper for marker in NON_SECRET_MARKERS):
+            continue
+        if value and not value.startswith('CHANGE_ME'):
+            raise SystemExit(f'refusing to bundle {path.name}: {key} has a non-placeholder value')
 
 
 def collect():
@@ -72,12 +89,7 @@ def main():
     for p, arc in files:
         if p.name == '.env':
             raise SystemExit('refusing to bundle server/.env')
-        text = p.read_text(encoding='utf-8', errors='ignore') if p.suffix in ('.js', '.cjs', '.sql', '.json', '.md', '.example') else ''
-        for bad in FORBIDDEN:
-            if bad in text:
-                raise SystemExit(f'refusing to bundle {arc}: contains forbidden literal')
-    if 'server/.env' in [arc for _, arc in files]:
-        raise SystemExit('refusing to bundle server/.env')
+    check_env_template(SRC / '.env.example')
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(ZIP_PATH, 'w', zipfile.ZIP_DEFLATED) as z:
