@@ -26,6 +26,9 @@ $ApiPort   = 3000
 $DbPort    = 3307
 $LatestVer = '0.6.1'   # 由 scripts/sync-versions.cjs 随发版同步，勿手改
 $ServerIp  = '119.29.82.217'
+# 游戏服来源 IP（esf_amxx 账号授权），以及当前插件包的 BUILD（心跳期望值）
+$GameServerIp = '114.132.84.150'
+$ExpectedPluginBuild = '0.53'
 # =================================================
 
 $NodeUrl  = 'https://npmmirror.com/mirrors/node/v18.20.8/node-v18.20.8-x64.msi'
@@ -264,17 +267,23 @@ if (-not $existingEnv) {
   $jwt      = Random-Hex 32
   $dbPass   = Random-Hex 16
   $amxxPass = Random-Hex 16
+  $inviteCode  = Random-Hex 12
+  $uploadToken = Random-Hex 24
+  $opsKey      = Random-Hex 24
   New-Item -ItemType Directory -Force -Path (Join-Path $Root 'server') | Out-Null
 
   @"
 NODE_ENV=production
-HOST=0.0.0.0
+HOST=127.0.0.1
 API_PORT=$ApiPort
 VERSION_LABEL=prod
 
 JWT_SECRET=$jwt
 JWT_TTL_SECONDS=604800
 BCRYPT_ROUNDS=10
+INVITE_CODE=$inviteCode
+LOGIN_MAX_FAILURES=10
+LOGIN_LOCK_MINUTES=15
 
 DB_HOST=127.0.0.1
 DB_PORT=$DbPort
@@ -287,16 +296,26 @@ DB_ROOT_PASSWORD=$rootPass
 
 AMXX_DB_USER=esf_amxx
 AMXX_DB_PASSWORD=$amxxPass
-AMXX_ALLOWED_HOST=127.0.0.1
+AMXX_ALLOWED_HOST=$GameServerIp
+AMXX_EXPECTED_PLATFORM_AUTH=$ExpectedPluginBuild
+AMXX_EXPECTED_RANKED_LOCK=$ExpectedPluginBuild
+AMXX_EXPECTED_TEST_RANKED=$ExpectedPluginBuild
+AMXX_EXPECTED_GAMEMODE=1.0.0
+AMXX_HEARTBEAT_STALE_SECONDS=900
 
 UPLOAD_DIR=C:\esf\uploads
+UPLOAD_MAX_MB=64
 UPDATE_DIR=C:\esf\updates
+UPDATE_UPLOAD_TOKEN=$uploadToken
+OPS_AGENT_KEY=$opsKey
 
-LATEST_VERSION=$LatestVer
-RELEASE_NOTES=首个公网测试版本
+NOTICE=
+MAINTENANCE=0
 MIN_LAUNCHER_VERSION=$LatestVer
-UPDATE_FEED_URL=http://${ServerIp}:$ApiPort/updates/
-DOWNLOAD_URL=http://${ServerIp}:$ApiPort/updates/
+LATEST_VERSION=$LatestVer
+RELEASE_NOTES=
+UPDATE_FEED_URL=https://${ServerIp}/updates/
+DOWNLOAD_URL=https://github.com/xiaolouxi123/esf-platform/releases/download/v${LatestVer}/ESF-Platform-Setup-${LatestVer}.exe
 "@ | Set-Content -Path $envFile -Encoding ASCII
   Write-Host "已生成 $envFile"
 } else {

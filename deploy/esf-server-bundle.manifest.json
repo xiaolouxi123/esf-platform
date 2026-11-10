@@ -1,0 +1,12 @@
+{
+  "launcherVersion": "0.6.1",
+  "serverVersion": "0.1.0",
+  "sha256": "7847b3fb68a0fb4b93dfff87d69e151936850beb287b320974633c18ab4e70ad",
+  "size": 133105,
+  "fileCount": 73,
+  "sqlCount": 16,
+  "routeCount": 19,
+  "envTemplateVars": 53,
+  "hasSettlementProcedures": true,
+  "builtAt": "2026-11-11T06:10:23+08:00"
+}

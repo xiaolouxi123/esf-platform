@@ -110,6 +110,19 @@ check('官网 README 无过期版本/IP', () => {
   assert(!s.includes('119.91.99.176'), 'website/README.md 仍写老平台机');
 });
 
+check('部署包由当前源码重建（防止 0.1.0 旧后端事故）', () => {
+  const m = JSON.parse(read('deploy/esf-server-bundle.manifest.json'));
+  assert(m.launcherVersion === version, `bundle 由 ${m.launcherVersion} 构建，当前是 ${version}`);
+  assert(m.hasSettlementProcedures === true, 'bundle 缺 settle_* 结算存储过程');
+  assert(m.sqlCount >= 16, `bundle 只有 ${m.sqlCount} 个 SQL`);
+  assert(m.routeCount >= 19, `bundle 只有 ${m.routeCount} 个路由`);
+  assert(m.envTemplateVars >= 50, `bundle 的 env 模板只有 ${m.envTemplateVars} 个变量`);
+  const digest = require('crypto').createHash('sha256')
+    .update(fs.readFileSync(path.join(root, 'deploy', 'esf-server-bundle.zip')))
+    .digest('hex');
+  assert(digest === m.sha256, 'bundle 的 sha256 与 manifest 不符，需重跑 scripts/build-server-bundle.py');
+});
+
 // 发布产物：只在本地存在时提示，不纳入 CI 判定
 for (const f of ['esf-launcher/release/latest.yml', 'server/updates/latest.yml']) {
   const p = path.join(root, f);
