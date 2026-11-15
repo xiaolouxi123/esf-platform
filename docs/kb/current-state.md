@@ -2,10 +2,10 @@
 title: 线上现状
 category: state
 tags: [state, versions, deployment]
-updated: 2026-11-11T06:50:00+08:00
+updated: 2026-11-16T04:35:00+08:00
 ---
 
-# 线上现状（2026-11-10）
+# 线上现状（2026-11-16）
 
 只放"现在是什么"，决策理由见 [[migration]]、[[launcher-updater]]、[[ranked-challenge]]、[[amxx-plugins]]、[[lobby-presence-sound]]、[[account-security]]、[[maintenance-channel]]。
 任何数字变化后**直接改这里**，不要留下旧值。
@@ -46,23 +46,24 @@ updated: 2026-11-11T06:50:00+08:00
 
 | 项 | 值 |
 |---|---|
-| 当前线上插件包 | **0.52**（UTF-8 构建，含 guest 兜底、构建心跳、约战限时、AFK 判负、结算失败落盘与 2v2 列修正） |
-| 更新源已上传 | **0.53**（含开局自动分边修复，zip + manifest 已上传新机 `C:\esf\updates\amxx\`，等待 114 自动更新与心跳确认；见 `docs/RELEASE-2026-11-11.md`） |
+| 当前线上插件包 | **0.53**（自动分边；两台服 4 个受管插件哈希与 manifest 0.53 完全一致，2026-11-16 通过 ops 核实） |
+| 更新源已上传 | **0.53**（`esf-challenge-plugins-0.53.zip`，37,908 B，sha256 `b8d8a480…`；114 已自动更新并回报 0.53）。0.54 仅本地产物，未上传生产 |
 | 当前源码 BUILD | **0.54**（追加本地 listen server 开房放行，见 [[known-issues]] 第 9 条；已编译并装入**本机游戏目录**，zip + manifest 已本地产出，**未上传生产**——生产是 dedicated server，不触发该问题） |
 | 本地测试包 | `test_ranked 1.3.4-teamtest`（test15，38,392 B，SHA256 `0e81b6f6...`）；仅本地验证，未发布到游戏服 |
-| 分发位置 | `C:\esf\updates\amxx\manifest.json` + `esf-challenge-plugins-0.52.zip` |
+| 分发位置 | `C:\esf\updates\amxx\manifest.json` + `esf-challenge-plugins-0.53.zip` |
 | 受管插件 | esf_gamemode / esf_platform_auth / esf_ranked_lock / test_ranked |
 | 114 更新任务 | `ESFAmxxUpdate`，SYSTEM，每 10 分钟 |
 | 114 更新脚本 | `C:\esf-agent\amxx-updater.ps1`，版本记录 `C:\esf-agent\amxx-version.txt` |
-| 线上构建心跳 | 表 `amxx_builds`；fcx-1v1-1 于 2026-11-10 08:37 上报 0.52（platform_auth / ranked_lock） |
+| 线上构建心跳 | 表 `amxx_builds`；fcx-1v1-1 于 2026-11-15 15:03 上报 0.53（platform_auth / ranked_lock） |
 | 源码基线 | **main**（2026-11-11 合并自 `fix/amxx-ascii-logs`，含 0.49–0.52 全部增量；该分支保留但不再作为基线） |
-| 版本一致性 | 0.52 已统一：`BUILD` = `"0.52"`，`esf_ranked_lock.sma` 的 `VERSION` = `1.3.0`；构建方式为 amxxpc 1.10.0.5392 + `-d1` + UTF-8 无 BOM 直编 |
+| 版本一致性 | 线上 0.53 已统一（心跳 0.53、两服哈希一致）；本地源码 `BUILD` = `"0.54"`（含 listen server 放行），未上传。构建方式 amxxpc 1.10.0.5392 + `-d1` + UTF-8 无 BOM 直编 |
 | 功能缺口 | 开局不会自动分边：`autoPlayerStart()` 只统计引擎队伍，未下发 `jointeam`；平台队伍已在 `g_challengeTeam` / `g_rankedTeam`，但未写回引擎。见待办 9 |
 
 ## 游戏服配置
 
 - `amxx.cfg`：`platform_sql_host` / `ranked_sql_host` = 119.29.82.217，`platform_allow_guest 1`（测试期放行非平台玩家）。
 - HLSM 2.4 监控两台服，`taskkill /f /im rehlds.exe` 后会自动拉起。
+- 后端看护：`ESFAPI` 计划任务无执行时限（PT0S）+ 失败重试；`ESFAPIWatch` 每 5 分钟检查 3000 端口并拉起；`ESFCaddyWatch` 每 5 分钟检查 443。2026-11-16 修复过 ESFAPI 72 小时执行上限导致的 5 天 502。
 
 ## 待办
 
@@ -75,7 +76,7 @@ updated: 2026-11-11T06:50:00+08:00
 6. ops agent 任务输出的中文乱码（cmd 以 UTF-8 输出、agent 按 GBK 读回），改 `[IO.File]::ReadAllText(..., UTF8)`。
 7. 老 114 仍有 0.2.1 版本残留，待与现网版本对齐。
 8. 发布提速：`release.ps1` 仍用 PSSession 逐机拷 125 MB 安装包（约 4–5 分钟/台）；下一步改成两台机自行从 `https://119.29.82.217/updates/` 下载并校验 sha512。
-9. **验收 0.53，择机发布 0.54**：0.53（自动分边）已上传更新源，待确认 114 心跳/哈希与真机双开验收。
+9. **验收 0.53，择机发布 0.54**：0.53（自动分边）已上传更新源；114 心跳 2026-11-15 15:03 已回报 0.53，两台服 4 个受管插件哈希 2026-11-16 核实与 manifest 一致（r14 旧副本仅在桌面备份目录）。仍待真机双开验收。
    源码已升 **0.54**（追加本地 listen server 开房放行，见 [[known-issues]] 第 9 条），产物已本地打包并装入本机游戏目录，
    **未上传生产**（生产 dedicated 服不受该问题影响），留到下次常规发布一并上线。
    生产 `.env` 仍显式写 `AMXX_EXPECTED_*=0.53`，与线上一致；仓库默认值已升 0.54，

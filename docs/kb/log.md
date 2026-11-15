@@ -2,12 +2,22 @@
 title: 变更日志
 category: log
 tags: [log]
-updated: 2026-11-11T06:37:00+08:00
+updated: 2026-11-16T04:38:00+08:00
 ---
 
 # 变更日志
 
 新在上。一行一条：日期 · 改了什么 · 依据。
+
+- 2026-11-16 · **线上 502 事故与后端看护**：`ESFAPI` 计划任务带 72 小时执行上限，2026-11-11 06:29 后被系统终止
+  （结果 267014），Caddy 反代一直 502、平台「连接已失效」持续 5 天。已 `schtasks /run` 恢复，并把任务改为
+  `ExecutionTimeLimit=PT0S` + 失败重试；新增 `ESFAPIWatch`（每 5 分钟检查 3000 端口并拉起，自愈实测 6 秒），
+  与已有 `ESFCaddyWatch` 一起兜底。依据：`https://119.29.82.217/api/health`、`C:\esf\ensure-api.ps1`、
+  `C:\esf\logs\api-watch.log`。
+- 2026-11-16 · **确认 114 插件已到 0.53**：两台服 4 个受管插件 `esf_gamemode` 620/C878F71D、
+  `esf_platform_auth` 5,654/EFA65AEE、`esf_ranked_lock` 4,729/37841758、`test_ranked` 26,638/0AB6401B，
+  与上传 manifest 0.53 完全一致（桌面 `esf-challenge-plugins-0.4.6-r14` 只是旧备份目录，不参与加载）。
+  依据：ops job 12/13、`amxx_builds` 2026-11-15 15:03。
 
 - 2026-11-11 · **修复本地 listen server 开房被踢**（[[known-issues]] 第 9 条）：三个插件各加
   `isLocalListenGuest()`（非 dedicated + loopback 才放行），auth 的 `rejectPlayer` 降级为 guest 放行、
