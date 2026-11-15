@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "style": "swiss",
+    "theme": "safety-orange",
+    "brand": "#ff8a1f",
+    "hero_image": "hero-grid.svg",
+    "embed": true,
+    "title": "画面与渲染设置",
+    "subtitle": "渲染模式 / 分辨率 / 窗口化——放在哪、怎么用、怎么验证",
+    "author": "ESF PLATFORM · 客户端功能",
+    "date": "2026.11.16",
+    "reading_time": "4 min",
+    "tags": ["设置", "渲染", "兼容", "验证"]
+  },
+  "upgrades": [
+    { "kind": "aside", "line": 9, "text": "不碰游戏文件，只改启动参数；出问题随时切回「自动」。" },
+    { "kind": "checklist", "lines": [44, 45, 46, 47] }
+  ]
+}
