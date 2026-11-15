@@ -29,6 +29,10 @@ const DEFAULT_SETTINGS = {
   soundEnabled: true,
   compatMode: false,
   lastMap: '',
+  renderMode: 'auto',
+  renderWidth: 0,
+  renderHeight: 0,
+  renderWindowed: false,
 };
 
 function baseDir() {
@@ -87,7 +91,18 @@ function normalizeSettings(raw) {
   }
   merged.soundEnabled = merged.soundEnabled !== false;
   merged.compatMode = merged.compatMode === true;
+  if (!['auto', 'gl', 'd3d'].includes(merged.renderMode)) merged.renderMode = 'auto';
+  merged.renderWidth = clampResolution(merged.renderWidth);
+  merged.renderHeight = clampResolution(merged.renderHeight);
+  merged.renderWindowed = merged.renderWindowed === true;
   return merged;
+}
+
+function clampResolution(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  if (n === 0) return 0;
+  return Math.min(7680, Math.max(640, Math.round(n)));
 }
 
 /** 老版本把 config.json 放在安装目录，这里做一次性迁移 */

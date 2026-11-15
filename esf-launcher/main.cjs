@@ -647,9 +647,40 @@ function spawnGame(args) {
 const COMPAT_ARGS = ['-window', '-w', '800', '-h', '600', '-gl', '-heapsize', '262144'];
 let noWindowDialogShown = false;
 
+/**
+ * 用户显式选择的渲染参数（0.6.2）。
+ * auto = 不传，交给游戏内设置；gl/d3d = 强制渲染器；w/h 只传合法尺寸。
+ */
+function renderArgs(current) {
+  const args = [];
+  if (current.renderMode === 'gl') args.push('-gl');
+  if (current.renderMode === 'd3d') args.push('-d3d');
+  const w = Number(current.renderWidth) || 0;
+  const h = Number(current.renderHeight) || 0;
+  if (w >= 640 && h >= 480) args.push('-w', String(w), '-h', String(h));
+  if (current.renderWindowed === true) args.push('-window');
+  return args;
+}
+
+const DISPLAY_FLAGS = new Set(['-gl', '-d3d', '-soft', '-window', '-fullscreen', '-nomsaa']);
+/** 去掉与显式渲染设置冲突的参数（含 -w/-h 的值），避免后者被兼容预设覆盖。 */
+function stripDisplayFlags(args) {
+  const out = [];
+  for (let i = 0; i < args.length; i += 1) {
+    const token = args[i];
+    if (token === '-w' || token === '-h') { i += 1; continue; }
+    if (DISPLAY_FLAGS.has(token)) continue;
+    out.push(token);
+  }
+  return out;
+}
+
 function launchArgsWithCompat(args) {
   const current = getSettings();
-  return current.compatMode ? [...args, ...COMPAT_ARGS] : args;
+  const explicit = renderArgs(current);
+  const base = current.compatMode ? [...args, ...COMPAT_ARGS] : [...args];
+  if (explicit.length === 0) return base;
+  return [...stripDisplayFlags(base), ...explicit];
 }
 
 function launchLogPath() {

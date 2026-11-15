@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon';
 import { isStaff } from '../lib/format';
 
@@ -8,6 +8,23 @@ import { isStaff } from '../lib/format';
  * 平台地址、数据目录这类开发向内容只对 staff（运营/管理员/所有者）展示。
  */
 const AVATAR_CHOICES = ['🐉', '🔥', '⚡', '🛡️', '🐒', '🥋', '💫', '👑'];
+
+const RENDER_MODES = [
+  { key: 'auto', label: '自动', desc: '跟随游戏内视频设置' },
+  { key: 'gl', label: 'OpenGL', desc: '默认，兼容性最好' },
+  { key: 'd3d', label: 'Direct3D', desc: '黑屏/花屏时试它' },
+];
+
+const RESOLUTIONS = [
+  [1024, 768],
+  [1280, 720],
+  [1280, 960],
+  [1366, 768],
+  [1440, 900],
+  [1600, 900],
+  [1920, 1080],
+  [2560, 1440],
+];
 
 function nextNameChangeLabel(value) {
   if (!value) return '明天';
@@ -73,6 +90,30 @@ export default function SettingsDrawer({
   toast,
 }) {
   const [draft, setDraft] = useState(settings || {});
+  const draftRef = useRef(draft);
+  const screenRes = `${window.screen?.width || 0}x${window.screen?.height || 0}`;
+  const resolutionValue = `${Number(draft.renderWidth) || 0}x${Number(draft.renderHeight) || 0}`;
+  const resolutionOptions = RESOLUTIONS.map(([w, h]) => ({ value: `${w}x${h}`, label: `${w} × ${h}` }));
+  if (screenRes !== '0x0' && !resolutionOptions.some((option) => option.value === screenRes)) {
+    const [w, h] = screenRes.split('x');
+    resolutionOptions.unshift({ value: screenRes, label: `${w} × ${h}（当前屏幕）` });
+  }
+  const renderPreview = (() => {
+    const parts = [];
+    if (draft.renderMode === 'gl') parts.push('-gl');
+    if (draft.renderMode === 'd3d') parts.push('-d3d');
+    const w = Number(draft.renderWidth) || 0;
+    const h = Number(draft.renderHeight) || 0;
+    if (w >= 640 && h >= 480) parts.push(`-w ${w} -h ${h}`);
+    if (draft.renderWindowed === true) parts.push('-window');
+    return parts.join(' ') || '跟随游戏内设置（不传参数）';
+  })();
+  const saveRender = (patch) => {
+    const next = { ...draftRef.current, ...patch };
+    draftRef.current = next;
+    setDraft(next);
+    onSave?.(next);
+  };
   const [busy, setBusy] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [nameDraft, setNameDraft] = useState(user?.gameName || '');
@@ -421,6 +462,57 @@ export default function SettingsDrawer({
                 <i />
               </button>
             </label>
+          </section>
+
+          <section className="drawer-section">
+            <h3>画面与渲染</h3>
+            <p className="drawer-hint">进游戏黑屏、花屏或崩溃时，换一种渲染模式或降一档分辨率，不用改游戏文件。</p>
+            <div className="render-mode-grid">
+              {RENDER_MODES.map((mode) => (
+                <button
+                  key={mode.key}
+                  type="button"
+                  className={`render-mode-card${(draft.renderMode || 'auto') === mode.key ? ' is-active' : ''}`}
+                  onClick={() => saveRender({ renderMode: mode.key })}
+                >
+                  <b>{mode.label}</b>
+                  <span>{mode.desc}</span>
+                  {mode.key === 'auto' ? <em>推荐</em> : null}
+                </button>
+              ))}
+            </div>
+            <label className="field">
+              <span className="field-label">分辨率</span>
+              <select
+                value={resolutionValue}
+                onChange={(event) => {
+                  const [w, h] = event.target.value.split('x').map(Number);
+                  saveRender({ renderWidth: w, renderHeight: h });
+                }}
+              >
+                <option value="0x0">跟随游戏内设置</option>
+                {resolutionOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field field--row">
+              <span className="field-label">窗口化运行</span>
+              <button
+                type="button"
+                className={`switch${draft.renderWindowed ? ' is-on' : ''}`}
+                role="switch"
+                aria-checked={Boolean(draft.renderWindowed)}
+                onClick={() => saveRender({ renderWindowed: !draft.renderWindowed })}
+              >
+                <i />
+              </button>
+            </label>
+            <div className="render-preview">
+              <span>本次启动参数</span>
+              <code>{renderPreview}</code>
+            </div>
+            <p className="drawer-hint">窗口化 + 低分辨率是最稳的排障组合；游戏内视频设置仍可随时再改。</p>
           </section>
 
           <section className="drawer-section">
