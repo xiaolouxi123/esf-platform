@@ -422,11 +422,11 @@ export default function SettingsDrawer({
 
             <div className="path-box">
               <span className="path-label">hl.exe</span>
-              <code>{draft.hlPath || '未设置'}</code>
+              <code title={draft.hlPath || '未设置'}>{draft.hlPath || '未设置'}</code>
             </div>
             <div className="path-box">
               <span className="path-label">模组</span>
-              <code>{draft.esfModDir || '未设置'}</code>
+              <code title={draft.esfModDir || '未设置'}>{draft.esfModDir || '未设置'}</code>
             </div>
 
             <button type="button" className="btn btn-ghost btn-block" onClick={pickDir} disabled={busy}>
@@ -440,7 +440,7 @@ export default function SettingsDrawer({
 
             <div className="path-box">
               <span className="path-label">API</span>
-              <code>{draft.apiBaseUrl || '未设置'}</code>
+              <code title={draft.apiBaseUrl || '未设置'}>{draft.apiBaseUrl || '未设置'}</code>
             </div>
 
             {staff && (

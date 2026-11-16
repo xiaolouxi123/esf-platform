@@ -12509,3 +12509,13 @@ select:focus {
 }
 .member-group-head:hover { color: var(--text); }
 .member-group-chev { margin-left: auto; font-size: 10px; color: var(--dim); }
+
+/* 长路径截断 */
+.path-box code {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
