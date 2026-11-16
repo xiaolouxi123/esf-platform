@@ -12467,3 +12467,14 @@ select:focus {
 .setting-chip svg{color:var(--accent);flex:0 0 auto}
 .drawer-section{scroll-margin-top:118px}
 @media (max-width:560px){.setting-chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* 更新就绪条：重启安装按钮改浅绿色，放在「重启后生效」文字之后 */
+.update-strip--ready .btn-primary {
+  background: linear-gradient(135deg, #9fe8bd, #63d194);
+  border-color: rgba(120, 230, 170, 0.55);
+  color: #06331c;
+  box-shadow: 0 6px 18px rgba(99, 209, 148, 0.22);
+}
+.update-strip--ready .btn-primary:hover {
+  background: linear-gradient(135deg, #b4f0cd, #74dda2);
+}
