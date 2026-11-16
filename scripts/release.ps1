@@ -23,14 +23,16 @@ param(
   [Parameter(Mandatory = $true)][string]$Version,
   [Parameter(Mandatory = $true)][string]$Notes,
 
-# 防编码事故：wrapper 若被 PS 5.1 按 ANSI 读取，中文会变成乱码或 U+FFFD。
-if ($Notes -match [char]0xFFFD -or $Notes -match '閺|閹|锟') {
-  throw 'Notes 疑似编码损坏（乱码）。请把发布 wrapper 保存为 UTF-8 with BOM。'
-}
 
   [switch]$SkipDeploy,
   [switch]$SkipWait
 )
+
+$ErrorActionPreference = "Stop"
+# encoding guard (ASCII only: PS 5.1 reads UTF-8 without BOM as ANSI)
+if ($Notes.IndexOf([char]0xFFFD) -ge 0 -or $Notes.IndexOf([char]0x95BA) -ge 0 -or $Notes.IndexOf([char]0x95B9) -ge 0) {
+  throw "Notes looks corrupted (encoding). Save the release wrapper as UTF-8 with BOM."
+}
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
