@@ -378,6 +378,11 @@ export default function SettingsDrawer({
     }
   };
 
+  const scrollToSection = (id) => {
+    const el = document.getElementById(`set-${id}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div className="drawer-root">
       <button type="button" className="drawer-backdrop" aria-label="关闭设置" onClick={onClose} />
@@ -393,7 +398,25 @@ export default function SettingsDrawer({
         </header>
 
         <div className="drawer-body">
-          <section className="drawer-section">
+          <div className="setting-chips" role="tablist" aria-label="设置分区">
+            {[
+              ['game', 'map', '游戏目录'],
+              ['conn', 'wifi', '平台连接'],
+              ['sound', 'bell', '音效'],
+              ['render', 'settings', '画面与渲染'],
+              ['compat', 'power', '启动兼容'],
+              ['security', 'shield', '账号安全'],
+              ['account', 'user', '账号'],
+              ['about', 'help', '关于'],
+            ].map(([id, icon, label]) => (
+              <button key={id} type="button" className="setting-chip" onClick={() => scrollToSection(id)}>
+                <Icon name={icon} size={14} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+          
+          <section className="drawer-section" id="set-game">
             <h3>游戏目录</h3>
             <p className="drawer-hint">启动器需要知道 hl.exe 和 esf 模组文件夹的位置。</p>
 
@@ -411,7 +434,7 @@ export default function SettingsDrawer({
             </button>
           </section>
 
-          <section className="drawer-section">
+          <section className="drawer-section" id="set-conn">
             <h3>平台连接</h3>
             <p className="drawer-hint">后端地址由平台统一维护，玩家不需要填写。</p>
 
@@ -443,7 +466,7 @@ export default function SettingsDrawer({
             </p>
           </section>
 
-          <section className="drawer-section">
+          <section className="drawer-section" id="set-sound">
             <h3>音效</h3>
             <p className="drawer-hint">界面点击、切页、匹配与结算的提示音；关闭后完全静音。</p>
             <label className="field field--row">
@@ -464,7 +487,7 @@ export default function SettingsDrawer({
             </label>
           </section>
 
-          <section className="drawer-section">
+          <section className="drawer-section" id="set-render">
             <h3>画面与渲染</h3>
             <p className="drawer-hint">进游戏黑屏、花屏或崩溃时，换一种渲染模式或降一档分辨率，不用改游戏文件。</p>
             <div className="render-mode-grid">
@@ -515,7 +538,7 @@ export default function SettingsDrawer({
             <p className="drawer-hint">窗口化 + 低分辨率是最稳的排障组合；游戏内视频设置仍可随时再改。</p>
           </section>
 
-          <section className="drawer-section">
+          <section className="drawer-section" id="set-compat">
             <h3>启动兼容</h3>
             <p className="drawer-hint">老电脑上游戏“起来了但没窗口”时打开：窗口化 800×600 + OpenGL + 固定堆大小。</p>
             <label className="field field--row">
@@ -552,7 +575,7 @@ export default function SettingsDrawer({
             <p className="drawer-hint">包含启动参数、游戏进程与最近启动日志，老电脑出问题发这个就行。</p>
           </section>
 
-          <section className="drawer-section">
+          <section className="drawer-section" id="set-security">
             <h3>账号安全</h3>
             <p className="drawer-hint">绑定邮箱后，忘记密码可以自助重置，不用再找管理员。</p>
 
@@ -795,7 +818,7 @@ export default function SettingsDrawer({
             </button>
           </section>
 
-          <section className="drawer-section">
+          <section className="drawer-section" id="set-account">
             <h3>账号</h3>
             <p className="drawer-hint">头像会显示在标题栏、在线列表和大厅频道里。</p>
 
@@ -890,7 +913,7 @@ export default function SettingsDrawer({
             </div>
           </section>
 
-          <section className="drawer-section drawer-section--muted">
+          <section className="drawer-section drawer-section--muted" id="set-about">
             <h3>关于</h3>
             <dl className="kv">
               <div>

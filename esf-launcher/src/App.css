@@ -12459,3 +12459,11 @@ select:focus {
 }
 .invite-meta { font-size: 11px; color: var(--muted, #a4adc2); }
 .invite-actions { margin-left: auto; display: flex; gap: 6px; }
+
+/* 设置分区导航（0.6.2） */
+.setting-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;position:sticky;top:0;z-index:3;padding:4px 0 10px;margin-bottom:10px;background:linear-gradient(180deg,rgba(18,23,34,.96),rgba(18,23,34,.86));backdrop-filter:blur(6px)}
+.setting-chip{display:flex;align-items:center;gap:7px;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--tx-2);font-size:12px;line-height:1;cursor:pointer;transition:background .15s ease,color .15s ease,border-color .15s ease}
+.setting-chip:hover{color:var(--tx-1);border-color:var(--line-strong);background:var(--surface-hover)}
+.setting-chip svg{color:var(--accent);flex:0 0 auto}
+.drawer-section{scroll-margin-top:118px}
+@media (max-width:560px){.setting-chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
