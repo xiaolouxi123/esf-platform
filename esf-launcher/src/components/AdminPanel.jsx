@@ -96,7 +96,7 @@ export default function AdminPanel({
 
   const [transferId, setTransferId] = useState('');
   const [transferring, setTransferring] = useState(false);
-  const [openSection, setOpenSection] = useState('users');
+  const [openSection, setOpenSection] = useState('');
 
   const onStackClick = (event) => {
     const head = event.target.closest('.admin-section-head');

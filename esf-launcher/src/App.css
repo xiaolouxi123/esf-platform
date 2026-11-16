@@ -12481,3 +12481,16 @@ select:focus {
 .update-strip--ready { justify-content: flex-start; }
 .update-strip--ready > span { margin-right: 4px; }
 .update-strip--ready .btn-ghost { margin-left: auto; }
+
+
+/* 设置分区折叠 */
+.drawer-section h3 { cursor: pointer; user-select: none; }
+.drawer-section h3::after { content: '▾'; float: right; opacity: .45; font-size: 12px; }
+.drawer-section.is-collapsed > *:not(h3) { display: none; }
+.drawer-section.is-collapsed { padding-bottom: 14px; }
+.drawer-section.is-collapsed h3::after { content: '▸'; }
+
+/* 画面与渲染：文字居中、避免长句换行 */
+.render-mode-card { text-align: center; }
+.render-mode-card b, .render-mode-card small, .render-mode-card span { display: block; }
+.render-mode-card small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
