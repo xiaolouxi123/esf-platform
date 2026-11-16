@@ -1,5 +1,5 @@
 {
-  "launcherVersion": "0.6.2",
+  "launcherVersion": "0.6.3",
   "serverVersion": "0.1.0",
   "sha256": "97763113fa25c1d1439562a63e479094b1dc969a5f5637a0e6587739485625a4",
   "size": 135248,
@@ -8,5 +8,5 @@
   "routeCount": 19,
   "envTemplateVars": 53,
   "hasSettlementProcedures": true,
-  "builtAt": "2026-11-17T05:48:58+08:00"
+  "builtAt": "2026-11-17T06:23:17+08:00"
 }

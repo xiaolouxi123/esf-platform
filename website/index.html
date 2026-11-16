@@ -180,14 +180,14 @@
       <article class="slide is-active" data-slide="0">
         <div class="slide-in">
           <div class="slide-copy">
-            <span class="kicker">VERSION <span id="versionCode">0.6.2</span> · DRAGON BALL COMMUNITY</span>
+            <span class="kicker">VERSION <span id="versionCode">0.6.3</span> · DRAGON BALL COMMUNITY</span>
             <h1>龙珠社区<br /><em>重新集结</em></h1>
             <p>一个账号，连接整个龙珠社区。一键连服、天梯排位、金币竞猜、成员频道与服务端插件，都在同一个客户端里完成。</p>
             <div class="slide-actions">
               <a class="btn btn-primary" id="heroDownload" href="#download">下载 Windows 客户端 ↓</a>
               <a class="btn btn-line" href="#features">了解平台</a>
             </div>
-            <div class="slide-meta"><span><b id="healthText">服务检测中</b></span><span>Windows 10 / 11 · 64 位</span><span>最新版本 <b id="versionCode2">0.6.2</b></span></div>
+            <div class="slide-meta"><span><b id="healthText">服务检测中</b></span><span>Windows 10 / 11 · 64 位</span><span>最新版本 <b id="versionCode2">0.6.3</b></span></div>
           </div>
           <div class="slide-visual">
             <div class="slide-frame"><img src="assets/dashboard.png" alt="ESF China 客户端大厅" /></div>
@@ -298,13 +298,13 @@
             <h2>下载 ESF China</h2>
             <p>Windows 10 / 11 · 64 位。安装后在设置中选择包含 hl.exe 的半条命根目录即可开始。</p>
             <div class="download-meta">
-              <span>版本 <code id="downloadVersion">0.6.2</code></span>
+              <span>版本 <code id="downloadVersion">0.6.3</code></span>
               <span>大小 <code id="downloadSize">128 MB</code></span>
               <span>官网 <code>GitHub Pages</code></span>
             </div>
           </div>
           <div class="download-actions">
-            <a class="btn btn-primary" id="downloadButton" href="https://github.com/xiaolouxi123/esf-platform/releases/download/v0.6.2/ESF-Platform-Setup-0.6.2.exe">下载安装包 ↓</a>
+            <a class="btn btn-primary" id="downloadButton" href="https://github.com/xiaolouxi123/esf-platform/releases/download/v0.6.3/ESF-Platform-Setup-0.6.3.exe">下载安装包 ↓</a>
             <a class="btn btn-line" href="https://github.com/xiaolouxi123/esf-platform" target="_blank" rel="noreferrer">源代码 ↗</a>
           </div>
         </div>
@@ -320,7 +320,8 @@
       </div>
       <div class="updates">
         <!-- UPDATES:START -->
-        <article class="update-item"><div class="v"><b>0.6.2</b><span>2026-11-16</span></div><p>閭€璇锋敞鍐岋細鎵€鏈夎€呭彲鍦ㄧ鐞嗗彴涓€閿紑鍏抽個璇锋敞鍐屽苟鐢熸垚閭€璇风爜锛屽彲閲嶅浣跨敤銆佹案涔呮湁鏁堬紱鏇存柊浣撻獙锛氬悗鍙拌嚜鍔ㄥ樊閲忥紝涓嬭浇瀹屾垚鎵嶆彁绀洪噸鍚紝鍏抽棴鎻愮ず涓嶄腑鏂笅杞斤紝澶辫触鎵嶆樉绀烘墜鍔ㄤ笅杞斤紱鐢婚潰涓庢覆鏌擄細鑷姩 / OpenGL / Direct3D銆佸垎杈ㄧ巼涓庣獥鍙ｅ寲锛屽惎鍔ㄥ墠瀹炴椂棰勮鍙傛暟锛涗慨澶嶏細閭€璇风爜鏀瑰瓨鏁版嵁搴擄紝鏃?.env 鍏煎鐮佸仠鐢紱鍏朵粬锛氱鐞嗗彴鎶樺彔銆佹垚鍛樼姸鎬佷笌绾︽垬闄愬埗淇濇寔</p></article>
+        <article class="update-item"><div class="v"><b>0.6.3</b><span>2026-11-16</span></div><p>设置：抽屉顶部新增 8 个图标分区导航，吸顶、点击平滑定位，整体更紧凑</p></article>
+        <article class="update-item"><div class="v"><b>0.6.2</b><span>2026-11-17</span></div><p>邀请注册：所有者可在管理台一键开关并生成邀请码；更新体验：后台自动差量，失败才提示手动下载；画面与渲染：可选 OpenGL / Direct3D、分辨率与窗口化</p></article>
         <article class="update-item"><div class="v"><b>0.6.1</b><span>2026-11-10</span></div><p>排位结算失败自动补交，重启平台后分数不再丢</p></article>
         <article class="update-item"><div class="v"><b>0.6.0</b><span>2026-11-10</span></div><p>反占服与成员面板：AFK 判负、观战 4 人、锁服排队、可收缩成员栏与占用看板</p></article>
         <article class="update-item"><div class="v"><b>0.5.23</b><span>2026-11-10</span></div><p>约战单局 15 分钟限时并到点按比分结算</p></article>
@@ -398,7 +399,7 @@
     if(nav.style.display==='flex')Object.assign(nav.style,{position:'absolute',top:'68px',left:'16px',right:'16px',flexDirection:'column',alignItems:'stretch',background:'rgba(10,14,23,.98)',border:'1px solid var(--line)',borderRadius:'12px',padding:'8px',zIndex:60});
   });
 
-  const DEFAULT_VERSION = '0.6.2';
+  const DEFAULT_VERSION = '0.6.3';
   function applyVersion(version, downloadUrl){
     const v=version||DEFAULT_VERSION;
     ['#versionCode','#versionCode2','#downloadVersion'].forEach(id=>{const el=$(id);if(el)el.textContent=v});

@@ -24,7 +24,7 @@ $Root      = 'C:\esf'
 $SetupDir  = 'C:\esf-setup'
 $ApiPort   = 3000
 $DbPort    = 3307
-$LatestVer = '0.6.2'   # 由 scripts/sync-versions.cjs 随发版同步，勿手改
+$LatestVer = '0.6.3'   # 由 scripts/sync-versions.cjs 随发版同步，勿手改
 $ServerIp  = '119.29.82.217'
 # 游戏服来源 IP（esf_amxx 账号授权），以及当前插件包的 BUILD（心跳期望值）
 $GameServerIp = '114.132.84.150'
