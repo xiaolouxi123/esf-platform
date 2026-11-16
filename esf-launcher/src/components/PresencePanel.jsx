@@ -153,18 +153,20 @@ export default function PresencePanel({
               <circle cx="22" cy="22" r="11" className="radar-ring" />
               <circle cx="22" cy="22" r="4" className="radar-ring" />
               <line x1="22" y1="22" x2="22" y2="4" className="radar-sweep" />
-              {nodes.map((node, index) => {
-                const angle = (index / nodes.length) * Math.PI * 2 - Math.PI / 2;
-                return (
-                  <circle
-                    key={node.key}
-                    cx={22 + Math.cos(angle) * 16}
-                    cy={22 + Math.sin(angle) * 16}
-                    r="2.6"
-                    className={`radar-dot radar-dot--${node.state}`}
-                  />
-                );
-              })}
+              <g className="radar-orbit">
+                {nodes.map((node, index) => {
+                  const angle = (index / nodes.length) * Math.PI * 2 - Math.PI / 2;
+                  return (
+                    <circle
+                      key={node.key}
+                      cx={22 + Math.cos(angle) * 16}
+                      cy={22 + Math.sin(angle) * 16}
+                      r="2.6"
+                      className={`radar-dot radar-dot--${node.state}`}
+                    />
+                  );
+                })}
+              </g>
             </svg>
           </span>
           <span className="radar-label">龙珠雷达</span>

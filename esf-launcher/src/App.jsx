@@ -215,7 +215,7 @@ export default function App() {
   if (booting) return <Splash message={bootMessage} />;
 
   return (
-    <div className="app-root">
+    <div className={`app-root${settings?.reduceMotion ? ' is-static-motion' : ''}`}>
       {user ? (
         <Lobby
           user={user}

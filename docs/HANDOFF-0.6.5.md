@@ -58,3 +58,46 @@
 - 客户端健壮性（ErrorBoundary、渲染进程崩溃恢复）
 - 后端 DB 断连重试、备份恢复演练、Node 版本收敛
 - 代码签名
+## 七、本批进展（2026-11-17 07:58，0.6.5 进行中，未发布）
+
+### 已完成
+
+1. **排位聚焦态**（P0-1）— `RankedPage.jsx`
+   - 抽出 `BetPanel` / `RankSide`，新增 `focusMode = matched && Boolean(match)`：匹配成功时整页只留 `rank-focus-bar`（模式 · 段位 · 分数 · 段位详情开关）+ `MatchBoard`；hero、战绩、排行榜移入 `showDetail` 的 `rank-focus-extra`
+   - 验证：预览页截图 `%TEMP%\esf-test\ranked-focus.png`（880px 居中卡片，其余区块隐藏）
+
+2. **成员分组版式**（P0-2）— `App.css`
+   - 组头回到紧凑行：`padding 3px 5px`、`font-size 10px`、`font-weight 600`、`line-height 1.4`；`em` 计数 `margin-left:auto` + `tabular-nums`；折叠箭头 `order:-1` 移到最左
+   - 验证：`%TEMP%\esf-test\members-2.png`
+
+3. **设置页对齐**（P0-4）— `SettingsDrawer.jsx` + `App.css`
+   - 分区标题前的橙色竖条改为绝对定位，标题文字与说明、字段严格左对齐（原来说明比标题左移 11px）
+   - 折叠箭头 `::after` 加 `margin-left:auto` 贴右，hover 提亮
+   - 修开关行：`.drawer-section .field--row` 补 `flex-direction: row`（继承 `.field` 的 column，导致「界面音效/窗口化运行」标签与开关居中堆叠）
+   - 路径框 `code` 单行省略 + `title` 悬停看全值
+   - 验证：`%TEMP%\esf-test\settings-5.png`
+
+4. **动效第一批（减量实现）**
+   - 在线状态点呼吸辉光（`esfDotBreathe` 3.4s）
+   - 大厅 hero 底图 42s 极慢平移缩放（`esfHeroDrift`）
+   - 龙珠雷达七颗节点 48s 缓慢自转 + 呼吸（`PresencePanel.jsx` 用 `<g class="radar-orbit">` 包住节点）
+   - Logo hover 橙色辉光 + 1.06/rotate(-4deg) + 标题文字提亮
+   - 新增设置项 `reduceMotion`（store 默认 false、`SettingsDrawer` 画面与渲染分区开关、`App.jsx` 根节点 `is-static-motion`）；同时保留 `prefers-reduced-motion`
+
+### 未完成 / 需确认
+
+- **字号回退（P0-3）**：查证后 git 里没有「统一字号」提交，`index.css` 14px 自首个平台布局提交未变，P2/P3/P7 字号分布几乎一致（10–13px + 21/24px 标题），**没有整体放大**。判断「字体变大、不生动」是层级对比弱 + 静止感，本批用对齐 + 动效改善；具体要缩哪一屏请用户指认后再改。
+- hero 每 12s 轮换 2–3 张图（需新增素材与交叉淡入组件）
+- 数字橙色渐变、角色名角色色
+- UI 审核 9 页（guizang）尚未开始
+
+### 验证命令
+
+```
+cd C:\Users\Administrator\Desktop\esf-launcher\esf-launcher
+node node_modules\vite\bin\vite.js build      # 251ms，0 error
+npm.cmd run test                                # 3 个测试文件、39 项检查全过
+cd ..; node scripts/check-versions.cjs          # 12 PASS / 0 FAIL / 2 WARN（唯一来源 0.6.4）
+```
+
+注意：PowerShell 执行策略会拦 `npx`，必须用 `node node_modules\vite\bin\vite.js` 或 `npm.cmd`。

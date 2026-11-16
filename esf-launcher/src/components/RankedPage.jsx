@@ -250,6 +250,99 @@ function HistoryPanel({ history, onOpen }) {
   );
 }
 
+function BetPanel({ match, betTeam, betAmount, setBetTeam, setBetAmount, onBet, busy }) {
+  return (
+    <section className="rank-bet">
+      <header>
+        <div>
+          <span className="rank-eyebrow">竞猜</span>
+          <h3>押注你看好的队伍</h3>
+          <p>奖池按比例分配，平台抽成 5%。比赛开始后停止下注。</p>
+        </div>
+        <div className="rank-pools">
+          <span>
+            A 池 <b>{match.pool?.a ?? 0}</b>
+          </span>
+          <span>
+            B 池 <b>{match.pool?.b ?? 0}</b>
+          </span>
+        </div>
+      </header>
+
+      {match.myBet ? (
+        <div className="rank-my-bet">
+          <Icon name="check" size={15} />
+          已押 {match.myBet.team.toUpperCase()} 队 {match.myBet.amount} 金币
+        </div>
+      ) : (
+        <div className="rank-bet-form">
+          <div className="rank-bet-sides">
+            <button type="button" className={betTeam === 'a' ? 'is-active' : ''} onClick={() => setBetTeam('a')}>
+              A 队 <small>{match.teams?.a?.map((p) => p.gameName).join(' / ')}</small>
+            </button>
+            <button type="button" className={betTeam === 'b' ? 'is-active' : ''} onClick={() => setBetTeam('b')}>
+              B 队 <small>{match.teams?.b?.map((p) => p.gameName).join(' / ')}</small>
+            </button>
+          </div>
+          <div className="rank-bet-amount">
+            <input
+              type="number"
+              min="10"
+              max="5000"
+              step="10"
+              value={betAmount}
+              onChange={(event) => setBetAmount(event.target.value)}
+            />
+            <span>金币</span>
+            <button type="button" className="btn btn-primary btn-sm" onClick={onBet} disabled={busy === 'bet'}>
+              确认下注
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function RankSide({ leaderboard, user }) {
+  return (
+    <>
+      <div className="rank-board">
+        <header>
+          <h3>
+            <Icon name="trophy" size={15} /> 天梯排行榜
+          </h3>
+          <span>全模式</span>
+        </header>
+        {leaderboard.length === 0 ? (
+          <p className="rank-board-empty">还没有人上榜，先打一场。</p>
+        ) : (
+          leaderboard.slice(0, 12).map((row) => (
+            <div className={`rank-board-row${row.id === user?.id ? ' is-self' : ''}`} key={row.id}>
+              <span className="rank-board-pos">{row.position}</span>
+              <Avatar user={row} size="xs" />
+              <span className="rank-board-name">
+                <b>{row.gameName}</b>
+                <small style={{ color: tierColor(row.tier) }}>
+                  {row.tier} · {row.rating}
+                </small>
+              </span>
+              <em>{row.winRate}%</em>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="rank-tips">
+        <h4>规则</h4>
+        <p>胜利 +25 分，失败 -20 分；最低 0 分。</p>
+        <p>比赛开始后服务器锁定，普通玩家无法加入。</p>
+        <p>竞猜仅限赛前，参赛玩家不能下注自己的比赛。</p>
+      </div>
+    </>
+  );
+}
+
 export default function RankedPage({ user, toast, servers = [] }) {
   const [mode, setMode] = useState('1v1');
   const [state, setState] = useState({ state: 'loading', profile: null });
@@ -260,6 +353,7 @@ export default function RankedPage({ user, toast, servers = [] }) {
   const [betTeam, setBetTeam] = useState('a');
   const [betAmount, setBetAmount] = useState(50);
   const [busy, setBusy] = useState('');
+  const [showDetail, setShowDetail] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [result, setResult] = useState(null);
   const launchRef = useRef(null);
@@ -452,11 +546,76 @@ export default function RankedPage({ user, toast, servers = [] }) {
   const match = state.match;
   const queued = state.state === 'queued';
   const matched = state.state === 'matched';
+  // 匹配成功即进入聚焦态：页面上只留对局卡，段位/战绩/排行榜收进「段位详情」
+  const focusMode = matched && Boolean(match);
   const rank = tierInfo(profile?.rating);
   const currentMode = MODE_META[mode] || MODE_META['1v1'];
 
   return (
     <div className="ranked-page">
+      {focusMode ? (
+        <section className="rank-focus">
+          <div className="rank-focus-bar">
+            <span className="rank-focus-label">
+              <Icon name="swords" size={14} />
+              {MODE_META[match.mode]?.label || match.mode} 排位对局
+            </span>
+            <span className="rank-focus-tags">
+              <span className="tag tag--rank" style={{ color: tierColor(rank.current.name) }}>
+                {rank.current.name}
+              </span>
+              <span className="tag tag--code">{rank.value} 分</span>
+            </span>
+            <button
+              type="button"
+              className={`btn btn-ghost btn-sm rank-focus-more${showDetail ? ' is-open' : ''}`}
+              onClick={() => setShowDetail((value) => !value)}
+              aria-expanded={showDetail}
+            >
+              <Icon name="chevronRight" size={14} />
+              {showDetail ? '收起详情' : '段位详情'}
+            </button>
+          </div>
+
+          <MatchBoard
+            match={match}
+            user={user}
+            busy={Boolean(busy)}
+            onReady={ready}
+            onLaunch={() => {
+              launchRef.current = match.id;
+              launchMatch(match);
+            }}
+            onFinish={finish}
+            onSpectate={spectate}
+            onCancel={leaveMatch}
+          />
+
+          {!match.isParticipant && (
+            <BetPanel
+              match={match}
+              betTeam={betTeam}
+              betAmount={betAmount}
+              setBetTeam={setBetTeam}
+              setBetAmount={setBetAmount}
+              onBet={bet}
+              busy={busy}
+            />
+          )}
+
+          {showDetail && (
+            <div className="ranked-grid rank-focus-extra">
+              <div className="ranked-main">
+                <HistoryPanel history={history} onOpen={(row) => setResult({ ...row, fromHistory: true })} />
+              </div>
+              <aside className="ranked-side">
+                <RankSide leaderboard={leaderboard} user={user} />
+              </aside>
+            </div>
+          )}
+        </section>
+      ) : (
+        <>
       <header className="ranked-hero">
         <span className="hero-art" aria-hidden="true" />
         <span className="hero-mask" aria-hidden="true" />
@@ -560,12 +719,6 @@ export default function RankedPage({ user, toast, servers = [] }) {
               </>
             )}
 
-            {matched && (
-              <span className={`rank-live-chip${match?.status === 'live' ? ' is-live' : ''}`}>
-                <i />
-                {match?.status === 'live' ? '比赛进行中' : '等待全员准备'}
-              </span>
-            )}
           </div>
         </div>
       </header>
@@ -589,84 +742,6 @@ export default function RankedPage({ user, toast, servers = [] }) {
             </section>
           )}
 
-          {matched && match && (
-            <>
-              <MatchBoard
-                match={match}
-                user={user}
-                busy={Boolean(busy)}
-                onReady={ready}
-                onLaunch={() => {
-                  launchRef.current = match.id;
-                  launchMatch(match);
-                }}
-                onFinish={finish}
-                onSpectate={spectate}
-                onCancel={leaveMatch}
-              />
-
-              {!match.isParticipant && (
-                <section className="rank-bet">
-                  <header>
-                    <div>
-                      <span className="rank-eyebrow">竞猜</span>
-                      <h3>押注你看好的队伍</h3>
-                      <p>奖池按比例分配，平台抽成 5%。比赛开始后停止下注。</p>
-                    </div>
-                    <div className="rank-pools">
-                      <span>
-                        A 池 <b>{match.pool?.a ?? 0}</b>
-                      </span>
-                      <span>
-                        B 池 <b>{match.pool?.b ?? 0}</b>
-                      </span>
-                    </div>
-                  </header>
-
-                  {match.myBet ? (
-                    <div className="rank-my-bet">
-                      <Icon name="check" size={15} />
-                      已押 {match.myBet.team.toUpperCase()} 队 {match.myBet.amount} 金币
-                    </div>
-                  ) : (
-                    <div className="rank-bet-form">
-                      <div className="rank-bet-sides">
-                        <button
-                          type="button"
-                          className={betTeam === 'a' ? 'is-active' : ''}
-                          onClick={() => setBetTeam('a')}
-                        >
-                          A 队 <small>{match.teams?.a?.map((p) => p.gameName).join(' / ')}</small>
-                        </button>
-                        <button
-                          type="button"
-                          className={betTeam === 'b' ? 'is-active' : ''}
-                          onClick={() => setBetTeam('b')}
-                        >
-                          B 队 <small>{match.teams?.b?.map((p) => p.gameName).join(' / ')}</small>
-                        </button>
-                      </div>
-                      <div className="rank-bet-amount">
-                        <input
-                          type="number"
-                          min="10"
-                          max="5000"
-                          step="10"
-                          value={betAmount}
-                          onChange={(event) => setBetAmount(event.target.value)}
-                        />
-                        <span>金币</span>
-                        <button type="button" className="btn btn-primary btn-sm" onClick={bet} disabled={busy === 'bet'}>
-                          确认下注
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </section>
-              )}
-            </>
-          )}
-
           {state.state === 'error' && (
             <div className="empty empty--inline">
               <Icon name="alert" size={18} />
@@ -678,40 +753,12 @@ export default function RankedPage({ user, toast, servers = [] }) {
         </div>
 
         <aside className="ranked-side">
-          <div className="rank-board">
-            <header>
-              <h3>
-                <Icon name="trophy" size={15} /> 天梯排行榜
-              </h3>
-              <span>全模式</span>
-            </header>
-            {leaderboard.length === 0 ? (
-              <p className="rank-board-empty">还没有人上榜，先打一场。</p>
-            ) : (
-              leaderboard.slice(0, 12).map((row) => (
-                <div className={`rank-board-row${row.id === user?.id ? ' is-self' : ''}`} key={row.id}>
-                  <span className="rank-board-pos">{row.position}</span>
-                  <Avatar user={row} size="xs" />
-                  <span className="rank-board-name">
-                    <b>{row.gameName}</b>
-                    <small style={{ color: tierColor(row.tier) }}>
-                      {row.tier} · {row.rating}
-                    </small>
-                  </span>
-                  <em>{row.winRate}%</em>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="rank-tips">
-            <h4>规则</h4>
-            <p>胜利 +25 分，失败 -20 分；最低 0 分。</p>
-            <p>比赛开始后服务器锁定，普通玩家无法加入。</p>
-            <p>竞猜仅限赛前，参赛玩家不能下注自己的比赛。</p>
-          </div>
+          <RankSide leaderboard={leaderboard} user={user} />
         </aside>
       </div>
+
+        </>
+      )}
 
       {countdown !== null && (
         <div className="rank-countdown">

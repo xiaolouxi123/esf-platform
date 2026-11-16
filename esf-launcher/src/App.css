@@ -12495,20 +12495,31 @@ select:focus {
 .render-mode-card b, .render-mode-card small, .render-mode-card span { display: block; }
 .render-mode-card small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* 成员分组折叠 */
+/* 成员分组折叠：整行可点、箭头贴左、标签左对齐、计数右对齐、行高回到 0.6.3 */
 .member-group-head {
   width: 100%;
   border: 0;
   background: none;
-  font: inherit;
+  padding: 3px 5px;
+  margin: 0;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  color: var(--dim);
   text-align: left;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.member-group-head:hover { color: var(--text); }
-.member-group-chev { margin-left: auto; font-size: 10px; color: var(--dim); }
+.member-group-head:hover { background: rgba(255, 255, 255, 0.035); color: var(--text); }
+.member-group-head:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.member-group-head em { margin-left: auto; font-style: normal; font-size: 9px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.member-group-chev { order: -1; width: 8px; margin: 0; font-size: 9px; color: var(--dim); text-align: center; }
 
 /* 长路径截断 */
 .path-box code {
@@ -12519,3 +12530,165 @@ select:focus {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* ===== 0.6.5：排位匹配成功聚焦态（只留对局卡，段位/战绩/排行榜按需展开） ===== */
+.rank-focus {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 880px;
+  margin: auto;
+  padding: 2px 0 6px;
+}
+
+.rank-focus-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rank-focus-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #e8eef8;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.rank-focus-label svg { color: #7de6ff; }
+
+.rank-focus-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rank-focus-tags .tag--rank {
+  border-color: color-mix(in srgb, currentColor 55%, transparent);
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 700;
+}
+
+.rank-focus-tags .tag--code {
+  color: #b9c6e2;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.rank-focus-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  margin-left: auto;
+}
+
+.rank-focus-more svg { transition: transform 0.18s ease; }
+.rank-focus-more.is-open svg { transform: rotate(90deg); }
+
+.rank-focus-extra { margin-top: 4px; }
+
+.rank-focus .rank-match { box-shadow: 0 22px 54px rgba(0, 0, 0, 0.42); }
+
+
+/* ===== 0.6.5 设置页对齐 ===== */
+/* 标题前的橙色竖条不再参与布局，标题文字与说明/字段严格左对齐 */
+.drawer-section h3 {
+  position: relative;
+  padding-left: 11px;
+  line-height: 1.5;
+}
+.drawer-section h3::before {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  margin-top: -6px;
+}
+.drawer-section h3::after {
+  margin-left: auto;
+  opacity: 0.35;
+}
+.drawer-section:hover h3::after { opacity: 0.6; }
+/* 说明文字贴合标题下沿，字段区与说明之间留一档呼吸 */
+.drawer-hint { margin: -3px 0 0; }
+.drawer-section > .path-box,
+.drawer-section > .field,
+.drawer-section > .field-row,
+.drawer-section > .btn-block {
+  width: 100%;
+}
+.drawer-section .path-box code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== 0.6.5 动效（可被「减少动态效果」关闭） ===== */
+@keyframes esfDotBreathe {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.16); }
+  50% { box-shadow: 0 0 0 5px rgba(61, 220, 151, 0.05); }
+}
+.dot--on { animation: esfDotBreathe 3.4s ease-in-out infinite; }
+
+@keyframes esfHeroDrift {
+  from { transform: scale(1.02) translate3d(0, 0, 0); }
+  to { transform: scale(1.07) translate3d(-1.4%, -1.1%, 0); }
+}
+.hero-art { animation: esfHeroDrift 42s ease-in-out infinite alternate; }
+
+@keyframes esfRadarOrbit { to { transform: rotate(360deg); } }
+.radar-orbit { transform-origin: 22px 22px; animation: esfRadarOrbit 48s linear infinite; }
+.radar-dot--ok { animation: esfDotGlow 3.6s ease-in-out infinite; }
+@keyframes esfDotGlow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.brand-mark { transition: transform 0.35s ease, filter 0.35s ease; }
+.brand:hover .brand-mark {
+  transform: scale(1.06) rotate(-4deg);
+  filter: drop-shadow(0 0 10px rgba(255, 140, 40, 0.55));
+}
+.brand-text b { transition: color 0.3s ease; }
+.brand:hover .brand-text b { color: #ffd9a8; }
+
+/* 关闭动效：设置开关 + 系统偏好，两条路都停掉装饰动画 */
+.app-root.is-static-motion .dot--on,
+.app-root.is-static-motion .hero-art,
+.app-root.is-static-motion .radar-orbit,
+.app-root.is-static-motion .radar-dot--ok,
+.app-root.is-static-motion .brand:hover .brand-mark {
+  animation: none;
+  transform: none;
+}
+.app-root.is-static-motion .app-shell::after,
+.app-root.is-static-motion .auth-bg {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot--on,
+  .hero-art,
+  .radar-orbit,
+  .radar-dot--ok,
+  .app-shell::after,
+  .auth-bg {
+    animation: none;
+  }
+  .brand:hover .brand-mark { transform: none; }
+}
+
+/* 开关行：标签在左、控件贴右（原 .field 是纵向列，导致标签与开关居中堆叠） */
+.drawer-section .field--row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 30px;
+}
+.drawer-section .field { margin-bottom: 0; }
+.drawer-section .field--row .field-label { flex: 1; }

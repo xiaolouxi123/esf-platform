@@ -520,6 +520,18 @@ export default function SettingsDrawer({
               </select>
             </label>
             <label className="field field--row">
+              <span className="field-label">减少动态效果</span>
+              <button
+                type="button"
+                className={`switch${draft.reduceMotion ? ' is-on' : ''}`}
+                role="switch"
+                aria-checked={Boolean(draft.reduceMotion)}
+                onClick={() => saveRender({ reduceMotion: !draft.reduceMotion })}
+              >
+                <i />
+              </button>
+            </label>
+            <label className="field field--row">
               <span className="field-label">窗口化运行</span>
               <button
                 type="button"

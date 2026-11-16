@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS = {
   renderWidth: 0,
   renderHeight: 0,
   renderWindowed: false,
+  reduceMotion: false,
 };
 
 function baseDir() {
@@ -95,6 +96,7 @@ function normalizeSettings(raw) {
   merged.renderWidth = clampResolution(merged.renderWidth);
   merged.renderHeight = clampResolution(merged.renderHeight);
   merged.renderWindowed = merged.renderWindowed === true;
+  merged.reduceMotion = merged.reduceMotion === true;
   return merged;
 }
 
