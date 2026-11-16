@@ -28,6 +28,7 @@ const { requireAuth } = require('../middleware/auth');
 const { requireRole, isAdmin, ROLES } = require('../middleware/roles');
 const { badRequest, notFound, forbidden, conflict } = require('../lib/errors');
 const { logAction, listAudit } = require('../services/audit');
+const invites = require('../services/invites');
 const { getPlatformSettings, updatePlatformSettings } = require('../services/platform');
 
 const router = express.Router();
@@ -504,6 +505,65 @@ router.post('/admin/users/:id/reset-password', requireRole('admin', 'owner'), as
     });
 
     res.json({ ok: true, data: { tempPassword, mustChangePassword: true } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** 注册邀请码（仅所有者）：查看、生成、开关、停用 */
+router.get('/admin/invites', requireRole('owner'), async (req, res, next) => {
+  try {
+    const [required, codes] = await Promise.all([invites.isRequired(), invites.listCodes()]);
+    res.json({ ok: true, data: { required, codes } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/admin/invites', requireRole('owner'), async (req, res, next) => {
+  try {
+    const count = Math.max(1, Math.min(20, Number(req.body?.count) || 1));
+    const codes = await invites.createCodes(count, req.user.id);
+    await logAction(req, {
+      action: 'invite.create',
+      targetType: 'invite',
+      targetId: null,
+      detail: { count, codes },
+    });
+    res.json({ ok: true, data: { codes, required: await invites.isRequired() } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/admin/invites/toggle', requireRole('owner'), async (req, res, next) => {
+  try {
+    const required = await invites.setRequired(Boolean(req.body?.enabled));
+    await logAction(req, {
+      action: 'invite.toggle',
+      targetType: 'invite',
+      targetId: null,
+      detail: { required },
+    });
+    res.json({ ok: true, data: { required } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/admin/invites/disable', requireRole('owner'), async (req, res, next) => {
+  try {
+    const code = String(req.body?.code || '').trim().toUpperCase();
+    if (!code) throw badRequest('邀请码不能为空');
+    const disabled = await invites.disableCode(code);
+    if (!disabled) throw notFound('邀请码不存在或已停用');
+    await logAction(req, {
+      action: 'invite.disable',
+      targetType: 'invite',
+      targetId: null,
+      detail: { code },
+    });
+    res.json({ ok: true, data: { code, disabled: true } });
   } catch (err) {
     next(err);
   }

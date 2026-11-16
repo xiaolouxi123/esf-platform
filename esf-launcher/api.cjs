@@ -264,6 +264,13 @@ async function downloadAsset(settings, token, id) {
 
 const adminOverview = (settings, token) => request(settings, { path: '/api/admin/overview', token });
 const adminOccupancy = (settings, token) => request(settings, { path: '/api/admin/occupancy', token });
+const adminInvites = (settings, token) => request(settings, { path: '/api/admin/invites', token });
+const adminCreateInvites = (settings, token, count) =>
+  request(settings, { method: 'POST', path: '/api/admin/invites', token, body: { count } });
+const adminToggleInvites = (settings, token, enabled) =>
+  request(settings, { method: 'POST', path: '/api/admin/invites/toggle', token, body: { enabled } });
+const adminDisableInvite = (settings, token, code) =>
+  request(settings, { method: 'POST', path: '/api/admin/invites/disable', token, body: { code } });
 
 const adminUsers = (settings, token, params) =>
   request(settings, { path: `/api/admin/users${queryString(params)}`, token });
@@ -455,6 +462,10 @@ module.exports = {
   downloadAsset,
   adminOverview,
   adminOccupancy,
+  adminInvites,
+  adminCreateInvites,
+  adminToggleInvites,
+  adminDisableInvite,
   adminUsers,
   adminUpdateUser,
   adminKickUser,

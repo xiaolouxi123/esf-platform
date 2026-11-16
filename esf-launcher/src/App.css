@@ -3678,6 +3678,18 @@ select:focus {
   border-color: rgba(61, 220, 151, 0.35);
   background: rgba(61, 220, 151, 0.08);
 }
+
+.update-strip--error {
+  border-color: rgba(255, 95, 109, 0.4);
+  background: rgba(255, 95, 109, 0.1);
+}
+
+.update-strip--error .update-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 /* ============================ 登录页服务器设置 ============================ */
 .auth-server {
   margin-top: 12px;
@@ -12430,3 +12442,20 @@ select:focus {
   color: #9fe3ff; word-break: break-all;
 }
 @media (max-width: 560px) { .render-mode-grid { grid-template-columns: 1fr; } }
+
+/* ==== 注册与邀请 ==== */
+.invite-form { display: flex; flex-direction: column; gap: 12px; }
+.invite-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+.invite-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px; border-radius: var(--radius-sm, 10px);
+  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255,255,255,.02);
+}
+.invite-row.is-disabled { opacity: .45; }
+.invite-row code {
+  font-family: 'JetBrains Mono', Consolas, monospace; font-size: 13px;
+  letter-spacing: .08em; color: #ffb066;
+}
+.invite-meta { font-size: 11px; color: var(--muted, #a4adc2); }
+.invite-actions { margin-left: auto; display: flex; gap: 6px; }

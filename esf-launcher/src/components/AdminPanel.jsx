@@ -62,7 +62,7 @@ export default function AdminPanel({
   onLogout,
 }) {
   const staff = isStaff(user?.role);
-  const canAssign = isAdminRole(user?.role);
+  const canAssign = isAdminRole(user?.role);
   const canSeeAudit = isAdminRole(user?.role);
   const owner = isOwner(user?.role);
   const titleById = new Map(titles.map((item) => [Number(item.id), item]));
@@ -83,6 +83,10 @@ export default function AdminPanel({
 
   const [occupancy, setOccupancy] = useState(null);
   const [occupancyLoading, setOccupancyLoading] = useState(false);
+
+  const [invites, setInvites] = useState({ required: false, codes: [] });
+  const [invitesLoading, setInvitesLoading] = useState(false);
+  const [inviteBusy, setInviteBusy] = useState(false);
 
   const [platform, setPlatform] = useState(null);
   const [platformForm, setPlatformForm] = useState({ notice: '', maintenance: false, maintenanceText: '' });
@@ -176,6 +180,76 @@ export default function AdminPanel({
       clearInterval(interval);
     };
   }, [openSection, loadOccupancy]);
+
+  const loadInvites = useCallback(async () => {
+    if (!staff) return;
+    setInvitesLoading(true);
+    try {
+      const data = await window.electronAPI.admin.invites();
+      setInvites({ required: Boolean(data.required), codes: data.codes || [] });
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setInvitesLoading(false);
+    }
+  }, [staff, toast]);
+
+  useEffect(() => {
+    if (openSection !== 'invites') return undefined;
+    const timer = setTimeout(() => loadInvites(), 0);
+    return () => clearTimeout(timer);
+  }, [openSection, loadInvites]);
+
+  const toggleInvites = async () => {
+    if (inviteBusy) return;
+    setInviteBusy(true);
+    try {
+      const data = await window.electronAPI.admin.inviteToggle(!invites.required);
+      setInvites((prev) => ({ ...prev, required: Boolean(data.required) }));
+      toast(data.required ? '已开启邀请注册' : '已关闭邀请注册', 'ok');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setInviteBusy(false);
+    }
+  };
+
+  const createInvites = async (count) => {
+    if (inviteBusy) return;
+    setInviteBusy(true);
+    try {
+      const data = await window.electronAPI.admin.inviteCreate(count);
+      toast(`已生成 ${data.codes?.length || 0} 个邀请码`, 'ok');
+      await loadInvites();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setInviteBusy(false);
+    }
+  };
+
+  const disableInvite = async (code) => {
+    if (inviteBusy) return;
+    setInviteBusy(true);
+    try {
+      await window.electronAPI.admin.inviteDisable(code);
+      toast(`邀请码 ${code} 已停用`, 'ok');
+      await loadInvites();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setInviteBusy(false);
+    }
+  };
+
+  const copyInvite = async (code) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      toast(`已复制 ${code}`, 'ok');
+    } catch {
+      toast('复制失败，请手动选择文本', 'error');
+    }
+  };
 
   useEffect(() => {
     if (!staff) return undefined;
@@ -825,6 +899,79 @@ export default function AdminPanel({
               {platformSaving ? '保存中…' : '保存设置'}
             </button>
           </div>
+        </div>
+      </section>
+
+      <section className="admin-section" data-key="invites" data-open={openSection === 'invites'}>
+        <div className="admin-section-head">
+          <h3>
+            <Icon name="shield" size={15} /> 注册与邀请
+            <span className="tag">仅所有者</span>
+          </h3>
+          <span className={`status-pill status-${invites.required ? 'active' : 'banned'}`}>
+            {invites.required ? '邀请制开启' : '开放注册'}
+          </span>
+        </div>
+
+        <div className="invite-form">
+          <label className="switch-row">
+            <input
+              type="checkbox"
+              checked={invites.required}
+              onChange={toggleInvites}
+              disabled={inviteBusy || !owner}
+            />
+            <span>
+              <b>开启邀请注册</b>
+              <small>关闭后任何人都能注册；已生成的邀请码会保留，下次开启仍可用</small>
+            </span>
+          </label>
+
+          <div className="admin-actions">
+            <button type="button" className="btn btn-primary" onClick={() => createInvites(1)} disabled={inviteBusy || !owner}>
+              <Icon name="plus" size={14} /> 生成 1 个
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => createInvites(5)} disabled={inviteBusy || !owner}>
+              生成 5 个
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => createInvites(10)} disabled={inviteBusy || !owner}>
+              生成 10 个
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={loadInvites} disabled={invitesLoading}>
+              <Icon name="refresh" size={14} /> 刷新
+            </button>
+          </div>
+
+          {invitesLoading ? (
+            <p className="muted">正在读取邀请码…</p>
+          ) : invites.codes.length === 0 ? (
+            <p className="muted">还没有邀请码。开启邀请注册前先生成几个。</p>
+          ) : (
+            <div className="invite-list">
+              {invites.codes.map((item) => (
+                <div className={`invite-row${item.disabled ? ' is-disabled' : ''}`} key={item.code}>
+                  <code>{item.code}</code>
+                  <span className="invite-meta">
+                    已用 {item.usedCount} 次
+                    {item.disabled ? ' · 已停用' : ''}
+                  </span>
+                  <div className="invite-actions">
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => copyInvite(item.code)}>
+                      <Icon name="copy" size={13} /> 复制
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => disableInvite(item.code)}
+                      disabled={item.disabled || inviteBusy || !owner}
+                    >
+                      停用
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

@@ -50,7 +50,7 @@ router.get('/config', async (req, res, next) => {
         apiVersion: 1,
         version: env.version,
         db: dbUp ? 'up' : 'down',
-        inviteRequired: Boolean(env.inviteCode),
+        inviteRequired: Boolean(platform.inviteRequired),
         latestVersion: platform.latestVersion,
         releaseNotes: platform.releaseNotes,
         downloadUrl: platform.downloadUrl,

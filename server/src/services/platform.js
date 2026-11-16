@@ -14,6 +14,7 @@ const DEFAULTS = {
   notice: '',
   maintenance: false,
   maintenanceText: '平台维护中，请稍后再试',
+  inviteRequired: false,
 };
 
 async function getPlatformSettings() {
@@ -27,6 +28,7 @@ async function getPlatformSettings() {
       latestVersion: map.release_latest_version || env.latestVersion,
       releaseNotes: map.release_notes || env.releaseNotes,
       downloadUrl: map.release_download_url || env.downloadUrl,
+      inviteRequired: String(map.invite_required ?? '') === '1',
     };
   } catch {
     return {
@@ -36,6 +38,7 @@ async function getPlatformSettings() {
       latestVersion: env.latestVersion,
       releaseNotes: env.releaseNotes,
       downloadUrl: env.downloadUrl,
+      inviteRequired: false,
     };
   }
 }
@@ -56,6 +59,9 @@ async function updatePlatformSettings(patch) {
   }
   if (patch.downloadUrl !== undefined) {
     entries.push(['release_download_url', String(patch.downloadUrl)]);
+  }
+  if (patch.inviteRequired !== undefined) {
+    entries.push(['invite_required', patch.inviteRequired ? '1' : '0']);
   }
 
   for (const [key, value] of entries) {

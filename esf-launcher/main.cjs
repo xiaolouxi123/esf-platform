@@ -1817,6 +1817,32 @@ handle('admin:delete-user', async ({ id } = {}) => {
   return data;
 });
 
+handle('admin:invites', async () => {
+  requireOwner();
+  return apiCall(api.adminInvites, getSettings(), requireToken());
+});
+
+handle('admin:invite-create', async ({ count } = {}) => {
+  requireOwner();
+  const data = await apiCall(api.adminCreateInvites, getSettings(), requireToken(), count || 1);
+  log(`🛡️ 已生成 ${data.codes?.length || 0} 个邀请码`);
+  return data;
+});
+
+handle('admin:invite-toggle', async ({ enabled } = {}) => {
+  requireOwner();
+  const data = await apiCall(api.adminToggleInvites, getSettings(), requireToken(), Boolean(enabled));
+  log(`🛡️ 邀请注册已${data.required ? '开启' : '关闭'}`);
+  return data;
+});
+
+handle('admin:invite-disable', async ({ code } = {}) => {
+  requireOwner();
+  const data = await apiCall(api.adminDisableInvite, getSettings(), requireToken(), code);
+  log(`🛡️ 邀请码 ${code} 已停用`);
+  return data;
+});
+
 handle('admin:assets', async ({ status } = {}) => {
   requireStaff();
   return apiCall(api.adminAssets, getSettings(), requireToken(), status || 'pending');

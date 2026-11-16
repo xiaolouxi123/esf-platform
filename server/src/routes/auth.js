@@ -23,6 +23,7 @@ const { conflict, unauthorized, forbidden, badRequest, notFound } = require('../
 const mail = require('../services/mail');
 const totp = require('../services/totp');
 const sessions = require('../services/sessions');
+const invites = require('../services/invites');
 const { checkPassword } = require('../lib/password');
 
 const router = express.Router();
@@ -183,9 +184,8 @@ router.post('/register', registerLimiter, async (req, res, next) => {
     const strength = checkPassword(body.password, { username: body.username, email: body.email });
     if (!strength.ok) throw badRequest(strength.message);
 
-    if (env.inviteCode && body.inviteCode !== env.inviteCode) {
-      throw forbidden('邀请码不正确');
-    }
+    const invite = await invites.checkRegistration(body.inviteCode);
+    if (!invite.ok) throw forbidden(invite.message);
 
     const exists = await one('SELECT id FROM users WHERE username = ? LIMIT 1', [body.username]);
     if (exists) throw conflict('账号已被注册');

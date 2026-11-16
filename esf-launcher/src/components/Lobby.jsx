@@ -76,6 +76,7 @@ export default function Lobby({
   const joinServerRef = useRef(null);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [releaseNotice, setReleaseNotice] = useState(null);
+  const [hideUpdateStrip, setHideUpdateStrip] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [autoUpdate, setAutoUpdate] = useState(null);
   const [adminSummary, setAdminSummary] = useState(null);
@@ -311,22 +312,29 @@ export default function Lobby({
     };
   }, [toast]);
 
-  // 版本更新公告：每个版本只在首次进入大厅时弹一次，管理员公告仍在公告栏独立展示
+  // 版本更新公告：只在自动差量失败时弹出「手动下载」兜底；正常更新在后台静默完成。
   useEffect(() => {
     const version = String(updateInfo?.latest || '').trim();
     if (!version) return;
-    if (localStorage.getItem('esf:seenReleaseVersion') === version) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 首次登录时根据更新配置弹出公告
-    setReleaseNotice({
-      version,
-      current: updateInfo?.current || appInfo?.version || '',
-      notes:
-        String(updateInfo?.releaseNotes || '').trim() ||
-        '本次更新包含新功能、体验优化与稳定性修复。',
-      downloadUrl: updateInfo?.downloadUrl || '',
-      hasUpdate: Boolean(updateInfo?.hasUpdate),
-    });
-  }, [updateInfo, appInfo?.version]);
+    if (autoUpdate?.status !== 'error') return;
+    if (localStorage.getItem('esf:updateFailedVersion') === version) return;
+    localStorage.setItem('esf:updateFailedVersion', version);
+    const timer = setTimeout(
+      () =>
+        setReleaseNotice({
+          version,
+          current: updateInfo?.current || appInfo?.version || '',
+          notes:
+            String(updateInfo?.releaseNotes || '').trim() ||
+            '自动更新没有完成，可以重试，或手动下载完整安装包覆盖安装。',
+          downloadUrl: updateInfo?.downloadUrl || '',
+          hasUpdate: Boolean(updateInfo?.hasUpdate),
+          failed: true,
+        }),
+      0
+    );
+    return () => clearTimeout(timer);
+  }, [updateInfo, appInfo?.version, autoUpdate?.status]);
 
   const dismissReleaseNotice = () => {
     if (releaseNotice?.version) {
@@ -1061,7 +1069,7 @@ export default function Lobby({
                 </div>
               )}
 
-              {autoUpdate?.status === 'downloaded' && (
+              {!hideUpdateStrip && autoUpdate?.status === 'downloaded' && (
                 <div className="update-strip update-strip--ready">
                   <Icon name="download" size={15} />
                   <span>
@@ -1074,10 +1082,18 @@ export default function Lobby({
                   >
                     立即重启安装
                   </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => setHideUpdateStrip(true)}
+                  >
+                    稍后
+                  </button>
                 </div>
               )}
 
-              {autoUpdate &&
+              {!hideUpdateStrip &&
+                autoUpdate &&
                 ['checking', 'available', 'downloading'].includes(autoUpdate.status) && (
                   <div className="update-strip update-strip--progress">
                     <Icon name="refresh" size={15} />
@@ -1086,9 +1102,9 @@ export default function Lobby({
                         <span>
                           {autoUpdate.status === 'checking' && '正在检查更新…'}
                           {autoUpdate.status === 'available' &&
-                            `发现 v${autoUpdate.version}，准备下载…`}
+                            `发现 v${autoUpdate.version}，正在后台准备…`}
                           {autoUpdate.status === 'downloading' &&
-                            `正在下载 v${autoUpdate.version} · ${autoUpdate.percent || 0}%`}
+                            `正在后台更新 v${autoUpdate.version} · ${autoUpdate.percent || 0}%`}
                         </span>
                         {autoUpdate.status === 'downloading' && autoUpdate.total > 0 && (
                           <span className="update-progress-size">
@@ -1103,8 +1119,8 @@ export default function Lobby({
                         </div>
                       )}
                     </div>
-                    {autoUpdate.status === 'downloading' && (
-                      <div className="update-actions">
+                    <div className="update-actions">
+                      {autoUpdate.status === 'downloading' && (
                         <button
                           type="button"
                           className="btn btn-sm btn-ghost"
@@ -1112,15 +1128,15 @@ export default function Lobby({
                         >
                           暂停
                         </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-ghost"
-                          onClick={() => window.electronAPI.update.dismiss().catch(() => {})}
-                        >
-                          关闭
-                        </button>
-                      </div>
-                    )}
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-ghost"
+                        onClick={() => setHideUpdateStrip(true)}
+                      >
+                        关闭
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1144,7 +1160,7 @@ export default function Lobby({
                     <button
                       type="button"
                       className="btn btn-sm btn-ghost"
-                      onClick={() => window.electronAPI.update.dismiss().catch(() => {})}
+                      onClick={() => setHideUpdateStrip(true)}
                     >
                       关闭
                     </button>
@@ -1152,29 +1168,37 @@ export default function Lobby({
                 </div>
               )}
 
-              {updateInfo?.hasUpdate &&
-                !['available', 'downloading', 'downloaded', 'paused', 'dismissed'].includes(autoUpdate?.status) && (
-                <div className="update-strip update-strip--release">
-                  <Icon name="spark" size={15} />
+              {!hideUpdateStrip && autoUpdate?.status === 'error' && (
+                <div className="update-strip update-strip--error">
+                  <Icon name="alert" size={15} />
                   <span>
-                    新版本 <b>v{updateInfo.latest}</b> 已发布
-                    <em className="update-strip-note"> · 更新说明与下载</em>
+                    更新 <b>v{autoUpdate.version || updateInfo?.latest}</b> 没有完成
+                    {autoUpdate.message ? ` · ${autoUpdate.message}` : ''}
                   </span>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    onClick={() => {
-                      setReleaseNotice((prev) => prev || {
-                        version: updateInfo.latest,
-                        current: updateInfo.current,
-                        notes: updateInfo.releaseNotes || '本次更新包含新功能、体验优化与稳定性修复。',
-                        downloadUrl: updateInfo.downloadUrl || '',
-                        hasUpdate: Boolean(updateInfo.hasUpdate),
-                      });
-                    }}
-                  >
-                    查看更新
-                  </button>
+                  <div className="update-actions">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      onClick={() => window.electronAPI.update.check().catch(() => {})}
+                    >
+                      重试
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => window.electronAPI.shell.openExternal(updateInfo?.downloadUrl).catch(() => {})}
+                      disabled={!updateInfo?.downloadUrl}
+                    >
+                      手动下载
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => setHideUpdateStrip(true)}
+                    >
+                      关闭
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1192,8 +1216,16 @@ export default function Lobby({
                         <span className="update-modal-kicker">
                           <Icon name="spark" size={12} /> VERSION UPDATE
                         </span>
-                        <h2 id="release-modal-title">平台已更新至 v{releaseNotice.version}</h2>
-                        <p>本次版本带来新的平台能力，进入大厅即可使用。</p>
+                        <h2 id="release-modal-title">
+                          {releaseNotice.failed
+                            ? '自动更新没有完成'
+                            : `平台已更新至 v${releaseNotice.version}`}
+                        </h2>
+                        <p>
+                          {releaseNotice.failed
+                            ? '可以重试自动更新，或手动下载完整安装包覆盖安装。'
+                            : '本次版本带来新的平台能力，进入大厅即可使用。'}
+                        </p>
                       </div>
                       <button
                         type="button"
@@ -1211,10 +1243,20 @@ export default function Lobby({
                         <span>最新版本 <b>v{releaseNotice.version}</b></span>
                       </div>
                       <div className="update-modal-actions">
-                        {releaseNotice.hasUpdate ? (
+                        {releaseNotice.failed ? (
                           <>
                             <button type="button" className="btn btn-primary" onClick={downloadRelease}>
-                              <Icon name="download" size={15} /> 去下载
+                              <Icon name="download" size={15} /> 手动下载完整包
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost"
+                              onClick={() => {
+                                setReleaseNotice(null);
+                                window.electronAPI.update.check().catch(() => {});
+                              }}
+                            >
+                              重试自动更新
                             </button>
                             <button type="button" className="btn btn-ghost" onClick={dismissReleaseNotice}>
                               稍后
@@ -1226,7 +1268,11 @@ export default function Lobby({
                           </button>
                         )}
                       </div>
-                      <div className="update-modal-foot">版本更新提示每个版本仅展示一次</div>
+                      <div className="update-modal-foot">
+                        {releaseNotice.failed
+                          ? '手动下载只有在自动更新失败时才会提示'
+                          : '更新会优先在后台自动差量完成'}
+                      </div>
                     </div>
                   </section>
                 </div>

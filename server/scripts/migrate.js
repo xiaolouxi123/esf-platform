@@ -273,6 +273,18 @@ async function main() {
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
     );
 
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS invite_codes (
+         code VARCHAR(32) NOT NULL PRIMARY KEY,
+         created_by BIGINT UNSIGNED NULL,
+         used_count INT UNSIGNED NOT NULL DEFAULT 0,
+         last_used_at DATETIME NULL,
+         disabled TINYINT(1) NOT NULL DEFAULT 0,
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         KEY idx_created (created_at)
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+    );
+
     const emailIndex = await conn.query(
       `SELECT 1 FROM information_schema.statistics
         WHERE table_schema = ? AND table_name = 'users' AND index_name = 'uk_email' LIMIT 1`,
