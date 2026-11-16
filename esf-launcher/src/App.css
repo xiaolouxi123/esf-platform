@@ -12478,3 +12478,6 @@ select:focus {
 .update-strip--ready .btn-primary:hover {
   background: linear-gradient(135deg, #b4f0cd, #74dda2);
 }
+.update-strip--ready { justify-content: flex-start; }
+.update-strip--ready > span { margin-right: 4px; }
+.update-strip--ready .btn-ghost { margin-left: auto; }
