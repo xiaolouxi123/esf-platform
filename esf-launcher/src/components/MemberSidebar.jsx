@@ -38,6 +38,7 @@ export default function MemberSidebar({
   const [editingStatus, setEditingStatus] = useState(false);
   const [statusDraft, setStatusDraft] = useState('');
   const [statusSaving, setStatusSaving] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
   const cancelStatusRef = useRef(false);
 
   const reloadMembers = async () => {
@@ -404,12 +405,24 @@ export default function MemberSidebar({
         ) : (
           groups.map((group) => (
             <div className="member-group" key={group.label}>
-              <div className="member-group-head">
+              <button
+                type="button"
+                className="member-group-head"
+                onClick={() => {
+                  setCollapsedGroups((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(group.label)) next.delete(group.label);
+                    else next.add(group.label);
+                    return next;
+                  });
+                }}
+              >
                 <span className="member-group-dot" style={{ background: group.color }} />
                 <span style={{ color: group.color }}>{group.label}</span>
                 <em>{group.members.length}</em>
-              </div>
-              {group.members.map((member) => (
+                <span className="member-group-chev">{collapsedGroups.has(group.label) ? '▸' : '▾'}</span>
+              </button>
+              {!collapsedGroups.has(group.label) && group.members.map((member) => (
                 <div
                   key={member.id}
                   data-member-id={member.id}

@@ -12494,3 +12494,18 @@ select:focus {
 .render-mode-card { text-align: center; }
 .render-mode-card b, .render-mode-card small, .render-mode-card span { display: block; }
 .render-mode-card small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 成员分组折叠 */
+.member-group-head {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.member-group-head:hover { color: var(--text); }
+.member-group-chev { margin-left: auto; font-size: 10px; color: var(--dim); }
