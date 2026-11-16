@@ -95,3 +95,11 @@ QQ 邮箱授权码获取：QQ 邮箱网页 → 设置 → 账户 → POP3/IMAP/S
 - 历史对局与 `ranked_matches`/`ranked_match_players` 保留（外键与统计需要），因此注销后仍能在旧战绩里看到原用户名历史；如果以后要匿名化，需要单独迁移。
 - 管理台行为：用户行「注销」按钮 `confirm` 后调用，成功后刷新列表；不可撤销，只能重新注册。
 - 边界：软删除后 `username` 仍占唯一索引（改成 `deleted_<id>_<随机>` 释放原用户名）；同一账号再次登录会被 `status != active` 拒绝。
+
+## 邀请注册（0.6.2）
+
+- 开关：platform_settings.invite_required（1/0），管理台「注册与邀请」仅所有者可改，即时生效。
+- 邀请码表 invite_codes：code 主键、created_by、used_count、last_used_at、disabled、created_at；可重复使用、永久有效，关闭邀请制后保留。
+- 注册校验：开启时必须命中未停用的码并 used_count+1；关闭时任何人可注册。旧 .env INVITE_CODE 停用。
+- 接口：GET/POST /api/admin/invites、POST /api/admin/invites/toggle、POST /api/admin/invites/disable；GET /api/config 暴露 inviteRequired。
+- 验证（2026-11-17）：开启后无码 403、错码 403、有效码 201 且 used_count=1；关闭后无码注册 201。
