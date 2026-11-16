@@ -190,4 +190,25 @@ router.delete('/queue', requireAuth, async (req, res, next) => {
   }
 });
 
+
+router.post('/challenges/:id/rounds', requireAuth, async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const data = await challenges.finishRound(Number(req.params.id), {
+      winner: body.winner,
+      scoreA: body.scoreA,
+      scoreB: body.scoreB,
+      userId: req.user.id,
+    });
+    res.json({ ok: true, data });
+  } catch (err) { fail(err, next); }
+});
+
+router.post('/challenges/:id/rematch', requireAuth, async (req, res, next) => {
+  try {
+    const data = await challenges.rematch(Number(req.params.id), req.user.id);
+    res.json({ ok: true, data });
+  } catch (err) { fail(err, next); }
+});
+
 module.exports = router;

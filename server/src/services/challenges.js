@@ -163,6 +163,8 @@ function roomBase(row) {
     serverKey: row.server_key || null,
     server: serverOf(row),
     status: row.status,
+    roundNo: Number(row.round_no || 1),
+    maxRounds: 3,
     maxPlayers: Number(row.max_players),
     victoryType: row.victory_type || 'kills',
     victoryLimit: Number(row.victory_limit || 10),
@@ -912,6 +914,38 @@ async function startRoom(user, roomId) {
   return getRoom(roomId, user.id);
 }
 
+
+const MAX_ROUNDS = 3;
+
+async function finishRound(roomId, { winner, scoreA, scoreB, userId } = {}) {
+  const room = await one('SELECT * FROM challenge_rooms WHERE id = ?', [roomId]);
+  if (!room) throw notFound('房间不存在');
+  if (room.status !== 'live') throw conflict('房间不在比赛中');
+  const member = await one('SELECT user_id FROM challenge_room_players WHERE room_id = ? AND user_id = ?', [roomId, userId]);
+  if (!member) throw forbidden('只有参赛玩家可以提交本局结果');
+  const roundNo = Number(room.round_no || 1);
+  const w = winner === 'b' ? 'b' : 'a';
+  await q(
+    `INSERT INTO challenge_rounds (room_id, round_no, winner, score_a, score_b)
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE winner = VALUES(winner), score_a = VALUES(score_a), score_b = VALUES(score_b)`,
+    [roomId, roundNo, w, Number(scoreA) || 0, Number(scoreB) || 0]
+  );
+  await q('UPDATE challenge_rooms SET started_at = NULL, updated_at = NOW() WHERE id = ?', [roomId]);
+  return { roundNo, maxRounds: MAX_ROUNDS, winner: w };
+}
+
+async function rematch(roomId, userId) {
+  const room = await one('SELECT * FROM challenge_rooms WHERE id = ?', [roomId]);
+  if (!room) throw notFound('房间不存在');
+  const member = await one('SELECT user_id FROM challenge_room_players WHERE room_id = ? AND user_id = ?', [roomId, userId]);
+  if (!member) throw forbidden('只有参赛玩家可以再来一局');
+  const next = Number(room.round_no || 1) + 1;
+  if (next > MAX_ROUNDS) throw conflict('本房间已达到 3 局上限');
+  await q('UPDATE challenge_rooms SET round_no = ?, status = ?, started_at = NOW(), updated_at = NOW() WHERE id = ?', [next, 'live', roomId]);
+  return { roundNo: next, maxRounds: MAX_ROUNDS };
+}
+
 module.exports = {
   MODES,
   MODE_SLOTS,
@@ -922,6 +956,8 @@ module.exports = {
   joinRoom,
   leaveRoom,
   closeRoom,
+  finishRound,
+  rematch,
   invite,
   respond,
   setReady,

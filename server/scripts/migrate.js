@@ -249,6 +249,9 @@ async function main() {
     await ensureColumn(conn, env.db.name, 'ranked_match_players', 'afk', 'TINYINT(1) NOT NULL DEFAULT 0');
     await ensureColumn(conn, env.db.name, 'challenge_player_stats', 'afk', 'TINYINT(1) NOT NULL DEFAULT 0');
 
+    // 0.6.4 约战多局：房间当前局号（1-3）
+    await ensureColumn(conn, env.db.name, 'challenge_rooms', 'round_no', 'INT UNSIGNED NOT NULL DEFAULT 1');
+
     // 0.5.23 约战限时：默认 15 分钟一局
     await ensureColumn(
       conn,
