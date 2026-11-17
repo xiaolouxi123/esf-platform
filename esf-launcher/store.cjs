@@ -17,13 +17,15 @@ const LEGACY_DEFAULT_API_BASE_URL = 'http://119.91.99.176:3000';
 
 // 开发/测试版用独立 profile，避免和正式版的登录态、设置、自建服务器混在一起。
 // 快捷方式传 --test-profile 即可；正式版不带这个参数，仍用原来的 userData。
-const TEST_PROFILE = process.argv.includes('--test-profile');
-const TEST_PROFILE_DIR = 'esf-launcher-test';
+const IS_REVIEW_BUILD = process.argv.includes('--review-build') || process.env.ESF_REVIEW_BUILD === '1';
+const TEST_PROFILE = process.argv.includes('--test-profile') || IS_REVIEW_BUILD;
+const TEST_PROFILE_DIR = IS_REVIEW_BUILD ? 'esf-launcher-review' : 'esf-launcher-test';
 
 const DEFAULT_SETTINGS = {
   hlPath: '',
   esfModDir: '',
-  apiBaseUrl: TEST_PROFILE ? 'http://127.0.0.1:3000' : 'http://119.29.82.217:3000',
+  // 开发测试指向本机；审核版要连正式后端，否则审核时全是离线。
+  apiBaseUrl: IS_REVIEW_BUILD ? 'http://119.29.82.217:3000' : (TEST_PROFILE ? 'http://127.0.0.1:3000' : 'http://119.29.82.217:3000'),
   localServerKey: 'fcx-1v1-1',
   updateFeedUrl: '',
   soundEnabled: true,
@@ -44,12 +46,17 @@ function baseDir() {
   return dir;
 }
 
-/** 测试 profile 第一次启动时，从正式版复制游戏目录，但后端固定到本机。 */
+/**
+ * 隔离 profile 第一次启动时的种子设置：
+ * - 开发测试：复制正式版游戏目录，后端固定本机 3000；
+ * - 桌面审核版：复制正式版游戏目录 + 正式后端，审核时看到的就是玩家看到的数据。
+ */
 function seedTestProfile() {
   if (!TEST_PROFILE) return;
   try {
     if (fs.existsSync(settingsPath())) return;
-    const prodPath = path.join(app.getPath('userData'), 'settings.json');
+    // 注意：main.cjs 已把 userData 切到隔离目录，这里要用正式版的目录名取原设置。
+    const prodPath = path.join(app.getPath('appData'), 'esf-launcher', 'settings.json');
     let prod = {};
     try {
       prod = JSON.parse(fs.readFileSync(prodPath, 'utf-8'));
@@ -61,7 +68,9 @@ function seedTestProfile() {
       hlPath: String(prod.hlPath || ''),
       esfModDir: String(prod.esfModDir || ''),
       localServerKey: String(prod.localServerKey || 'fcx-1v1-1'),
-      apiBaseUrl: 'http://127.0.0.1:3000',
+      apiBaseUrl: IS_REVIEW_BUILD
+        ? String(prod.apiBaseUrl || 'https://119.29.82.217')
+        : 'http://127.0.0.1:3000',
       updateFeedUrl: '',
       soundEnabled: true,
     };

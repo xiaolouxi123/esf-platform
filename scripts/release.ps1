@@ -25,13 +25,19 @@ param(
 
 
   [switch]$SkipDeploy,
-  [switch]$SkipWait
+  [switch]$SkipWait,
+  [switch]$Approved
 )
 
 $ErrorActionPreference = "Stop"
 # encoding guard (ASCII only: PS 5.1 reads UTF-8 without BOM as ANSI)
 if ($Notes.IndexOf([char]0xFFFD) -ge 0 -or $Notes.IndexOf([char]0x95BA) -ge 0 -or $Notes.IndexOf([char]0x95B9) -ge 0) {
   throw "Notes looks corrupted (encoding). Save the release wrapper as UTF-8 with BOM."
+}
+
+# 发布闸门：必须先产出桌面审核版，用户实际点过并明确同意，才允许打 tag 发布。
+if (-not $Approved) {
+  throw "Release blocked: run 'npm run review:build' in esf-launcher, let the user review the desktop build, then rerun with -Approved."
 }
 
 $ErrorActionPreference = 'Stop'

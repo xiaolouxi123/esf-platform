@@ -1724,7 +1724,7 @@ export default function Lobby({
             setReleasesOpen(true);
           }}
         >
-          v{appInfo?.version || '0.0.0'}
+          v{appInfo?.version || '0.0.0'}{appInfo?.review ? ' · 审核版' : ''}
         </button>
       </footer>
 

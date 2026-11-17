@@ -151,7 +151,7 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, app
           <div className="auth-caption">
             <span>POWERED BY ESF PLATFORM</span>
             <span className="auth-caption-dot" />
-            <span>v{appInfo?.version || '0.0.0'}</span>
+            <span>v{appInfo?.version || '0.0.0'}{appInfo?.review ? ' · 审核版' : ''}</span>
           </div>
         </div>
       </div>

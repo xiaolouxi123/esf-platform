@@ -14,6 +14,7 @@
     "preview": "vite preview",
     "dist": "npm run build && electron-builder --win nsis",
     "dist:dir": "npm run build && electron-builder --win --dir",
+    "review:build": "node scripts/build-review.mjs",
     "dev:test": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron . --test-profile\""
   },
   "dependencies": {

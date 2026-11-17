@@ -3,9 +3,12 @@ const path = require('path');
 
 // 测试版必须在 Chromium 启动前切走 userData，否则 localStorage 里的正式账号
 // 仍会被测试版读到（仅切 settings/session 文件不够）。
-const IS_TEST_PROFILE = process.argv.includes('--test-profile');
+// 审核版（桌面试用包）与开发测试共用隔离 profile，但审核版连正式后端并把更新关掉，
+// 避免绿色包被当成正式安装去自更新。
+const IS_REVIEW_BUILD = process.argv.includes('--review-build') || process.env.ESF_REVIEW_BUILD === '1';
+const IS_TEST_PROFILE = process.argv.includes('--test-profile') || IS_REVIEW_BUILD;
 if (IS_TEST_PROFILE) {
-  const testUserData = path.join(app.getPath('appData'), 'esf-launcher-test');
+  const testUserData = path.join(app.getPath('appData'), IS_REVIEW_BUILD ? 'esf-launcher-review' : 'esf-launcher-test');
   app.setPath('userData', testUserData);
   app.commandLine.appendSwitch('user-data-dir', testUserData);
 }
@@ -325,6 +328,8 @@ async function applyUpdateInPlace() {
 }
 
 async function autoCheckOnce() {
+  // 审核版不参与自更新：它没有安装记录，就地覆盖会写坏正在审核的目录。
+  if (IS_REVIEW_BUILD) return null;
   const feed = await resolveFeedUrl();
   if (!feed) return null;
 
@@ -1011,6 +1016,8 @@ handle('app:info', async () => ({
   apiBaseUrl: getSettings().apiBaseUrl,
   userDataDir: store.baseDir(),
   packaged: app.isPackaged,
+  // 审核版在界面上明确标出来，避免和正式安装混淆。
+  review: IS_REVIEW_BUILD,
 }));
 
 // 导出诊断包：启动日志 + 设置 + 系统信息，方便老电脑排障
