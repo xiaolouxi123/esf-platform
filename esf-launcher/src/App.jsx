@@ -239,6 +239,7 @@ export default function App() {
               onGoRegister={() => setAuthPage('register')}
               onGuest={handleGuest}
               backend={backend}
+              appInfo={appInfo}
               notice={notice}
             />
           ) : (

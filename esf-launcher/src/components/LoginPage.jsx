@@ -3,7 +3,7 @@ import Icon from './Icon';
 import loginBg from '../assets/login-bg.jpg';
 import dragonBall from '../assets/dragon-ball.webp';
 
-export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, notice }) {
+export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, appInfo, notice }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -140,7 +140,7 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, not
           <div className="auth-caption">
             <span>POWERED BY ESF PLATFORM</span>
             <span className="auth-caption-dot" />
-            <span>v{backend?.version || '0.0.0'}</span>
+            <span>v{appInfo?.version || '0.0.0'}</span>
           </div>
         </div>
       </div>
@@ -394,7 +394,9 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, not
           <footer className="auth-foot">
             <span className={`dot dot--${backend?.ok ? 'on' : 'off'}`} />
             {backend?.ok
-              ? `平台服务在线 · v${backend.version || '0.0.0'}`
+              ? backend.maintenance
+                ? '平台维护中，部分功能暂不可用'
+                : '平台服务在线'
               : backend?.message || '平台服务未连接'}
           </footer>
         </form>

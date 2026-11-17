@@ -12692,3 +12692,16 @@ select:focus {
 }
 .drawer-section .field { margin-bottom: 0; }
 .drawer-section .field--row .field-label { flex: 1; }
+
+/* 设置 · 游戏目录：自动寻找 + 选择目录 两个按钮并排 */
+.drawer-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.drawer-actions .btn {
+  flex: 1 1 0;
+  justify-content: center;
+  white-space: nowrap;
+}

@@ -916,6 +916,93 @@ handle('settings:update', async (patch) => {
   return settings;
 });
 
+
+// ---- 自动寻找游戏目录 ----
+function driveLetters() {
+  const out = [];
+  for (const letter of 'CDEFGHIJKLMNOPQRSTUVWXYZ') {
+    try {
+      if (fs.existsSync(letter + ':\\')) out.push(letter + ':');
+    } catch {
+      /* 读不到盘符就跳过 */
+    }
+  }
+  return out;
+}
+
+function registryGameHints() {
+  const hints = [];
+  const pushHint = (p) => {
+    if (p && typeof p === 'string' && p.trim()) hints.push(p.trim().replace(/^"|"$/g, ''));
+  };
+  const regQuery = (args) => {
+    try {
+      const res = spawnSync('reg', args, { encoding: 'utf8', timeout: 4000, windowsHide: true });
+      return res && res.status === 0 ? String(res.stdout || '') : '';
+    } catch {
+      return '';
+    }
+  };
+
+  // Steam 安装位置 + 所有库文件夹
+  for (const [key, value] of [
+    ['HKCU\\Software\\Valve\\Steam', 'SteamPath'],
+    ['HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam', 'InstallPath'],
+    ['HKLM\\SOFTWARE\\Valve\\Steam', 'InstallPath'],
+  ]) {
+    const text = regQuery(['query', key, '/v', value]);
+    const m = text.match(new RegExp(value + '\\s+REG_SZ\\s+(.+)', 'i'));
+    if (!m) continue;
+    const steam = m[1].trim();
+    pushHint(path.join(steam, 'steamapps', 'common', 'Half-Life'));
+    try {
+      const vdf = fs.readFileSync(path.join(steam, 'steamapps', 'libraryfolders.vdf'), 'utf8');
+      for (const lib of core.parseSteamLibraryFolders(vdf)) {
+        pushHint(path.join(lib, 'steamapps', 'common', 'Half-Life'));
+      }
+    } catch {
+      /* 没有 vdf 就用主库 */
+    }
+  }
+
+  // 卸载表里名字像半条命/CS 的安装目录
+  for (const name of ['Half-Life', 'Counter-Strike']) {
+    const text = regQuery([
+      'query',
+      'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+      '/s',
+      '/f',
+      name,
+      '/d',
+    ]);
+    for (const line of text.split(/\r?\n/)) {
+      const m = line.match(/InstallLocation\s+REG_SZ\s+(.+)/i);
+      if (m) pushHint(m[1]);
+    }
+  }
+
+  return hints;
+}
+
+handle('dialog:auto-find-game-dir', async () => {
+  const found = core.detectGameDir({
+    env: process.env,
+    extraDirs: registryGameHints(),
+    drives: driveLetters(),
+  });
+  if (!found || !found.hlPath) {
+    throw new api.ApiError('没有自动找到游戏目录，请点「选择目录」手动指定包含 hl.exe 的文件夹', 'GAME_DIR_NOT_FOUND');
+  }
+  if (!found.modDir) {
+    settings = store.saveSettings({ hlPath: found.hlPath });
+    log('⚙️ 自动找到游戏主程序，但没找到 esf 模组:', found.hlPath);
+    return { hlPath: found.hlPath, modDir: '', partial: true };
+  }
+  settings = store.saveSettings({ hlPath: found.hlPath, esfModDir: found.modDir });
+  log('⚙️ 自动找到游戏目录:', found.hlPath);
+  return { hlPath: found.hlPath, modDir: found.modDir, root: found.root };
+});
+
 handle('dialog:pick-game-dir', async () => {
   const result = await dialog.showOpenDialog({
     title: '请选择包含 hl.exe / esf.exe 的半条命根目录',

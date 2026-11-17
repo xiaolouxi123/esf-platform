@@ -56,6 +56,22 @@ if ($LASTEXITCODE -ne 0) { Pop-Location; throw "update releases.json failed" }
 # 以 package.json 为唯一来源，同步官网版本/下载链接/更新记录/sitemap
 node "..\scripts\sync-versions.cjs"
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "sync versions failed" }
+
+# 部署包必须由当前源码重建，否则 check-versions 会报「bundle 由旧版本构建」
+$python = $env:ESF_PYTHON
+if (-not $python) {
+  foreach ($candidate in @('python', 'py')) {
+    $probe = Get-Command $candidate -ErrorAction SilentlyContinue
+    if ($probe) { $python = $probe.Source; break }
+  }
+}
+if ($python) {
+  & $python "..\scripts\build-server-bundle.py"
+  if ($LASTEXITCODE -ne 0) { Pop-Location; throw "build-server-bundle.py failed" }
+} else {
+  Write-Host "  ! 没找到 python：跳过部署包重建（可设 ESF_PYTHON 指定解释器）" -ForegroundColor Yellow
+}
+
 node "..\scripts\check-versions.cjs"
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "version consistency check failed" }
 
@@ -87,7 +103,9 @@ $files = @(
   'scripts/release.ps1',
   'scripts/update-releases.js',
   'docs/kb',
-  'docs/design'
+  'docs/design',
+  'website',
+  'deploy'
 )
 git add -A -- $files
 $msg = "release: v$Version`n`n$Notes"

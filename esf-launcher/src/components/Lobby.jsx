@@ -610,10 +610,34 @@ export default function Lobby({
     return favoriteServers.find((server) => server.online) || favoriteServers[0];
   }, [favoriteServers]);
 
-  const ensureGameDir = () => {
+  const autoFindGameDir = async () => {
+    try {
+      const found = await window.electronAPI.dialog.autoFindGameDir();
+      if (found?.hlPath) {
+        const next = await window.electronAPI.settings.get();
+        onSettingsChanged?.(next);
+        const refreshed = await window.electronAPI.maps.scan();
+        setMaps(refreshed);
+        if (!selectedMap && refreshed.length > 0) setSelectedMap(refreshed[0]);
+      }
+      return found;
+    } catch {
+      return null;
+    }
+  };
+
+  // 没有游戏目录时先自动找一次（新手多半不知道 hl.exe 在哪），找不到再引导手动选
+  const ensureGameDir = async () => {
     if (hasGameDir) return true;
+    const picked = await autoFindGameDir();
+    if (picked?.modDir) return true;
     setSettingsOpen(true);
-    toast('请先选择游戏目录', 'error');
+    toast(
+      picked?.hlPath
+        ? '找到 hl.exe 了，但没找到 esf 模组文件夹，请手动选择整合包根目录'
+        : '没找到游戏目录，请点「自动寻找」，或手动选择包含 hl.exe 的文件夹',
+      'error'
+    );
     return false;
   };
 
@@ -623,7 +647,7 @@ export default function Lobby({
       toast(platformState.maintenanceText || '平台维护中，请稍后再试', 'error');
       return;
     }
-    if (!ensureGameDir()) return;
+    if (!(await ensureGameDir())) return;
     if (!selectedMap) {
       toast('请先在左侧选择一张地图', 'error');
       return;
@@ -653,7 +677,7 @@ export default function Lobby({
       toast(platformState.maintenanceText || '平台维护中，请稍后再试', 'error');
       return;
     }
-    if (!ensureGameDir()) return;
+    if (!(await ensureGameDir())) return;
     if (server.mode === '新手' && Number(user?.combatLevel || 0) > 0) {
       toast('你已有格斗等级，不能进入新手房', 'error');
       return;
@@ -698,7 +722,7 @@ export default function Lobby({
       toast(platformState.maintenanceText || '平台维护中，请稍后再试', 'error');
       return;
     }
-    if (!ensureGameDir() || !server?.serverKey) return;
+    if (!(await ensureGameDir()) || !server?.serverKey) return;
     setJoinBusyKey(server.serverKey);
     try {
       if (server.challenge?.id) {
@@ -1699,6 +1723,7 @@ export default function Lobby({
           onClose={() => setSettingsOpen(false)}
           onSave={saveSettings}
           onPickGameDir={handlePickDir}
+          onAutoFindGameDir={autoFindGameDir}
           onLogout={onLogout}
           toast={toast}
           onAvatarChange={onAvatarChange}

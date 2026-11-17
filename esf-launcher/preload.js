@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   dialog: {
     pickGameDir: () => call('dialog:pick-game-dir'),
+    autoFindGameDir: () => call('dialog:auto-find-game-dir'),
   },
 
   auth: {

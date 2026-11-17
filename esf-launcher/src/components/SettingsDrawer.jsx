@@ -83,6 +83,7 @@ export default function SettingsDrawer({
   onClose,
   onSave,
   onPickGameDir,
+  onAutoFindGameDir,
   onLogout,
   onAvatarChange,
   onAvatarData,
@@ -362,6 +363,23 @@ export default function SettingsDrawer({
     }
   };
 
+  // 新手多半不知道 hl.exe 在哪：先自动找一遍，找不到再退回手动选
+  const autoFindDir = async () => {
+    setBusy(true);
+    try {
+      const found = await onAutoFindGameDir();
+      setDraft((prev) => ({ ...prev, hlPath: found.hlPath, esfModDir: found.modDir || prev.esfModDir }));
+      toast(
+        found.modDir ? '已自动找到游戏目录' : '找到主程序了，但没找到 esf 模组文件夹，请手动选择整合包根目录',
+        found.modDir ? 'ok' : 'error'
+      );
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const save = async () => {
     setBusy(true);
     try {
@@ -429,9 +447,14 @@ export default function SettingsDrawer({
               <code title={draft.esfModDir || '未设置'}>{draft.esfModDir || '未设置'}</code>
             </div>
 
-            <button type="button" className="btn btn-ghost btn-block" onClick={pickDir} disabled={busy}>
-              <Icon name="folder" size={15} /> 选择游戏目录
-            </button>
+            <div className="drawer-actions">
+              <button type="button" className="btn btn-ghost" onClick={autoFindDir} disabled={busy}>
+                <Icon name="search" size={15} /> 自动寻找
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={pickDir} disabled={busy}>
+                <Icon name="folder" size={15} /> 选择目录
+              </button>
+            </div>
           </section>
 
           <section className="drawer-section is-collapsed" id="set-conn">
@@ -461,7 +484,7 @@ export default function SettingsDrawer({
             <p className="inline-status">
               <span className={`dot dot--${backend?.ok ? 'on' : 'off'}`} />
               {backend?.ok
-                ? `已连接 · v${backend.version || '0.0.0'}${backend.db === 'up' ? ' · 数据库正常' : ''}`
+                ? `已连接 · 服务端 v${backend.version || '0.0.0'}${backend.db === 'up' ? ' · 数据库正常' : ''}`
                 : backend?.message || '未连接'}
             </p>
           </section>

@@ -60,6 +60,11 @@
 - 代码签名
 ## 七、本批进展（2026-11-17 07:58，0.6.5 进行中，未发布）
 
+> 2026-11-17 08:06 更新：0.6.5 已完成发布前修复并进入发布流程。
+> - 版本号显示 bug 已修：登录页底部原用 `backend.version`（= 服务端 `server/package.json` 的 0.1.0）→ 改用 `appInfo.version`；`SettingsDrawer` 把服务端版本显式标注为「服务端 v…」。冒烟截图 `%TEMP%\esf-test\version-fix.png` 已确认显示 `v0.6.4`。
+> - 发布脚本补漏：`scripts/release.ps1` 的 commit 文件清单加上 `website` 与 `deploy`（此前每轮发布后这两个目录永远脏着）。
+> - 发布用 UTF-8 BOM 的 wrapper 调 `release.ps1`（PS 5.1 无 BOM 会乱码）。
+
 ### 已完成
 
 1. **排位聚焦态**（P0-1）— `RankedPage.jsx`
