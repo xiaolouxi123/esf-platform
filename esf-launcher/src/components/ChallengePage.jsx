@@ -77,6 +77,7 @@ export default function ChallengePage({
     return () => clearInterval(timer);
   }, []);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [roomFilter, setRoomFilter] = useState('all');
   const [members, setMembers] = useState([]);
   const [memberQuery, setMemberQuery] = useState('');
   const [membersLoading, setMembersLoading] = useState(false);
@@ -235,11 +236,18 @@ export default function ChallengePage({
 
   const me = myRoom?.members?.find((member) => Number(member.id) === Number(user?.id));
   const isLive = myRoom?.status === 'live';
-  const remainMinutes = useMemo(() => {
+  const remainSec = useMemo(() => {
     if (!myRoom?.endsAt || !now) return null;
-    const left = new Date(myRoom.endsAt).getTime() - now;
-    return Math.max(0, Math.ceil(left / 60000));
+    return Math.max(0, Math.ceil((new Date(myRoom.endsAt).getTime() - now) / 1000));
   }, [myRoom, now]);
+  const remainText =
+    remainSec === null
+      ? '--:--'
+      : String(Math.floor(remainSec / 60)).padStart(2, '0') + ':' + String(remainSec % 60).padStart(2, '0');
+  const livePercent =
+    remainSec === null
+      ? 100
+      : Math.max(0, Math.min(100, (remainSec / Number(myRoom?.timeLimitSec || 900)) * 100));
   const readyRemain = useMemo(() => {
     if (!myRoom?.updatedAt) return null;
     if (myRoom.playerCount < myRoom.maxPlayers) return null;
@@ -256,6 +264,26 @@ export default function ChallengePage({
   const createRef = useRef(null);
   const openRooms = state.rooms.length;
   const waitingRooms = state.rooms.filter((room) => !room.full).length;
+  const roomStats = useMemo(
+    () => ({
+      all: state.rooms.length,
+      open: state.rooms.filter((room) => !room.full).length,
+      full: state.rooms.filter((room) => room.full).length,
+    }),
+    [state.rooms]
+  );
+  const roomsView = useMemo(() => {
+    const filtered = state.rooms.filter((room) =>
+      roomFilter === 'open' ? !room.full : roomFilter === 'full' ? room.full : true
+    );
+    return filtered
+      .slice()
+      .sort(
+        (a, b) =>
+          Number(a.full) - Number(b.full) ||
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+  }, [state.rooms, roomFilter]);
 
   const focusCreate = () => {
     createRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -370,22 +398,15 @@ export default function ChallengePage({
       )}
 
       {myRoom ? (
-        <section className={`challenge-room${isLive ? ' is-live' : ''}`}>
+        <section className={'challenge-room' + (isLive ? ' is-live' : '')}>
           <div className="challenge-room-top">
             <div>
               <div className="challenge-room-badges">
-                <span className={`challenge-state${isLive ? ' is-live' : ''}`}>
+                <span className={'challenge-state' + (isLive ? ' is-live' : '')}>
                   {isLive ? '进行中' : '等待中'}
                 </span>
                 <span className="tag">{myRoom.mode}</span>
-                <span className="tag">限时 {Math.round((myRoom.timeLimitSec || 900) / 60)} 分钟</span>
-                {readyRemain !== null && (
-                  <span className="tag is-warn">准备倒计时 {readyRemain} 秒</span>
-                )}
-                {isLive && remainMinutes !== null && (
-                  <span className="tag">剩余 {remainMinutes} 分钟</span>
-                )}
-                <span className="tag">{myRoom.victoryLabel || `击杀 ${myRoom.victoryLimit} 次`}</span>
+                <span className="tag">{myRoom.victoryLabel || '击杀 ' + myRoom.victoryLimit + ' 次'}</span>
                 <span className="tag">房间 #{myRoom.displayNo ?? myRoom.id}</span>
                 {myRoom.map && (
                   <span className="tag">
@@ -397,7 +418,7 @@ export default function ChallengePage({
               <p>
                 房主 {playerLabel(myRoom.host)} · {myRoom.playerCount}/{myRoom.maxPlayers} 人 · 已准备{' '}
                 {myRoom.readyCount}/{myRoom.playerCount}
-                {myRoom.server ? ` · ${myRoom.server.name}` : ' · 不指定服务器'}
+                {myRoom.server ? ' · ' + myRoom.server.name : ' · 不指定服务器'}
               </p>
             </div>
             <div className="challenge-room-tools">
@@ -426,100 +447,169 @@ export default function ChallengePage({
             </div>
           </div>
 
-          {myRoom.result && (
-            <div className={`challenge-result challenge-result--${myRoom.result.winner}`}>
-              <div className="challenge-result-main">
-                <span className="eyebrow">MATCH RESULT</span>
-                <b>
-                  {myRoom.result.winner === 'a' ? 'A 队' : 'B 队'}获胜 · {myRoom.result.scoreA}:
-                  {myRoom.result.scoreB}
-                </b>
-                <small>
-                  胜利条件：{myRoom.victoryLabel || '击杀达到上限'} · 本场不计排位分
-                </small>
-              </div>
-              <span className="challenge-result-badge">
-                <Icon name="trophy" size={16} /> 已结算
-              </span>
-            </div>
-          )}
-
-          <div className="challenge-teams">
-            {['a', 'b'].map((teamKey) => {
-              const players = myRoom.teams?.[teamKey] || [];
-              return (
-                <div key={teamKey} className={`challenge-team challenge-team--${teamKey}`}>
-                  <div className="challenge-team-head">
-                    <span>{teamKey === 'a' ? 'A 队' : 'B 队'}</span>
-                    <small>
-                      {players.length}/{slots}
-                    </small>
+          <div className="challenge-room-body">
+            <div className="challenge-room-main">
+              {myRoom.result && (
+                <div className={'challenge-result challenge-result--' + myRoom.result.winner}>
+                  <div className="challenge-result-main">
+                    <span className="eyebrow">MATCH RESULT</span>
+                    <b>
+                      {myRoom.result.winner === 'a' ? 'A 队' : 'B 队'}获胜 · {myRoom.result.scoreA}:
+                      {myRoom.result.scoreB}
+                    </b>
+                    <small>本场不计排位分，关闭房间后可再开一间</small>
                   </div>
-                  <div className="challenge-seats">
-                    {Array.from({ length: slots }, (_, index) => (
-                      <TeamSeat
-                        key={players[index]?.id || `${teamKey}-${index}`}
-                        player={players[index]}
-                        hostId={myRoom.host?.id}
-                        selfId={user?.id}
-                        ranks={ranks}
-                        emptyLabel={`${teamKey === 'a' ? 'A' : 'B'} 队 ${index + 1} 号位`}
-                      />
-                    ))}
-                  </div>
+                  <span className="challenge-result-badge">
+                    <Icon name="trophy" size={16} /> 已结算
+                  </span>
                 </div>
-              );
-            })}
+              )}
+
+              <div className="challenge-teams">
+                {['a', 'b'].map((teamKey) => {
+                  const players = myRoom.teams?.[teamKey] || [];
+                  return (
+                    <div key={teamKey} className={'challenge-team challenge-team--' + teamKey}>
+                      <div className="challenge-team-head">
+                        <span>{teamKey === 'a' ? 'A 队' : 'B 队'}</span>
+                        <small>
+                          {players.length}/{slots}
+                        </small>
+                      </div>
+                      <div className="challenge-seats">
+                        {Array.from({ length: slots }, (_, index) => (
+                          <TeamSeat
+                            key={players[index]?.id || teamKey + '-' + index}
+                            player={players[index]}
+                            hostId={myRoom.host?.id}
+                            selfId={user?.id}
+                            ranks={ranks}
+                            emptyLabel={(teamKey === 'a' ? 'A' : 'B') + ' 队 ' + (index + 1) + ' 号位'}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {!isLive && (
+                <div className="challenge-room-steps">
+                  <span>
+                    <b>01</b>
+                    邀请队友
+                    <i>复制房间信息发到群里</i>
+                  </span>
+                  <span>
+                    <b>02</b>
+                    全员准备
+                    <i>坐满后开始 2 分钟倒计时</i>
+                  </span>
+                  <span>
+                    <b>03</b>
+                    房主开局
+                    <i>进服后由房主换图开打</i>
+                  </span>
+                </div>
+              )}
+
+              {isLive && (
+                <div className="challenge-live-strip">
+                  <b className="challenge-live-clock">{remainText}</b>
+                  <span className="challenge-live-bar">
+                    <i style={{ width: livePercent + '%' }} />
+                  </span>
+                  <span className="challenge-live-hint">本局剩余时间 · 进服后由房主换图开局</span>
+                </div>
+              )}
+            </div>
+
+            <aside className="challenge-side">
+              <div className="challenge-side-card">
+                <h3>房间信息</h3>
+                <dl className="challenge-info-list">
+                  <div>
+                    <dt>模式</dt>
+                    <dd>{myRoom.mode} · {myRoom.maxPlayers} 人</dd>
+                  </div>
+                  <div>
+                    <dt>地图</dt>
+                    <dd>{myRoom.map || '未指定'}</dd>
+                  </div>
+                  <div>
+                    <dt>服务器</dt>
+                    <dd>{myRoom.server ? myRoom.server.name : '不指定'}</dd>
+                  </div>
+                  <div>
+                    <dt>胜利条件</dt>
+                    <dd>{myRoom.victoryLabel || '击杀 ' + myRoom.victoryLimit + ' 次'}</dd>
+                  </div>
+                  <div>
+                    <dt>限时</dt>
+                    <dd>{Math.round((myRoom.timeLimitSec || 900) / 60)} 分钟</dd>
+                  </div>
+                  <div>
+                    <dt>准备</dt>
+                    <dd>
+                      {myRoom.readyCount}/{myRoom.playerCount} 人
+                      {readyRemain !== null ? ' · ' + readyRemain + ' 秒后自动解散' : ''}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="challenge-side-card">
+                <h3>
+                  邀请 <span className="pill">{myRoom.pendingInvites?.length || 0}</span>
+                </h3>
+                <div className="challenge-side-invites">
+                  {myRoom.pendingInvites?.length ? (
+                    myRoom.pendingInvites.map((invite) => (
+                      <span key={invite.id} className="challenge-invited">
+                        <Avatar user={invite.user} size="xs" />
+                        {playerLabel(invite.user)}
+                        <em>等待回应</em>
+                      </span>
+                    ))
+                  ) : (
+                    <span className="challenge-muted">还没有待回应邀请</span>
+                  )}
+                </div>
+                {!isLive && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => setInviteOpen(true)}
+                    disabled={myRoom.full}
+                  >
+                    <Icon name="plus" size={13} /> 邀请玩家
+                  </button>
+                )}
+              </div>
+
+              <p className="challenge-side-note">
+                自定义地图与人数，先到先坐；达到胜利条件即结算，<b>不计排位分</b>，也不会锁服。
+              </p>
+            </aside>
           </div>
 
           <div className="challenge-room-foot">
-            <div className="challenge-invite-strip">
-              <span className="challenge-invite-label">
-                <Icon name="users" size={14} /> 房间邀请
-              </span>
-              {myRoom.pendingInvites?.length ? (
-                myRoom.pendingInvites.map((invite) => (
-                  <span key={invite.id} className="challenge-invited">
-                    <Avatar user={invite.user} size="xs" />
-                    {playerLabel(invite.user)}
-                    <em>等待回应</em>
-                  </span>
-                ))
-              ) : (
-                <span className="challenge-muted">还没有待回应邀请</span>
-              )}
-              {!isLive && (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost"
-                  onClick={() => setInviteOpen(true)}
-                  disabled={myRoom.full}
-                >
-                  <Icon name="plus" size={13} /> 邀请玩家
-                </button>
-              )}
-            </div>
-
             <div className="challenge-room-actions">
               {isLive ? (
                 <>
                   {myRoom.server && (
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => onJoinServer?.(myRoom.server)}
-                    >
+                    <button type="button" className="btn btn-primary" onClick={() => onJoinServer?.(myRoom.server)}>
                       <Icon name="play" size={14} /> 进入服务器
                     </button>
                   )}
-                  <span className="challenge-live-note">约战已开始，进服后由房主换图开局</span>
+                  <span className="challenge-muted">约战已开始，进服后由房主换图开局</span>
                 </>
               ) : (
                 <>
                   {!myRoom.isHost && (
                     <button
                       type="button"
-                      className={`btn ${me?.ready ? 'btn-ghost' : 'btn-primary'}`}
+                      className={me?.ready ? 'btn btn-ghost' : 'btn btn-primary'}
                       onClick={toggleReady}
                       disabled={Boolean(busy)}
                     >
@@ -542,23 +632,23 @@ export default function ChallengePage({
                       ? myRoom.allReady
                         ? '全员就绪，可以开始'
                         : '等待其他玩家准备'
-                      : `还差 ${myRoom.maxPlayers - myRoom.playerCount} 人`}
+                      : '还差 ' + (myRoom.maxPlayers - myRoom.playerCount) + ' 人'}
                   </span>
                 </>
               )}
             </div>
+            <span className="challenge-room-code">
+              房间 #{myRoom.displayNo ?? myRoom.id} · {myRoom.mode} · {myRoom.playerCount}/{myRoom.maxPlayers} 人
+            </span>
           </div>
         </section>
       ) : (
         <>
           <section className="challenge-create" ref={createRef}>
-            <div className="section-head">
+            <div className="challenge-create-head">
               <h2>开一间房</h2>
               <span className="tag">NEW ROOM</span>
-              <span className="challenge-muted">选好模式和地图，房间创建后把邀请发给队友</span>
-            </div>
-            <div className="challenge-form">
-              <div className="challenge-mode-switch" role="group" aria-label="约战模式">
+              <div className="challenge-mode-switch is-compact" role="group" aria-label="约战模式">
                 {Object.entries(MODE_META).map(([key, meta]) => (
                   <button
                     key={key}
@@ -572,6 +662,10 @@ export default function ChallengePage({
                   </button>
                 ))}
               </div>
+              <span className="challenge-create-note">选好模式和地图，创建后把邀请发给队友</span>
+            </div>
+
+            <div className="challenge-quick">
               <label className="challenge-field">
                 <span>房间名（可选）</span>
                 <input
@@ -593,8 +687,8 @@ export default function ChallengePage({
                   onChange={(event) => setForm((prev) => ({ ...prev, map: event.target.value }))}
                 />
               </label>
-              <label className="challenge-field challenge-field--wide">
-                <span>比赛服务器（目前只开放「单挑 1」）</span>
+              <label className="challenge-field">
+                <span>比赛服务器</span>
                 <select
                   value={form.serverKey}
                   onChange={(event) => setForm((prev) => ({ ...prev, serverKey: event.target.value }))}
@@ -609,61 +703,46 @@ export default function ChallengePage({
                   {challengeServers.map((server) => (
                     <option key={server.serverKey} value={server.serverKey}>
                       {server.name}
-                      {server.online ? ` · ${server.players}/${server.maxPlayers}` : ' · 离线'}
+                      {server.online ? ' · ' + server.players + '/' + server.maxPlayers : ' · 离线'}
                     </option>
                   ))}
                 </select>
               </label>
+              <button
+                type="button"
+                className="btn btn-primary challenge-create-btn"
+                onClick={createRoom}
+                disabled={Boolean(busy) || !form.serverKey}
+              >
+                {busy === 'create' ? <span className="spinner" /> : <Icon name="plus" size={15} />}
+                创建约战房间
+              </button>
+            </div>
 
-              <div className="challenge-victory-field">
-                <div className="challenge-victory-head">
-                  <span className="challenge-victory-icon">
-                    <Icon name="swords" size={14} />
-                  </span>
-                  <span>
-                    <b>胜利条件</b>
-                    <small>平台创建房间后自动下发到服务器，达到即结束</small>
-                  </span>
-                </div>
-                <div className="challenge-victory-row">
-                  <select
-                    value={form.victoryType}
-                    onChange={(event) => setForm((prev) => ({ ...prev, victoryType: event.target.value }))}
-                  >
-                    <option value="kills">击杀数达到</option>
-                    <option value="deaths">死亡数达到</option>
-                  </select>
-                  <select
-                    value={form.victoryLimit}
-                    onChange={(event) =>
-                      setForm((prev) => ({ ...prev, victoryLimit: Number(event.target.value) }))
-                    }
-                  >
-                    <option value={3}>3</option>
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                  </select>
-                  <em>次</em>
-                </div>
-                <p className="challenge-victory-hint">
-                  不结算排位分；双方按总击杀 / 死亡判定胜负，结束后 5 秒自动退出游戏。
-                </p>
-              </div>
-
-              <div className="challenge-form-foot">
-                <span className="challenge-muted">
-                  创建后可以邀请玩家、准备和换图；开赛前随时能关闭房间
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-primary challenge-create-btn"
-                  onClick={createRoom}
-                  disabled={Boolean(busy) || !form.serverKey}
+            <div className="challenge-quick-foot">
+              <span className="challenge-victory-inline">
+                <Icon name="swords" size={13} />
+                <b>胜利条件</b>
+                <select
+                  value={form.victoryType}
+                  onChange={(event) => setForm((prev) => ({ ...prev, victoryType: event.target.value }))}
                 >
-                  {busy === 'create' ? <span className="spinner" /> : <Icon name="plus" size={15} />}
-                  创建约战房间
-                </button>
-              </div>
+                  <option value="kills">击杀数达到</option>
+                  <option value="deaths">死亡数达到</option>
+                </select>
+                <select
+                  value={form.victoryLimit}
+                  onChange={(event) => setForm((prev) => ({ ...prev, victoryLimit: Number(event.target.value) }))}
+                >
+                  <option value={3}>3</option>
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                </select>
+                <em>次</em>
+              </span>
+              <span className="challenge-victory-hint">
+                达到条件即结束 · 不结算排位分 · 结束后 5 秒自动退出
+              </span>
             </div>
           </section>
 
@@ -672,6 +751,29 @@ export default function ChallengePage({
               <h2>
                 等待中的房间 <span className="pill">{state.rooms.length}</span>
               </h2>
+              <div className="challenge-list-filters">
+                <button
+                  type="button"
+                  className={roomFilter === 'all' ? 'is-active' : ''}
+                  onClick={() => setRoomFilter('all')}
+                >
+                  全部<em>{roomStats.all}</em>
+                </button>
+                <button
+                  type="button"
+                  className={roomFilter === 'open' ? 'is-active' : ''}
+                  onClick={() => setRoomFilter('open')}
+                >
+                  可加入<em>{roomStats.open}</em>
+                </button>
+                <button
+                  type="button"
+                  className={roomFilter === 'full' ? 'is-active' : ''}
+                  onClick={() => setRoomFilter('full')}
+                >
+                  已满<em>{roomStats.full}</em>
+                </button>
+              </div>
               <span className="challenge-muted">3 秒自动刷新</span>
             </div>
 
@@ -685,6 +787,11 @@ export default function ChallengePage({
                 <Icon name="swords" size={22} />
                 <p>还没有约战房间，开第一间等朋友来。</p>
               </div>
+            ) : roomsView.length === 0 ? (
+              <div className="empty empty--inline">
+                <Icon name="swords" size={22} />
+                <p>这个筛选下没有房间，换成「全部」看看。</p>
+              </div>
             ) : (
               <div className="challenge-table">
                 <div className="challenge-table-head">
@@ -695,9 +802,9 @@ export default function ChallengePage({
                   <span>房主</span>
                   <span />
                 </div>
-                {state.rooms.map((room) => (
-                  <div key={room.id} className={`challenge-row${room.full ? ' is-full' : ''}`}>
-                    <span className={`challenge-row-mode challenge-row-mode--${room.mode.replace('v', '')}`}>
+                {roomsView.map((room) => (
+                  <div key={room.id} className={'challenge-row' + (room.full ? ' is-full' : '')}>
+                    <span className={'challenge-row-mode challenge-row-mode--' + room.mode.replace('v', '')}>
                       {room.mode}
                     </span>
                     <span className="challenge-row-title">
@@ -712,7 +819,7 @@ export default function ChallengePage({
                       <em>/{room.maxPlayers}</em>
                     </span>
                     <span className="challenge-row-ready">
-                      <span className={`challenge-ready-dot${room.readyCount > 0 ? ' is-ready' : ''}`} />
+                      <span className={'challenge-ready-dot' + (room.readyCount > 0 ? ' is-ready' : '')} />
                       {room.readyCount}/{room.playerCount}
                     </span>
                     <span className="challenge-row-host">
@@ -726,7 +833,7 @@ export default function ChallengePage({
                         onClick={() => joinRoom(room)}
                         disabled={room.full || Boolean(busy)}
                       >
-                        {busy === `join-${room.id}` ? '加入中…' : room.full ? '已满员' : '加入'}
+                        {busy === 'join-' + room.id ? '加入中…' : room.full ? '已满员' : '加入'}
                       </button>
                     </span>
                   </div>

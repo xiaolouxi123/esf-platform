@@ -485,7 +485,7 @@ async function challengeAccess(userId, serverKey) {
 
 async function resultOf(roomId) {
   const row = await one(
-    `SELECT r.id, r.title, r.mode, r.server_key, r.status,
+    `SELECT r.id, r.title, r.mode, r.server_key, r.status, r.map, r.started_at, r.day_seq,
             res.winner, res.score_a, res.score_b, res.victory_type,
             res.victory_limit, res.ended_at,
             s.name AS server_name
@@ -499,8 +499,10 @@ async function resultOf(roomId) {
   const members = await roomMembers(roomId);
   return {
     roomId: Number(row.id),
+    displayNo: row.day_seq ? Number(row.day_seq) : Number(row.id),
     title: row.title,
     mode: row.mode,
+    map: row.map || null,
     status: row.status,
     serverKey: row.server_key || null,
     serverName: row.server_name || null,
@@ -509,6 +511,7 @@ async function resultOf(roomId) {
     scoreB: Number(row.score_b || 0),
     victoryType: row.victory_type || 'kills',
     victoryLimit: Number(row.victory_limit || 10),
+    startedAt: row.started_at || null,
     endedAt: row.ended_at || null,
     players: members,
   };
