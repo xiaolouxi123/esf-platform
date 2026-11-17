@@ -2,6 +2,17 @@
 
 所有重要变更记录在这里。格式参考 Keep a Changelog。
 
+## [0.6.51] - 2026-11-17
+
+### Changed
+- 顶栏高度 56px → 64px（用 --shell-top / --shell-bottom 变量统一控制），导航胶囊上下留白从 5px 变成 9px，不再贴着窗口上沿；登录页与地图抽屉同步。
+- 版本号改为两位小数位递增（0.6.51、0.6.52…），不再做 0.7 迁移。
+
+### Fixed
+- 安装/更新不再删除游戏本体：新增 `esf-launcher/build/installer.nsh`，安装目录里存在 hl.exe / hw.dll / valve\liblist.gam / esf\liblist.gam 时，安装器先清掉旧卸载器注册信息，让「更新前先跑旧卸载器」这一步直接跳过，改为把新文件覆盖到原目录。
+- 卸载只删除启动器自己的 Electron 文件（exe、卸载器、dll、pak、locales、resources 等固定清单），游戏文件本体保留。
+- `esf-launcher/package.json` 增加 `nsis.include: build/installer.nsh`，保证上面的逻辑随安装包生效。
+
 ## [0.6.5] - 2026-11-17
 
 ### Changed

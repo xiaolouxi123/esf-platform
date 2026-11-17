@@ -102,9 +102,10 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "include": "build/installer.nsh",
       "createDesktopShortcut": true,
       "shortcutName": "ESF 平台"
     }
   },
-  "version": "0.6.5"
+  "version": "0.6.51"
 }

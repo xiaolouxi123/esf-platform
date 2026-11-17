@@ -3,6 +3,12 @@
    结构：app-shell(标题栏/工作区/状态栏) → workspace(侧栏/主区/右栏)
    ===================================================================== */
 
+/* 外壳三段高度：顶栏 / 内容 / 状态栏。抽屉等 fixed 元素统一引用，避免各处写死数字。 */
+:root {
+  --shell-top: 64px;
+  --shell-bottom: 28px;
+}
+
 .app-root {
   height: 100%;
   overflow: hidden;
@@ -20,7 +26,7 @@
 .app-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 56px minmax(0, 1fr) 28px;
+  grid-template-rows: var(--shell-top) minmax(0, 1fr) var(--shell-bottom);
   width: 100%;
   max-width: 100vw;
   min-width: 0;
@@ -1534,7 +1540,7 @@
 /* ============================ 登录 / 注册 ============================ */
 .auth-shell {
   display: grid;
-  grid-template-rows: 56px minmax(0, 1fr);
+  grid-template-rows: var(--shell-top) minmax(0, 1fr);
 }
 
 .auth {
@@ -4010,8 +4016,8 @@ select:focus {
 
 .map-drawer {
   position: fixed;
-  top: 56px;
-  bottom: 28px;
+  top: var(--shell-top);
+  bottom: var(--shell-bottom);
   left: 0;
   z-index: 55;
   width: 306px;
@@ -4041,7 +4047,7 @@ select:focus {
 .map-drawer-close:hover { color: #fff; border-color: var(--line-strong); }
 .map-drawer-backdrop {
   position: fixed;
-  inset: 56px 0 28px 0;
+  inset: var(--shell-top) 0 var(--shell-bottom) 0;
   z-index: 50;
   border: 0;
   padding: 0;
