@@ -45,6 +45,7 @@ function maskToken(token) {
 
 // ================= 自动更新（electron-updater） =================
 let updateState = { status: 'idle' };
+let lastDownloadProgress = { total: 0 };
 let updateToken = null;
 let updateCancelled = false;
 
@@ -131,16 +132,33 @@ function setupAutoUpdater() {
   autoUpdater.on('update-not-available', (info) =>
     sendUpdate({ status: 'current', version: info && info.version })
   );
-  autoUpdater.on('download-progress', (progress) =>
+  autoUpdater.on('download-progress', (progress) => {
+    const total = Number(progress.total) || 0;
+    if (total > 0 && total !== lastDownloadProgress.total) {
+      lastDownloadProgress = { total };
+      updateLog('INFO', `开始下载更新: 需下载=${total} 字节`);
+    }
     sendUpdate({
       status: 'downloading',
       percent: Math.round(Number(progress.percent) || 0),
       transferred: Number(progress.transferred) || 0,
-      total: Number(progress.total) || 0,
-    })
-  );
+      total,
+    });
+  });
   autoUpdater.on('update-downloaded', (info) => {
     updateToken = null;
+    try {
+      const file = info && info.downloadedFile ? String(info.downloadedFile) : '';
+      const size = file && fs.existsSync(file) ? fs.statSync(file).size : 0;
+      const downloaded = lastDownloadProgress.total || 0;
+      const mode = size > 0 && downloaded > 0 && downloaded < size * 0.95 ? '差量' : '全量';
+      updateLog(
+        'INFO',
+        `更新已下载 ${(info && info.version) || ''} 方式=${mode} 下载=${downloaded} 安装包=${size}`
+      );
+    } catch (err) {
+      updateLog('WARN', '记录更新下载方式失败:', err.message);
+    }
     sendUpdate({
       status: 'downloaded',
       version: info && info.version,
@@ -157,6 +175,49 @@ function setupAutoUpdater() {
   });
 }
 
+function updaterCacheDir() {
+  const localAppData = process.env.LOCALAPPDATA || path.join(app.getPath('appData'), '..', 'Local');
+  return path.join(localAppData, `${app.getName()}-updater`);
+}
+
+function compareVersions(a, b) {
+  const pa = String(a || '').split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = String(b || '').split('.').map((n) => parseInt(n, 10) || 0);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i += 1) {
+    const x = pa[i] || 0;
+    const y = pb[i] || 0;
+    if (x !== y) return x > y ? 1 : -1;
+  }
+  return 0;
+}
+
+/**
+ * 更新包已经下好却没装上（旧版本「立即重启安装」静默失败，或用户中途退出），
+ * 下次启动直接把它捞回来：界面显示「立即重启安装」，不用再等 128MB 重下。
+ */
+function pendingUpdateOnDisk() {
+  try {
+    const dir = path.join(updaterCacheDir(), 'pending');
+    if (!fs.existsSync(dir)) return null;
+    const current = app.getVersion();
+    let best = null;
+    for (const name of fs.readdirSync(dir)) {
+      const match = /^ESF-Platform-Setup-(\d+(?:\.\d+)+)\.exe$/.exec(name);
+      if (!match) continue;
+      const version = match[1];
+      if (compareVersions(version, current) <= 0) continue;
+      if (!best || compareVersions(version, best.version) > 0) {
+        best = { version, file: path.join(dir, name) };
+      }
+    }
+    return best;
+  } catch (err) {
+    updateLog('WARN', '扫描已下载更新失败:', err.message);
+    return null;
+  }
+}
+
 /**
  * 差量下载用 current.blockmap 描述旧安装包；如果它和 installer.exe 不是同一个版本，
  * 更新器会拼出坏文件、sha512 校验失败，然后中途退回全量下载（用户看到进度倒退）。
@@ -164,8 +225,7 @@ function setupAutoUpdater() {
  */
 function sanitizeUpdaterCache() {
   try {
-    const localAppData = process.env.LOCALAPPDATA || path.join(app.getPath('appData'), '..', 'Local');
-    const dir = path.join(localAppData, `${app.getName()}-updater`);
+    const dir = updaterCacheDir();
     const blockMapPath = path.join(dir, 'current.blockmap');
     const installerPath = path.join(dir, 'installer.exe');
     if (!fs.existsSync(blockMapPath) || !fs.existsSync(installerPath)) return;
@@ -178,7 +238,12 @@ function sanitizeUpdaterCache() {
       : 0;
     const actual = fs.statSync(installerPath).size;
     if (total > 0 && total !== actual) {
-      fs.rmSync(blockMapPath, { force: true });
+      // 不直接删：留 .bak 方便事后核对，blockmap 缺失时更新器会自己重新拉取
+      try {
+        fs.renameSync(blockMapPath, `${blockMapPath}.bak`);
+      } catch {
+        fs.rmSync(blockMapPath, { force: true });
+      }
       updateLog('WARN', `更新缓存错位已清理: blockmap=${total} installer=${actual}`);
     }
   } catch (err) {
@@ -262,6 +327,14 @@ async function applyUpdateInPlace() {
 async function autoCheckOnce() {
   const feed = await resolveFeedUrl();
   if (!feed) return null;
+
+  // 已经下好但没装成功的更新包优先复用，避免重复全量下载
+  const pending = pendingUpdateOnDisk();
+  if (pending) {
+    updateLog('INFO', `复用已下载的更新包: ${pending.version} ${pending.file}`);
+    sendUpdate({ status: 'downloaded', version: pending.version, downloadedFile: pending.file, feed });
+    return updateState;
+  }
 
   sanitizeUpdaterCache();
   autoUpdater.setFeedURL({ provider: 'generic', url: feed });

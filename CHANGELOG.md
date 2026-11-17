@@ -2,6 +2,20 @@
 
 所有重要变更记录在这里。格式参考 Keep a Changelog。
 
+## [0.6.54] - 2026-11-18
+
+### Fixed
+- 更新包下好但没装成功时（旧版本「立即重启安装」静默失败、或用户中途退出），下次启动会直接复用 `%LOCALAPPDATA%\esf-launcher-updater\pending` 里的安装包并显示「立即重启安装」，不再重下 128MB。
+- 更新缓存错位（`current.blockmap` 覆盖的字节数 ≠ `installer.exe` 大小）时不再直接删掉 blockmap，改名为 `.bak` 保留，blockmap 缺失时更新器会自己重新拉取，避免被误判成只能全量。
+
+### Added
+- `update.log` 记录每次更新的下载量、安装包大小和「差量/全量」判定，出问题能直接看是走了哪条路。
+- `esf-launcher/build/update-fix/`：一次性「更新修复」小工具（C# WinForms，18KB，`build-update-fix.ps1` 编译）。给 0.6.52 及更早版本用：自动找平台目录 → 优先用已下好的安装包 → 关平台 → `/S /D=<目录>` 静默就地安装 → 重开；跑一次会把该版本安装包写进更新器缓存，之后的更新才能走差量。
+
+### Verified
+- 真实 E2E（0.6.52 → 0.6.53，隔离沙箱 `%TEMP%\esf-cohort-test\FCX 0.62`）：工具自动选中已下载的 0.6.53 安装包，11 秒装完，`hl.exe` / `hw.dll` / `valve\liblist.gam` / `esf\liblist.gam` 全部保留，`installer.exe` 缓存更新为 0.6.53（128,777,782 字节）。
+- 关闭流程双路验证：正常 `CloseMainWindow` 与不响应时的强制结束都能继续安装（28 秒完成）。
+
 ## [0.6.53] - 2026-11-18
 
 ### Fixed
