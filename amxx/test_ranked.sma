@@ -43,6 +43,11 @@
 #define TASK_CHALLENGE_SPECTATE 4940
 #define TASK_AFK_TICK 4960
 #define TASK_MATCH_END_COUNT 4961
+#define TASK_CHALLENGE_ROUND 4980
+// 约战「再来一局」：投票倒计时 / 关闭菜单 / 下一局 3-2-1
+#define TASK_REMATCH_TICK 4970
+#define TASK_REMATCH_CLOSE 4971
+#define TASK_REMATCH_COUNT 4972
 #define TASK_RANKED_END 4800
 #define TASK_QUIT   4300
 // 平台队伍自动分配：分配 / 校验 / 开赛延后（基址避开 4940+32 等已有区间）
@@ -155,6 +160,19 @@ new g_challengeName[33][32];
 new bool:g_challengeActive = false;
 new bool:g_challengeSettled = false;
 
+// 三局两胜：每局上报比分，先到 2 胜结算（series）
+new g_challengeRoundNo = 0;
+new g_challengeWinsA = 0;
+new g_challengeWinsB = 0;
+new g_challengeTotalKills[33];
+new g_challengeTotalDeaths[33];
+new bool:g_challengeRoundBusy = false;
+new g_challengeRoundTries = 0;
+new g_challengeRoundQuery[220];
+new g_challengeRoundWinner[2];
+new g_challengeRoundScoreA = 0;
+new g_challengeRoundScoreB = 0;
+
 // 平台队伍自动分配（KB known-issues #8）：把 g_rankedTeam / g_challengeTeam 写回引擎队伍
 new g_platformDesiredTeam[33];
 new bool:g_teamAssigning[33];
@@ -201,6 +219,8 @@ public client_putinserver(id)
     g_challengeUserId[id]=0;
     g_challengeKills[id]=0;
     g_challengeDeaths[id]=0;
+    g_challengeTotalKills[id]=0;
+    g_challengeTotalDeaths[id]=0;
     g_challengeName[id][0]=0;
     g_challengeBaseKills[id]=get_user_frags(id);
     g_challengeBaseDeaths[id]=get_user_deaths(id);
@@ -631,7 +651,7 @@ public taskChallengeIdentify(taskid) {
 
     new query[1024];
     formatex(query, charsmax(query),
-        "SELECT r.id, p.team, COALESCE(c.victory_type, 'kills'), COALESCE(c.victory_limit, 10), t.user_id, r.time_limit_sec, TIMESTAMPDIFF(SECOND, r.started_at, NOW()), r.mode \
+        "SELECT r.id, p.team, COALESCE(c.victory_type, 'kills'), COALESCE(c.victory_limit, 10), t.user_id, r.time_limit_sec, TIMESTAMPDIFF(SECOND, r.started_at, NOW()), r.mode, r.round_no \
            FROM launch_tokens t \
            JOIN challenge_room_players p ON p.user_id = t.user_id \
            JOIN challenge_rooms r ON r.id = p.room_id \
@@ -665,6 +685,8 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
     new userId = SQL_ReadResult(query, 4);
     new mode[8];
     SQL_ReadResult(query, 7, mode, charsmax(mode));
+    new roundNo = SQL_ReadResult(query, 8);
+    if (roundNo > 0) g_challengeRoundNo = roundNo;
 
     if (g_challengeRoomId != roomId) {
         g_challengeRoomId = roomId;
@@ -676,11 +698,17 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
         remove_task(TASK_CHALLENGE_PARTIAL);
         g_challengeSlots = equal(mode, "2v2") ? 2 : 1;
         g_challengeExpected = g_challengeSlots * 2;
+        g_challengeWinsA = 0;
+        g_challengeWinsB = 0;
+        g_challengeRoundBusy = false;
+        g_challengeRoundTries = 0;
         for (new i = 1; i <= get_maxplayers(); i++) {
             g_challengeTeam[i] = 0;
             g_challengeUserId[i] = 0;
             g_challengeKills[i] = 0;
             g_challengeDeaths[i] = 0;
+            g_challengeTotalKills[i] = 0;
+            g_challengeTotalDeaths[i] = 0;
             g_challengeName[i][0] = 0;
             g_platformDesiredTeam[i] = 0;
             g_teamAssigning[i] = false;
@@ -827,31 +855,135 @@ public taskChallengePartialStart() {
     startChallengeBattle();
 }
 
-/** 统一进入结算：写个人统计 → 调存储过程；失败重试，12 秒兜底 */
-beginChallengeSettlement(const winner[], scoreA, scoreB) {
+/** 第 N 局结束：上报本局比分；未到 2 胜则继续下一局 */
+beginChallengeRound(const winner[], scoreA, scoreB) {
+    if (g_challengeSettled || g_challengeRoundBusy) return;
+    if (g_rankedTuple == Empty_Handle) return;
+
+    g_challengeRoundBusy = true;
+    g_challengeRoundTries = 0;
+    copy(g_challengeRoundWinner, charsmax(g_challengeRoundWinner), winner);
+    g_challengeRoundScoreA = scoreA;
+    g_challengeRoundScoreB = scoreB;
+
+    formatex(g_challengeRoundQuery, charsmax(g_challengeRoundQuery),
+        "CALL report_challenge_round(%d, '%s', %d, %d)",
+        g_challengeRoomId, g_challengeRoundWinner, g_challengeRoundScoreA, g_challengeRoundScoreB);
+
+    log_amx("[ESF-ROUND] report room=%d round=%d winner=%s score=%d:%d",
+        g_challengeRoomId, g_challengeRoundNo, g_challengeRoundWinner,
+        g_challengeRoundScoreA, g_challengeRoundScoreB);
+    client_print(0, print_chat, "[约战] 第 %d 局结束，%s队 %d:%d，正在上报比分...",
+        g_challengeRoundNo, g_challengeRoundWinner[0] == 'a' ? "A" : "B",
+        g_challengeRoundScoreA, g_challengeRoundScoreB);
+
+    remove_task(TASK_CHALLENGE_ROUND);
+    set_task(30.0, "taskChallengeRoundWatchdog", TASK_CHALLENGE_ROUND);
+    SQL_ThreadQuery(g_rankedTuple, "OnChallengeRoundReported", g_challengeRoundQuery);
+}
+
+public taskRetryChallengeRound() {
+    if (g_challengeSettled || !g_challengeRoundBusy ||
+        g_challengeRoundQuery[0] == 0 || g_rankedTuple == Empty_Handle) {
+        return;
+    }
+    SQL_ThreadQuery(g_rankedTuple, "OnChallengeRoundReported", g_challengeRoundQuery);
+}
+
+public taskChallengeRoundWatchdog() {
+    if (g_challengeSettled || !g_challengeRoundBusy) return;
+    log_amx("[ESF-ROUND] room=%d code=REPORT_TIMEOUT fallback_settle", g_challengeRoomId);
+    g_challengeRoundBusy = false;
+    new fallback[2];
+    copy(fallback, charsmax(fallback), g_challengeRoundWinner);
+    beginChallengeForfeit(fallback);
+}
+
+public OnChallengeRoundReported(failstate, Handle:query, error[], errnum, data[], dataSize) {
+    if (failstate != TQUERY_SUCCESS) {
+        SQL_FreeHandle(query);
+        if (g_challengeRoundTries < 3) {
+            g_challengeRoundTries++;
+            log_amx("[ESF-ROUND] room=%d attempt=%d code=ROUND_RETRY err=%s",
+                g_challengeRoomId, g_challengeRoundTries, error);
+            set_task(2.0, "taskRetryChallengeRound", TASK_CHALLENGE_ROUND);
+            return;
+        }
+        log_amx("[ESF-ROUND] room=%d attempts=4 code=ROUND_FAILED err=%s fallback_settle",
+            g_challengeRoomId, error);
+        remove_task(TASK_CHALLENGE_ROUND);
+        g_challengeRoundBusy = false;
+        new fallback[2];
+        copy(fallback, charsmax(fallback), g_challengeRoundWinner);
+        beginChallengeForfeit(fallback);
+        return;
+    }
+
+    new finished = SQL_ReadResult(query, 0);
+    new roundNo = SQL_ReadResult(query, 1);
+    new winsA = SQL_ReadResult(query, 2);
+    new winsB = SQL_ReadResult(query, 3);
+    new finalWinner[2];
+    finalWinner[0] = 0;
+    if (finished) SQL_ReadResult(query, 4, finalWinner, 1);
+    SQL_FreeHandle(query);
+
+    remove_task(TASK_CHALLENGE_ROUND);
+
+    g_challengeWinsA = winsA;
+    g_challengeWinsB = winsB;
+    if (roundNo > 0) g_challengeRoundNo = roundNo;
+
+    if (finished) {
+        log_amx("[ESF-ROUND] series_done room=%d winner=%s wins=%d:%d",
+            g_challengeRoomId, finalWinner, winsA, winsB);
+        g_challengeRoundBusy = false;
+        beginChallengeFinal(finalWinner, winsA, winsB);
+        return;
+    }
+
+    // 继续下一局：清零本局计数，累计 K/D 保留在插件内
+    for (new i = 1; i <= get_maxplayers(); i++) {
+        g_challengeKills[i] = 0;
+        g_challengeDeaths[i] = 0;
+    }
+    g_challengeRemaining = 900;
+    g_challengeRoundBusy = false;
+    client_print(0, print_chat,
+        "[约战] 第 %d 局结束：%s队 %d:%d；大比分 A %d:%d B，进入第 %d 局（先到 2 胜）。",
+        g_challengeRoundNo, g_challengeRoundWinner[0] == 'a' ? "A" : "B",
+        g_challengeRoundScoreA, g_challengeRoundScoreB, winsA, winsB, g_challengeRoundNo + 1);
+    log_amx("[ESF-ROUND] next room=%d next_round=%d wins=%d:%d",
+        g_challengeRoomId, g_challengeRoundNo + 1, winsA, winsB);
+}
+
+/** 系列结束：用累计 K/D 写个人统计，再按 series 结算 */
+beginChallengeFinal(const winner[], winsA, winsB) {
     if (g_challengeSettled) return;
+    if (g_rankedTuple == Empty_Handle) return;
 
     g_challengeSettled = true;
+    g_challengeRoundBusy = false;
     copy(g_challengeWinner, charsmax(g_challengeWinner), winner);
-    g_challengeScoreA = scoreA;
-    g_challengeScoreB = scoreB;
+    g_challengeScoreA = winsA;
+    g_challengeScoreB = winsB;
+    copy(g_challengeVictory, charsmax(g_challengeVictory), "series");
+    g_challengeLimit = 2;
     g_challengeStatsTries = 0;
     g_challengeSettleTries = 0;
 
     formatex(g_challengeSettleQuery, charsmax(g_challengeSettleQuery),
-        "CALL settle_challenge_match(%d, '%s', %d, %d, '%s', %d)",
-        g_challengeRoomId, g_challengeWinner, g_challengeScoreA, g_challengeScoreB,
-        g_challengeVictory, g_challengeLimit);
+        "CALL settle_challenge_match(%d, '%s', %d, %d, 'series', 2)",
+        g_challengeRoomId, g_challengeWinner, g_challengeScoreA, g_challengeScoreB);
 
     new stats[768];
     new len = 0, count = 0;
     stats[0] = 0;
     new teamChar[2];
     for (new i = 1; i <= get_maxplayers(); i++) {
-        // 已识别即可写统计：断线玩家的比分仍要随结算一起落库。
         if (g_challengeTeam[i] == 0 || g_challengeUserId[i] == 0) continue;
-        new kills = g_challengeKills[i];
-        new deaths = g_challengeDeaths[i];
+        new kills = g_challengeTotalKills[i];
+        new deaths = g_challengeTotalDeaths[i];
         teamChar[0] = (g_challengeTeam[i] == 1) ? 'a' : 'b';
         teamChar[1] = 0;
         if (count > 0) {
@@ -871,13 +1003,11 @@ beginChallengeSettlement(const winner[], scoreA, scoreB) {
             stats);
     }
 
-    log_amx("[ESF-CHALLENGE] finished room=%d winner=%s score=%d:%d rule=%s %d",
-        g_challengeRoomId, g_challengeWinner, g_challengeScoreA, g_challengeScoreB,
-        g_challengeVictory, g_challengeLimit);
-    client_print(0, print_chat, "[约战] 比赛结束，%s队获胜 %d:%d，正在上传战绩...",
+    log_amx("[ESF-CHALLENGE] series_finished room=%d winner=%s score=%d:%d",
+        g_challengeRoomId, g_challengeWinner, g_challengeScoreA, g_challengeScoreB);
+    client_print(0, print_chat, "[约战] 三局两胜结束，%s队获胜，大比分 %d:%d，正在上传战绩...",
         g_challengeWinner[0] == 'a' ? "A" : "B", g_challengeScoreA, g_challengeScoreB);
 
-    // 25s 看门狗覆盖 stats+settle 最坏路径；末次失败会改为重挂 12s，避免竞态。
     remove_task(TASK_CHALLENGE_END); set_task(25.0, "taskForceChallengeEnd", TASK_CHALLENGE_END);
 
     if (g_challengeStatsQuery[0] != 0) {
@@ -885,6 +1015,19 @@ beginChallengeSettlement(const winner[], scoreA, scoreB) {
     } else {
         settleChallengeResult();
     }
+}
+
+/** 弃权：剩余一方补到领先/2 胜后结束整个系列 */
+beginChallengeForfeit(const winner[]) {
+    if (g_challengeSettled) return;
+    new wa = g_challengeWinsA;
+    new wb = g_challengeWinsB;
+    if (winner[0] == 'a') {
+        if (wa <= wb) wa = wb + 1;
+    } else {
+        if (wb <= wa) wb = wa + 1;
+    }
+    beginChallengeFinal(winner, wa, wb);
 }
 
 /** 进入 20 秒弃权宽限；宽限内回来并重新识别会取消（PRD R8 AC-6） */
@@ -1014,7 +1157,7 @@ settleChallengeForfeit(const reason[]) {
     winner[1] = 0;
 
     log_amx("[ESF-CHALLENGE] forfeit reason=%s winner=%s", reason, winner);
-    beginChallengeSettlement(winner, scoreA, scoreB);
+    beginChallengeForfeit(winner);
 }
 
 /** 约战结算：按击杀/死亡阈值判定，写个人统计并调用平台存储过程 */
@@ -1061,7 +1204,7 @@ bool:checkChallengeFinish() {
     }
     if (!reached) return false;
 
-    beginChallengeSettlement(winner, scoreA, scoreB);
+    beginChallengeRound(winner, scoreA, scoreB);
     return true;
 }
 
@@ -1102,9 +1245,9 @@ forceChallengeTimeout()
 
     log_amx("[ESF-CHALLENGE] timeout room=%d score=%d:%d winner=%s",
         g_challengeRoomId, scoreA, scoreB, winner);
-    client_print(0, print_chat, "[约战] 时间到，%s队按比分获胜 %d:%d，正在上传战绩...",
-        winner[0] == 'a' ? "A" : "B", scoreA, scoreB);
-    beginChallengeSettlement(winner, scoreA, scoreB);
+    client_print(0, print_chat, "[约战] 第 %d 局时间到，%s队按比分 %d:%d 拿下本局...",
+        g_challengeRoundNo, winner[0] == 'a' ? "A" : "B", scoreA, scoreB);
+    beginChallengeRound(winner, scoreA, scoreB);
 }
 
 public taskForceChallengeEnd()
@@ -2414,9 +2557,15 @@ public event_deathmsg()
     if(g_challengeActive && !g_challengeSettled)
     {
         if(victim > 0 && victim <= get_maxplayers() && g_challengeTeam[victim] != 0)
+        {
             g_challengeDeaths[victim]++;
+            g_challengeTotalDeaths[victim]++;
+        }
         if(attack > 0 && attack != victim && attack <= get_maxplayers() && g_challengeTeam[attack] != 0)
+        {
             g_challengeKills[attack]++;
+            g_challengeTotalKills[attack]++;
+        }
         if(g_challengeKnown > 0)
             checkChallengeFinish();
     }
@@ -3057,6 +3206,13 @@ resetAll()
     g_challengeSettleTries = 0;
     g_challengeStatsQuery[0] = 0;
     g_challengeSettleQuery[0] = 0;
+    g_challengeRoundNo = 0;
+    g_challengeWinsA = 0;
+    g_challengeWinsB = 0;
+    g_challengeRoundBusy = false;
+    g_challengeRoundTries = 0;
+    g_challengeRoundQuery[0] = 0;
+    remove_task(TASK_CHALLENGE_ROUND);
     remove_task(TASK_CHALLENGE_PARTIAL);
     remove_task(TASK_CHALLENGE_FORFEIT);
     remove_task(TASK_CHALLENGE_QUORUM);
@@ -3070,6 +3226,8 @@ resetAll()
         g_challengeBaseDeaths[i] = 0;
         g_challengeKills[i] = 0;
         g_challengeDeaths[i] = 0;
+        g_challengeTotalKills[i] = 0;
+        g_challengeTotalDeaths[i] = 0;
         g_challengeName[i][0] = 0;
         g_platformDesiredTeam[i] = 0;
         g_teamAssigning[i] = false;
@@ -3349,7 +3507,7 @@ markAfk(id)
         new w[2];
         w[0] = (g_challengeTeam[id] == 1) ? 'b' : 'a';
         w[1] = 0;
-        beginChallengeSettlement(w, g_challengeScoreA, g_challengeScoreB);
+        beginChallengeForfeit(w);
         log_amx("[AFK] challenge room=%d winner=%c", g_challengeRoomId, w[0]);
     }
     startMatchEndCountdown();

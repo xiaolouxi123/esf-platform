@@ -24,7 +24,7 @@
 
 #define PLUGIN  "ESF Ranked Lock"
 #define VERSION "1.3.0"
-#define BUILD "0.54"
+#define BUILD "0.55"
 #define AUTHOR  "ESF Platform"
 
 #define TASK_CHECK 3100

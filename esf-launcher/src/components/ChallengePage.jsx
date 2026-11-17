@@ -408,6 +408,11 @@ export default function ChallengePage({
                 <span className="tag">{myRoom.mode}</span>
                 <span className="tag">{myRoom.victoryLabel || '击杀 ' + myRoom.victoryLimit + ' 次'}</span>
                 <span className="tag">房间 #{myRoom.displayNo ?? myRoom.id}</span>
+                {myRoom.series && (
+                  <span className="tag tag-series">
+                    第 {myRoom.roundNo || 1} 局 · A {myRoom.series.winsA}:{myRoom.series.winsB} B
+                  </span>
+                )}
                 {myRoom.map && (
                   <span className="tag">
                     <Icon name="map" size={11} /> {myRoom.map}
@@ -493,6 +498,19 @@ export default function ChallengePage({
                 })}
               </div>
 
+              {myRoom.series?.rounds?.length > 0 && (
+                <div className="challenge-rounds">
+                  {myRoom.series.rounds.map((round) => (
+                    <span key={round.roundNo} className={'challenge-round is-' + round.winner}>
+                      <em>第 {round.roundNo} 局</em>
+                      <b>
+                        {round.scoreA}:{round.scoreB}
+                      </b>
+                    </span>
+                  ))}
+                </div>
+              )}
+
               {!isLive && (
                 <div className="challenge-room-steps">
                   <span>
@@ -519,7 +537,9 @@ export default function ChallengePage({
                   <span className="challenge-live-bar">
                     <i style={{ width: livePercent + '%' }} />
                   </span>
-                  <span className="challenge-live-hint">本局剩余时间 · 进服后由房主换图开局</span>
+                  <span className="challenge-live-hint">
+                    第 {myRoom.roundNo || 1} 局剩余时间 · 进服后由房主换图开局
+                  </span>
                 </div>
               )}
             </div>

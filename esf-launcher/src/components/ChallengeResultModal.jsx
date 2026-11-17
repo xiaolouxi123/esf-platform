@@ -2,7 +2,10 @@ import Icon from './Icon';
 import Avatar from './Avatar';
 import { DEFAULT_RANKS, rankFor } from '../lib/ranks';
 
-const victoryLabel = (result) => (result?.victoryType === 'deaths' ? '死亡次数' : '击杀数');
+const victoryLabel = (result) => {
+  if (result?.victoryType === 'series') return '三局两胜';
+  return result?.victoryType === 'deaths' ? '死亡次数' : '击杀数';
+};
 
 function formatWhen(value) {
   if (!value) return '';
@@ -109,8 +112,23 @@ export default function ChallengeResultModal({ result, onClose, onOpenChallenges
           </span>
         </div>
         <div className="crm-rule">
-          胜利条件：{victoryLabel(result)}达到 {result.victoryLimit || 10} 次
+          {result.victoryType === 'series'
+            ? '赛制：三局两胜 · 先到 2 胜'
+            : `胜利条件：${victoryLabel(result)}达到 ${result.victoryLimit || 10} 次`}
         </div>
+
+        {Array.isArray(result.rounds) && result.rounds.length > 0 && (
+          <div className="crm-rounds">
+            {result.rounds.map((round) => (
+              <span key={round.roundNo} className={'crm-round is-' + round.winner}>
+                <em>第 {round.roundNo} 局</em>
+                <b>
+                  {round.scoreA}:{round.scoreB}
+                </b>
+              </span>
+            ))}
+          </div>
+        )}
 
         {chips.length > 0 && (
           <div className="crm-chips">
@@ -126,7 +144,11 @@ export default function ChallengeResultModal({ result, onClose, onOpenChallenges
           <TeamColumn label="A" players={playersA} winner={winnerA} />
           <TeamColumn label="B" players={playersB} winner={winnerB} />
         </div>
-        <p className="challenge-result-note">战绩已回写平台，本场约战不计排位分，也不会影响天梯徽章。</p>
+        <p className="challenge-result-note">
+          {result.victoryType === 'series'
+            ? '三局两胜战绩已回写平台；本场约战不计排位分，也不会影响天梯徽章。'
+            : '战绩已回写平台，本场约战不计排位分，也不会影响天梯徽章。'}
+        </p>
 
         <div className="update-modal-actions">
           <button type="button" className="btn btn-primary" onClick={onOpenChallenges}>

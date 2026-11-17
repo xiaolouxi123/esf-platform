@@ -72,6 +72,7 @@ function normalizeVictoryLimit(limit) {
 }
 
 function victoryLabel(type, limit) {
+  if (type === 'series') return '三局两胜';
   return type === 'deaths' ? `死亡 ${limit} 次` : `击杀 ${limit} 人`;
 }
 
@@ -208,10 +209,27 @@ async function getRoom(roomId, viewerId) {
   const readyCount = members.filter((member) => member.ready).length;
   const pending = isMember ? await pendingInvites(roomId) : [];
   const spectators = await spectatorCount(roomId);
+  const roundRows = await q(
+    `SELECT round_no, winner, score_a, score_b, created_at
+       FROM challenge_rounds WHERE room_id = ? ORDER BY round_no`,
+    [roomId]
+  );
+  const rounds = roundRows.map((item) => ({
+    roundNo: Number(item.round_no),
+    winner: item.winner,
+    scoreA: Number(item.score_a || 0),
+    scoreB: Number(item.score_b || 0),
+    endedAt: item.created_at,
+  }));
 
   return {
     ...roomBase(row),
     members,
+    series: {
+      winsA: rounds.filter((item) => item.winner === 'a').length,
+      winsB: rounds.filter((item) => item.winner === 'b').length,
+      rounds,
+    },
     teams,
     playerCount: members.length,
     readyCount,
@@ -497,6 +515,18 @@ async function resultOf(roomId) {
   );
   if (!row) return null;
   const members = await roomMembers(roomId);
+  const roundRows = await q(
+    `SELECT round_no, winner, score_a, score_b, created_at
+       FROM challenge_rounds WHERE room_id = ? ORDER BY round_no`,
+    [roomId]
+  );
+  const rounds = roundRows.map((item) => ({
+    roundNo: Number(item.round_no),
+    winner: item.winner,
+    scoreA: Number(item.score_a || 0),
+    scoreB: Number(item.score_b || 0),
+    endedAt: item.created_at,
+  }));
   return {
     roomId: Number(row.id),
     displayNo: row.day_seq ? Number(row.day_seq) : Number(row.id),
@@ -511,6 +541,13 @@ async function resultOf(roomId) {
     scoreB: Number(row.score_b || 0),
     victoryType: row.victory_type || 'kills',
     victoryLimit: Number(row.victory_limit || 10),
+    victoryLabel: victoryLabel(row.victory_type || 'kills', Number(row.victory_limit || 10)),
+    rounds,
+    series: {
+      winsA: rounds.filter((item) => item.winner === 'a').length,
+      winsB: rounds.filter((item) => item.winner === 'b').length,
+      rounds,
+    },
     startedAt: row.started_at || null,
     endedAt: row.ended_at || null,
     players: members,
