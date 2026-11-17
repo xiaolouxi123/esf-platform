@@ -270,5 +270,24 @@ check('就地更新脚本：单引号路径按 PowerShell 规则转义成两个�
   assert.ok(script.includes("$installer = 'C:\\tmp\\it''s here\\setup.exe'"), '安装包单引号未转义');
 });
 
+check('就地更新脚本：先写 ready 标记，启动器等它才退出', () => {
+  const script = core.buildApplyUpdateScript({
+    installer: 'C:\\tmp\\setup.exe',
+    appDir: 'C:\\FCX\\ESF平台 0.62',
+    exeName: 'ESF 平台.exe',
+    pid: 99,
+    readyFile: 'C:\\Temp\\esf-update-1\\ready.txt',
+  });
+  const readyAt = script.indexOf("$readyFile = 'C:\\Temp\\esf-update-1\\ready.txt'");
+  assert.ok(readyAt > 0, '缺少 ready 文件路径');
+  const waitAt = script.indexOf('$targetPid = 99');
+  const markerAt = script.indexOf('Set-Content -LiteralPath $readyFile');
+  assert.ok(markerAt > waitAt, 'ready 标记要在等待循环之前写');
+  assert.ok(script.indexOf('while ($targetPid') > markerAt, 'ready 标记要先于等待循环');
+  // 没有传 readyFile 时不能写出空路径赋值给 Set-Content 报错
+  const noReady = core.buildApplyUpdateScript({ installer: 'a.exe', appDir: 'C:\\a', exeName: 'a.exe', pid: 1 });
+  assert.ok(noReady.includes("$readyFile = ''"), '缺省 readyFile 应为空串');
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`\n通过 ${passed} 项检查${process.exitCode ? '（存在失败）' : ''}`);

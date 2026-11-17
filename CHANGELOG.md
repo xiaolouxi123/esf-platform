@@ -2,6 +2,18 @@
 
 所有重要变更记录在这里。格式参考 Keep a Changelog。
 
+## [0.6.53] - 2026-11-18
+
+### Fixed
+- 「立即重启安装」点了没反应（0.6.52 的严重问题）：就地更新脚本用 `detached: true` 拉起 PowerShell，本机实测带 DETACHED_PROCESS 的子进程会立刻退出（`esf-spawn-probe.cjs` 复现：探针文件始终是 MISSING），安装包根本没跑，启动器却已经自己退出了。改成 `cmd /c start /b` 分离启动，并且等脚本写出 `ready.txt` 标记之后启动器才退出；脚本起不来时抛错提示手动下载，不再静默丢更新。
+- 去掉 0.6.52 里「就地更新失败就退回 quitAndInstall」的兜底：那条路会把绿色包再装一份到 `%LOCALAPPDATA%\Programs`，老目录照样不更新，等于假装更新成功。
+
+### Changed
+- 就地更新失败时前端会 toast 出具体原因（此前 `update.install()` 的 Promise 拒绝没人接，用户只看到窗口一闪）。
+
+### Verified
+- 沙箱 E2E（`%TEMP%\esf-e2e-e2e.cjs`）：本地 feed 造 0.6.61 → 启动器 0.6.52 就地包 → 下载 → 点安装 → 原进程退出 → 安装器 `/S /D=<沙箱目录>` exit 0 → 自动重开 → `hl.exe`/`hw.dll`/`valve\liblist.gam`/`esf\liblist.gam` 全部保留，exe mtime 变化。
+
 ## [0.6.52] - 2026-11-18
 
 ### Changed

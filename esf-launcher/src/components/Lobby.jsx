@@ -1128,7 +1128,11 @@ export default function Lobby({
                   <button
                     type="button"
                     className="btn btn-sm btn-primary"
-                    onClick={() => window.electronAPI.update.install()}
+                    onClick={() => {
+                      window.electronAPI
+                        .update.install()
+                        .catch((err) => toast(err.message || '更新启动失败，请手动下载安装包', 'error'));
+                    }}
                   >
                     立即重启安装
                   </button>

@@ -622,7 +622,7 @@ function appendLog(modDir, line) {
  * 而 Node 会给含空格的参数自动加引号，安装器就忽略 /D 装回默认目录。脚本里改用
  * ProcessStartInfo.Arguments 原样拼命令行，路径里的空格不会被加引号。
  */
-function buildApplyUpdateScript({ installer, appDir, exeName, pid }) {
+function buildApplyUpdateScript({ installer, appDir, exeName, pid, readyFile }) {
   const psString = (value) => `'${String(value == null ? '' : value).replace(/'/g, "''")}'`;
   const lines = [
     "$ErrorActionPreference = 'Stop'",
@@ -630,6 +630,9 @@ function buildApplyUpdateScript({ installer, appDir, exeName, pid }) {
     `$appDir = ${psString(appDir)}`,
     `$exeName = ${psString(exeName)}`,
     `$installer = ${psString(installer)}`,
+    `$readyFile = ${psString(readyFile)}`,
+    // 先落「脚本已跑起来」标记，启动器等到它才退出；否则子进程可能没起来就丢更新
+    "if ($readyFile) { try { Set-Content -LiteralPath $readyFile -Value 'ready' -Encoding ASCII } catch {} }",
     "$log = Join-Path $env:TEMP 'esf-update-apply.log'",
     'function Write-EsfLog($msg) { Add-Content -LiteralPath $log -Value ("[{0}] {1}" -f (Get-Date -Format \'s\'), $msg) -Encoding UTF8 }',
     'Write-EsfLog "wait launcher exit pid=$targetPid"',

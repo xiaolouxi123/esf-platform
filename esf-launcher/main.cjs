@@ -217,31 +217,46 @@ function writeApplyUpdateScript() {
   const dir = path.join(app.getPath('temp'), `esf-update-${Date.now()}`);
   fs.mkdirSync(dir, { recursive: true });
   const scriptPath = path.join(dir, 'apply-update.ps1');
+  const readyPath = path.join(dir, 'ready.txt');
   // 脚本正文在 launcher-core 里生成，方便单测（含 /D= 不能加引号的说明）
   const body = core.buildApplyUpdateScript({
     installer,
     appDir,
     exeName,
     pid: process.pid,
+    readyFile: readyPath,
   });
   // PowerShell 5.1 读无 BOM 的 UTF-8 会按 ANSI 解析，中文路径会变乱码
   fs.writeFileSync(scriptPath, `\ufeff${body}`, 'utf8');
-  return scriptPath;
+  return { scriptPath, readyPath };
 }
 
-function applyUpdateInPlace() {
-  const scriptPath = writeApplyUpdateScript();
+async function applyUpdateInPlace() {
+  const { scriptPath, readyPath } = writeApplyUpdateScript();
   updateLog('INFO', `就地更新脚本: ${scriptPath}`);
-  const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', scriptPath], {
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: true,
+  // 不能给 powershell 设 detached:true：本机实测带 DETACHED_PROCESS 的 powershell 会立刻死掉，
+  // 更新静默丢失。改成 cmd /c start /b 分离，再等脚本写出 ready 标记后才退出启动器。
+  const cmdLine = ['/c', 'start', '""', '/b', 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', scriptPath];
+  const child = spawn('cmd.exe', cmdLine, { stdio: 'ignore', windowsHide: true });
+  const spawnError = await new Promise((resolve) => {
+    child.once('error', (err) => resolve(err));
+    child.once('spawn', () => resolve(null));
+    setTimeout(() => resolve(null), 1000);
   });
-  child.unref();
-  setTimeout(() => {
-    quitting = true;
-    app.quit();
-  }, 400);
+  if (spawnError) throw new Error(`更新启动失败：${spawnError.message}`);
+
+  for (let i = 0; i < 40; i += 1) {
+    if (fs.existsSync(readyPath)) {
+      updateLog('INFO', '更新脚本已接管，准备退出启动器');
+      setTimeout(() => {
+        quitting = true;
+        app.quit();
+      }, 300);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error('更新脚本没有启动起来，请手动下载安装包');
 }
 
 async function autoCheckOnce() {
@@ -1393,11 +1408,12 @@ handle('update:auto-check', async () => {
 handle('update:auto-install', async () => {
   if (updateState.status !== 'downloaded') throw new Error('还没有下载完成的更新');
   try {
-    applyUpdateInPlace();
+    await applyUpdateInPlace();
   } catch (err) {
-    // 就地覆盖失败（例如装在 Program Files 没有写权限）时退回官方安装器流程
-    updateLog('WARN', '就地更新失败，改用标准安装器:', err.message);
-    setTimeout(() => autoUpdater.quitAndInstall(), 300);
+    // 不再退回 quitAndInstall：绿色包会被装到 %LOCALAPPDATA%\Programs，等于更新失败
+    updateLog('ERROR', '就地更新启动失败:', err.message);
+    sendUpdate({ status: 'error', message: err.message });
+    throw err;
   }
   return true;
 });
