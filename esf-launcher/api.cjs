@@ -46,7 +46,13 @@ async function request(settings, { method = 'GET', path, body, token } = {}) {
     const payload = await res.json().catch(() => null);
 
     if (!res.ok || !payload || payload.ok !== true) {
-      const message = (payload && payload.message) || `平台服务返回异常（HTTP ${res.status}）`;
+      // Zod 校验失败时后端返回的是笼统的「参数不合法」，把首条字段错误提上来才看得懂。
+      const details = payload && Array.isArray(payload.details) ? payload.details : [];
+      const firstDetail = details.find((item) => item && item.message);
+      const message =
+        (firstDetail && firstDetail.message) ||
+        (payload && payload.message) ||
+        `平台服务返回异常（HTTP ${res.status}）`;
       throw new ApiError(message, (payload && payload.code) || `HTTP_${res.status}`, res.status);
     }
 

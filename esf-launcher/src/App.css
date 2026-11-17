@@ -10472,10 +10472,14 @@ select:focus {
 .assets-table-head,
 .assets-row {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1.35fr) minmax(0, 0.95fr) 132px 84px 72px 104px;
+  grid-template-columns: 46px minmax(0, 1fr) 104px;
   gap: 12px;
   align-items: center;
   padding: 0 16px;
+}
+
+.assets-table-head .assets-head-ops {
+  text-align: right;
 }
 
 .assets-table-head {
@@ -10533,41 +10537,56 @@ select:focus {
   background: rgba(255, 138, 31, 0.14);
 }
 
-.assets-name {
+.assets-main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 }
 
-.assets-name b {
+.assets-title {
   display: flex;
   align-items: center;
   gap: 7px;
   min-width: 0;
+}
+
+.assets-title b {
+  min-width: 0;
+  overflow: hidden;
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.assets-name b .tag {
+.assets-title .tag {
+  flex: none;
   height: 18px;
   padding: 0 6px;
   font-size: 9.5px;
 }
 
-.assets-name .asset-version {
+.assets-title .asset-version {
+  flex: none;
   font-size: 10px;
   font-style: normal;
   color: var(--dim);
 }
 
-.assets-name small {
-  overflow: hidden;
-  font-size: 11px;
-  color: rgba(164, 173, 194, 0.62);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* 第二行：路径 / 作者 / 大小 / 下载，单行省略，不再被挤成竖排 */
+.assets-sub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.assets-sub > * {
+  flex: none;
 }
 
 .assets-sync {
@@ -10582,6 +10601,8 @@ select:focus {
 }
 
 .assets-path {
+  flex: 0 1 auto;
+  min-width: 40px;
   overflow: hidden;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 10.5px;
@@ -10593,18 +10614,22 @@ select:focus {
 .assets-author {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  max-width: 140px;
   overflow: hidden;
-  font-size: 11.5px;
   color: var(--muted);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .assets-size,
 .assets-downloads {
-  font-size: 11.5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .assets-ops {
@@ -10787,7 +10812,7 @@ select:focus {
 
   .assets-table-head,
   .assets-row {
-    grid-template-columns: 46px minmax(0, 1.4fr) minmax(0, 0.8fr) 116px 76px 64px 96px;
+    grid-template-columns: 42px minmax(0, 1fr) 92px;
     gap: 10px;
     padding: 0 14px;
   }
@@ -12186,6 +12211,19 @@ select:focus {
 .admin-stack { flex: 0 0 auto; }
 
 
+/* =====================================================================
+   0.6.52 修版：各页 hero 按内容撑开，不再被 max-height + overflow 裁掉
+   - 排位页 1322x901 时 hud 与 1v1/2v2/开始匹配 换行，超过 max-height:350 后整行被裁
+   - 约战 / 服务器 / 资源库 hero 同样写死 max-height，内容多时同样裁切
+   ===================================================================== */
+.ranked-page > .ranked-hero,
+.challenge-hero,
+.servers-hero,
+.assets-hero {
+  flex: 0 0 auto;
+  max-height: none;
+}
+
 /* ============================ 成员面板：收起 / 展开 ============================ */
 .member-collapse-btn {
   margin-left: auto;
@@ -12711,3 +12749,28 @@ select:focus {
   justify-content: center;
   white-space: nowrap;
 }
+
+/* =====================================================================
+   0.6.6 修版：小号中文标签抬到 10px，路径框不再被 flex 压扁
+   - 9px 的中文（所有者 / 权限 / 路径标签）在 1080p 下笔画糊在一起
+   - .assets-dir 是 flex 子项，窗口变窄时会被 shrink 到 14px 高，路径只露半行
+   ===================================================================== */
+.member-level,
+.role-badge,
+.path-label,
+.tag--kind,
+.asset-chip-kind,
+.member-hint,
+.eyebrow-status {
+  font-size: 10px;
+}
+.room-ranked-tag { font-size: 9.5px; }
+.assets-dir { flex: 0 0 auto; min-height: 30px; line-height: 1.5; }
+
+/* 上面两条被 .assets-title .tag / .drawer .path-box .path-label 的更高优先级压住，补同权重覆盖 */
+.assets-title .tag { font-size: 10px; }
+.drawer .path-box .path-label { font-size: 10px; }
+.rank-tier-track span.is-reached { font-size: 10px; }
+
+/* 左侧快捷栏两个中文字 9px 太糊，抬到 10px（按钮 46x44 仍放得下） */
+.game-tile--tool small { font-size: 10px; }

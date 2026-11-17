@@ -3,6 +3,10 @@ import Icon from './Icon';
 import loginBg from '../assets/login-bg.jpg';
 import dragonBall from '../assets/dragon-ball.webp';
 
+/** 与 server/src/lib/password.js 一致：至少 10 位、至少三类字符。 */
+const passwordClasses = (value) =>
+  [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((re) => re.test(value)).length;
+
 export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, appInfo, notice }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -45,7 +49,14 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, app
         setForgot({ ...forgot, step: 3, token: data.resetToken });
         setForgotInfo('验证通过，请设置新密码');
       } else {
-        if (forgot.password.length < 8) throw new Error('新密码至少 8 位');
+        if (forgot.password.length < 10) throw new Error('新密码至少 10 位');
+        if (passwordClasses(forgot.password) < 3)
+          throw new Error('新密码需包含小写字母、大写字母、数字、符号中的至少三类');
+        if (
+          forgot.account &&
+          forgot.password.toLowerCase().includes(forgot.account.trim().toLowerCase())
+        )
+          throw new Error('新密码不能包含账号名');
         if (forgot.password !== forgot.confirm) throw new Error('两次输入的密码不一致');
         await api.forgotReset(forgot.token, forgot.password);
         setForgot(null);
@@ -191,7 +202,7 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, app
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 autoComplete="current-password"
-                placeholder="至少 8 位"
+                placeholder="输入密码"
                 onChange={(event) => setPassword(event.target.value)}
               />
               <button
@@ -343,7 +354,7 @@ export default function LoginPage({ onLogin, onGoRegister, onGuest, backend, app
                           type="password"
                           value={forgot.password}
                           autoFocus
-                          placeholder="至少 8 位"
+                          placeholder="至少 10 位，含大小写 / 数字 / 符号"
                           onChange={(e) => setForgot({ ...forgot, password: e.target.value })}
                         />
                       </div>

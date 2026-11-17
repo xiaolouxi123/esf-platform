@@ -4,6 +4,10 @@ import loginBg from '../assets/login-bg.jpg';
 import dragonBall from '../assets/dragon-ball.webp';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
+/** 与 server/src/lib/password.js 的策略保持一致，避免提交后才被后端打回。 */
+const PASSWORD_MIN = 10;
+const passwordClasses = (value) =>
+  [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((re) => re.test(value)).length;
 
 export default function RegisterPage({ onRegister, onGoLogin, inviteRequired }) {
   const [form, setForm] = useState({
@@ -26,7 +30,11 @@ export default function RegisterPage({ onRegister, onGoLogin, inviteRequired }) 
     const gameName = form.gameName.trim();
 
     if (!USERNAME_RE.test(username)) return setError('账号需 3~20 位字母 / 数字 / 下划线');
-    if (form.password.length < 8) return setError('密码至少 8 位');
+    if (form.password.length < PASSWORD_MIN) return setError(`密码至少 ${PASSWORD_MIN} 位`);
+    if (passwordClasses(form.password) < 3)
+      return setError('密码需包含小写字母、大写字母、数字、符号中的至少三类');
+    if (form.password.toLowerCase().includes(username.toLowerCase()))
+      return setError('密码不能包含账号名');
     if (form.password !== form.confirm) return setError('两次输入的密码不一致');
     if (gameName && gameName.length > 16) return setError('游戏昵称最多 16 个字');
 
@@ -142,7 +150,7 @@ export default function RegisterPage({ onRegister, onGoLogin, inviteRequired }) 
                   type="password"
                   value={form.password}
                   autoComplete="new-password"
-                  placeholder="至少 8 位"
+                  placeholder="至少 10 位"
                   onChange={update('password')}
                 />
               </div>
@@ -161,6 +169,9 @@ export default function RegisterPage({ onRegister, onGoLogin, inviteRequired }) 
               </div>
             </label>
           </div>
+          <p className="auth-note">
+            密码至少 10 位，且包含小写字母、大写字母、数字、符号中的三类；不能包含账号名。
+          </p>
 
           {inviteRequired ? (
             <label className="field">

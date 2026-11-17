@@ -368,12 +368,8 @@ export default function AssetLibrary({ toast, settings }) {
         <section className="assets-table">
           <div className="assets-table-head">
             <span />
-            <span>资源</span>
-            <span>落地路径</span>
-            <span>作者</span>
-            <span>大小</span>
-            <span>下载</span>
-            <span />
+            <span>资源 / 落地路径 / 作者</span>
+            <span className="assets-head-ops">操作</span>
           </div>
 
           {visible.length === 0 ? (
@@ -392,26 +388,29 @@ export default function AssetLibrary({ toast, settings }) {
                   )}
                 </span>
 
-                <span className="assets-name">
-                  <b>
-                    {asset.name}
+                <div className="assets-main">
+                  <div className="assets-title">
+                    <b title={asset.name}>{asset.name}</b>
                     <span className={`tag tag--kind tag--${asset.kind}`}>
                       {KIND_LABEL[asset.kind] || asset.kind}
                     </span>
                     <em className="asset-version">v{asset.version}</em>
-                  </b>
-                  <small>{asset.description || '暂无说明'}</small>
-                </span>
-
-                <code className="assets-path">{asset.targetPath}</code>
-
-                <span className="assets-author">
-                  <Avatar user={{ gameName: asset.authorName || '?' }} size="xs" />
-                  {asset.authorName || '未知作者'}
-                </span>
-
-                <span className="assets-size">{formatBytes(asset.fileSize)}</span>
-                <span className="assets-downloads">{formatNumber(asset.downloads)}</span>
+                  </div>
+                  <div className="assets-sub">
+                    <code className="assets-path" title={asset.targetPath}>
+                      {asset.targetPath}
+                    </code>
+                    <span className="assets-author" title={asset.authorName || '未知作者'}>
+                      <Avatar user={{ gameName: asset.authorName || '?' }} size="xs" />
+                      {asset.authorName || '未知作者'}
+                    </span>
+                    <span className="assets-size">{formatBytes(asset.fileSize)}</span>
+                    <span className="assets-downloads" title="下载次数">
+                      <Icon name="download" size={11} />
+                      {formatNumber(asset.downloads)}
+                    </span>
+                  </div>
+                </div>
 
                 <span className="assets-ops">
                   <button
