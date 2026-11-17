@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import RankedResultModal from './RankedResultModal';
+import { readRankedCache, writeRankedCache } from '../lib/rankedCache';
 import { playSfx } from '../lib/sfx';
 
 const MODE_META = {
@@ -345,11 +346,12 @@ function RankSide({ leaderboard, user }) {
 
 export default function RankedPage({ user, toast, servers = [] }) {
   const [mode, setMode] = useState('1v1');
-  const [state, setState] = useState({ state: 'loading', profile: null });
+  // 有缓存先用缓存渲染，避免每次点开都空等一次网络往返
+  const [state, setState] = useState(() => readRankedCache('state') || { state: 'loading', profile: null });
   const availableServers = (servers || []).filter((s) => s.online && !s.locked);
   const serverUnavailable = availableServers.length === 0;
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [history, setHistory] = useState([]);
+  const [leaderboard, setLeaderboard] = useState(() => readRankedCache('leaderboard') || []);
+  const [history, setHistory] = useState(() => readRankedCache('history') || []);
   const [betTeam, setBetTeam] = useState('a');
   const [betAmount, setBetAmount] = useState(50);
   const [busy, setBusy] = useState('');
@@ -397,6 +399,7 @@ export default function RankedPage({ user, toast, servers = [] }) {
     try {
       const data = await window.electronAPI.ranked.state();
       setState(data);
+      writeRankedCache('state', data);
       if (data?.match?.mode) setMode(data.match.mode);
       await consumeResult(data?.lastResult);
     } catch (err) {
@@ -408,6 +411,7 @@ export default function RankedPage({ user, toast, servers = [] }) {
     try {
       const data = await window.electronAPI.ranked.leaderboard(20);
       setLeaderboard(data.players || []);
+      writeRankedCache('leaderboard', data.players || []);
     } catch {
       /* 排行可稍后重试 */
     }
@@ -417,6 +421,7 @@ export default function RankedPage({ user, toast, servers = [] }) {
     try {
       const data = await window.electronAPI.ranked.history(10);
       setHistory(data.matches || []);
+      writeRankedCache('history', data.matches || []);
     } catch {
       /* 战绩可稍后重试 */
     }
@@ -435,7 +440,7 @@ export default function RankedPage({ user, toast, servers = [] }) {
     }, 12000);
     const historyTimer = setInterval(() => {
       if (alive) loadHistory();
-    }, 30000);
+    }, 20000);
     return () => {
       alive = false;
       clearInterval(stateTimer);

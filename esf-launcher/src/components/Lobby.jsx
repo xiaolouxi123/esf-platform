@@ -16,6 +16,7 @@ import ReleasesModal from './ReleasesModal';
 import ServerRoomList from './ServerRoomList';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import { DEFAULT_RANKS, normalizeRanks, rankLabel } from '../lib/ranks';
+import { writeRankedCache } from '../lib/rankedCache';
 import { playSfx } from '../lib/sfx';
 import dragonBall from '../assets/dragon-ball.webp';
 import {
@@ -372,6 +373,31 @@ export default function Lobby({
       alive = false;
     };
   }, []);
+
+  // 进大厅后台预热排位数据：点开「排位」时直接有内容，不用等三个请求
+  useEffect(() => {
+    if (!user) return undefined;
+    let alive = true;
+    const timer = setTimeout(async () => {
+      try {
+        const [rankedState, board, hist] = await Promise.all([
+          window.electronAPI.ranked.state(),
+          window.electronAPI.ranked.leaderboard(20),
+          window.electronAPI.ranked.history(10),
+        ]);
+        if (!alive) return;
+        writeRankedCache('state', rankedState);
+        writeRankedCache('leaderboard', board.players || []);
+        writeRankedCache('history', hist.matches || []);
+      } catch {
+        /* 预取失败不影响正常使用，进排位页会重新拉 */
+      }
+    }, 1200);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [user]);
 
   // 服务器状态自动刷新：每 15 秒静默拉一次，窗口重新聚焦也拉（后端轮询同样 15 秒）
   useEffect(() => {

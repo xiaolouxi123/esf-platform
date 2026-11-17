@@ -192,5 +192,55 @@ check('写日志且超限自动清空', () => {
   fs.rmSync(ldir, { recursive: true, force: true });
 });
 
+console.log('== 8. 自动寻找游戏目录 ==');
+
+/** 造一个能被认出来的整合包目录（hl.exe + esf 模组） */
+function makePack(dir) {
+  fs.mkdirSync(path.join(dir, 'esf'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'hl.exe'), '');
+  return dir;
+}
+
+check('启动器同目录优先命中（社区整包最常见）', () => {
+  const pack = fs.mkdtempSync(path.join(os.tmpdir(), 'esf-pack-'));
+  makePack(pack);
+  const found = core.detectGameDir({ launcherDir: pack, drives: [], budgetMs: 2000 });
+  assert.ok(found, '应当找到整包');
+  assert.strictEqual(path.resolve(found.root), path.resolve(pack));
+  assert.strictEqual(path.resolve(found.modDir), path.resolve(pack, 'esf'));
+  fs.rmSync(pack, { recursive: true, force: true });
+});
+
+check('启动器在子目录、游戏在上一级也能找到', () => {
+  const pack = fs.mkdtempSync(path.join(os.tmpdir(), 'esf-pack2-'));
+  makePack(pack);
+  const launcherDir = path.join(pack, 'ESF Platform');
+  fs.mkdirSync(launcherDir, { recursive: true });
+  const found = core.detectGameDir({ launcherDir, drives: [], budgetMs: 2000 });
+  assert.ok(found, '上一级应当被看到');
+  assert.strictEqual(path.resolve(found.root), path.resolve(pack));
+  fs.rmSync(pack, { recursive: true, force: true });
+});
+
+check('目录名带 FCX 的文件夹会被扫到（不依赖 Steam）', () => {
+  const drive = fs.mkdtempSync(path.join(os.tmpdir(), 'esf-drv-'));
+  const pack = makePack(path.join(drive, 'FCX整合包'));
+  const found = core.detectGameDir({
+    launcherDir: path.join(drive, 'no-launcher-here'),
+    drives: [drive],
+    budgetMs: 3000,
+  });
+  assert.ok(found, 'FCX 目录应当命中');
+  assert.strictEqual(path.resolve(found.root), path.resolve(pack));
+  fs.rmSync(drive, { recursive: true, force: true });
+});
+
+check('没有任何线索时返回 null，不抛异常', () => {
+  const drive = fs.mkdtempSync(path.join(os.tmpdir(), 'esf-drv-empty-'));
+  const found = core.detectGameDir({ launcherDir: path.join(drive, 'missing'), drives: [drive], budgetMs: 1500 });
+  assert.strictEqual(found, null);
+  fs.rmSync(drive, { recursive: true, force: true });
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`\n通过 ${passed} 项检查${process.exitCode ? '（存在失败）' : ''}`);

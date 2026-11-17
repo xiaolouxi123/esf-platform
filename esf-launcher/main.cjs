@@ -944,27 +944,6 @@ function registryGameHints() {
     }
   };
 
-  // Steam 安装位置 + 所有库文件夹
-  for (const [key, value] of [
-    ['HKCU\\Software\\Valve\\Steam', 'SteamPath'],
-    ['HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam', 'InstallPath'],
-    ['HKLM\\SOFTWARE\\Valve\\Steam', 'InstallPath'],
-  ]) {
-    const text = regQuery(['query', key, '/v', value]);
-    const m = text.match(new RegExp(value + '\\s+REG_SZ\\s+(.+)', 'i'));
-    if (!m) continue;
-    const steam = m[1].trim();
-    pushHint(path.join(steam, 'steamapps', 'common', 'Half-Life'));
-    try {
-      const vdf = fs.readFileSync(path.join(steam, 'steamapps', 'libraryfolders.vdf'), 'utf8');
-      for (const lib of core.parseSteamLibraryFolders(vdf)) {
-        pushHint(path.join(lib, 'steamapps', 'common', 'Half-Life'));
-      }
-    } catch {
-      /* 没有 vdf 就用主库 */
-    }
-  }
-
   // 卸载表里名字像半条命/CS 的安装目录
   for (const name of ['Half-Life', 'Counter-Strike']) {
     const text = regQuery([
@@ -984,14 +963,22 @@ function registryGameHints() {
   return hints;
 }
 
+/** 启动器自己所在目录：整合包最常见的形态就是启动器和 hl.exe 同级 */
+function launcherDirPath() {
+  if (app.isPackaged) return path.dirname(process.execPath);
+  // 开发时 process.execPath 是 electron.exe，退回仓库根目录，避免把 node_modules 当线索
+  return path.resolve(app.getAppPath(), '..');
+}
+
 handle('dialog:auto-find-game-dir', async () => {
   const found = core.detectGameDir({
     env: process.env,
     extraDirs: registryGameHints(),
     drives: driveLetters(),
+    launcherDir: launcherDirPath(),
   });
   if (!found || !found.hlPath) {
-    throw new api.ApiError('没有自动找到游戏目录，请点「选择目录」手动指定包含 hl.exe 的文件夹', 'GAME_DIR_NOT_FOUND');
+    throw new api.ApiError('没有自动找到游戏目录，请点「选择目录」手动指定整合包根目录（含 hl.exe / esf.exe）', 'GAME_DIR_NOT_FOUND');
   }
   if (!found.modDir) {
     settings = store.saveSettings({ hlPath: found.hlPath });

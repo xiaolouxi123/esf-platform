@@ -362,86 +362,136 @@ function resolveGameFiles(selectedDir) {
 
 // ================= 自动寻找游戏目录 =================
 
-/** Steam 库文件夹 vdf 里所有 "path" 值（纯字符串解析，不引入第三方依赖） */
-function parseSteamLibraryFolders(vdfText) {
-  const out = [];
-  const re = /"path"\s+"([^"]+)"/gi;
-  let hit;
-  while ((hit = re.exec(String(vdfText || ''))) !== null) {
-    const raw = hit[1].replace(/\\\\/g, '\\');
-    if (raw) out.push(raw);
-  }
-  return out;
-}
+/**
+ * 社区分发的整合包形态：启动器和游戏主程序（hl.exe / esf.exe / fcx.exe）在同一个文件夹，
+ * 或者文件夹名里带 FCX。Steam 正版库在本平台没有使用场景，所以不把 Steam 当线索。
+ *
+ * 搜索顺序（命中即返回）：
+ *   1. 启动器自己所在目录 / 上一级 / 附近的子目录 —— 整包最常见的形态
+ *   2. 外部线索（注册表卸载记录里登记的安装位置）
+ *   3. 各盘目录名带关键字的文件夹（FCX），深度不超过 3
+ *   4. 各盘根目录下常见的整合包名字（Half-Life / 半条命 / CS1.6\Half-Life ...）
+ *   5. 各盘一、二级目录兜底（只看有没有游戏主程序）
+ * 全程有预算（验证目录数 / 读取目录数 / 时间），最坏几秒内返回，绝不卡住启动器。
+ */
+const DIR_KEYWORDS = ['fcx'];
 
-/** 各盘根目录下常见的整合包放置位置（新手解压后大多落在这些名字里） */
+/** 各盘根目录下常见的整合包放置位置（老玩家手动整理过的目录） */
 const DRIVE_SUBDIR_HINTS = [
   'Half-Life',
   'hl',
   '半条命',
   'CS1.6',
   'cs1.6',
-  'CS1.6\Half-Life',
-  'Half-Life\Half-Life',
-  'Games\Half-Life',
-  'Games\CS1.6',
-  '游戏\Half-Life',
-  '游戏\半条命',
-  'ESF\Half-Life',
-  'Steam\steamapps\common\Half-Life',
-  'SteamLibrary\steamapps\common\Half-Life',
-  'Program Files\Half-Life',
-  'Program Files (x86)\Half-Life',
+  'CS1.6\\Half-Life',
+  'Half-Life\\Half-Life',
+  'Games\\Half-Life',
+  'Games\\CS1.6',
+  '游戏\\Half-Life',
+  '游戏\\半条命',
+  'ESF\\Half-Life',
+  'Program Files\\Half-Life',
+  'Program Files (x86)\\Half-Life',
 ];
 
-/** 候选目录：先放调用方给的（注册表/Steam），再放常见安装位置与各盘启发式路径 */
-function gameDirCandidates({ env = {}, extraDirs = [], drives = [] } = {}) {
+/** 扫描时永远不进入的系统目录 */
+const SKIP_SCAN_DIRS = new Set([
+  'windows', '$recycle.bin', 'system volume information', 'programdata', 'users',
+  'perflogs', 'recovery', 'intel', 'amd', 'nvidia', 'msocache', 'node_modules',
+  'appdata', 'onedrive', 'temp',
+]);
+
+/** 列出子目录名（读不到就当空目录，自动寻找不能因为权限问题炸掉） */
+function subDirNames(dir) {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+  } catch {
+    return [];
+  }
+}
+
+function matchDirKeyword(name, keywords) {
+  const low = String(name || '').toLowerCase();
+  return keywords.some((keyword) => low.includes(keyword));
+}
+
+/** 启动器周围最可能的几个目录：自己、上一级、自己和上一级的直接子目录 */
+function launcherNearbyDirs(launcherDir) {
+  if (!launcherDir) return [];
+  const self = path.resolve(launcherDir);
+  const parent = path.resolve(self, '..');
+  const out = [self, parent];
+  for (const name of subDirNames(self)) out.push(path.join(self, name));
+  for (const name of subDirNames(parent)) {
+    if (SKIP_SCAN_DIRS.has(name.toLowerCase())) continue;
+    out.push(path.join(parent, name));
+  }
+  return out;
+}
+
+/** 各盘常见整合包名字（不含 Steam） */
+function commonGameDirs({ env = {}, drives = [] } = {}) {
+  const out = [];
+  for (const drive of drives) {
+    for (const sub of DRIVE_SUBDIR_HINTS) out.push(path.join(drive + '\\', sub));
+  }
+  const programFiles = [env['ProgramFiles(x86)'], env.ProgramFiles, env.ProgramW6432].filter(Boolean);
+  for (const base of programFiles) {
+    out.push(path.join(base, 'Half-Life'));
+    out.push(path.join(base, 'CS1.6', 'Half-Life'));
+  }
+  return out;
+}
+
+/**
+ * 平铺后的候选顺序（调试与单测用）。关键字目录需要现场扫描，不在这里展开。
+ */
+function gameDirCandidates({ env = {}, extraDirs = [], drives = [], launcherDir = '' } = {}) {
   const list = [];
   const seen = new Set();
   const push = (dir) => {
     if (!dir || typeof dir !== 'string') return;
     const trimmed = dir.trim().replace(/^"|"$/g, '');
-    if (!trimmed || !/^[a-zA-Z]:[\\/]/.test(trimmed)) return;
+    if (!trimmed) return;
     const key = path.resolve(trimmed).toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
     list.push(path.resolve(trimmed));
   };
 
+  launcherNearbyDirs(launcherDir).forEach(push);
   extraDirs.forEach(push);
-
-  const programFiles = [env['ProgramFiles(x86)'], env.ProgramFiles, env.ProgramW6432].filter(Boolean);
-  for (const base of programFiles) {
-    push(path.join(base, 'Steam', 'steamapps', 'common', 'Half-Life'));
-    push(path.join(base, 'Half-Life'));
-    push(path.join(base, 'CS1.6', 'Half-Life'));
-  }
-
-  for (const drive of drives) {
-    for (const sub of DRIVE_SUBDIR_HINTS) {
-      push(path.join(drive + '\\', sub));
-    }
-  }
-
+  commonGameDirs({ env, drives }).forEach(push);
   return list;
 }
 
-/**
- * 自动找游戏目录。
- *
- * 顺序：候选目录逐个验证 → 各盘根目录深度 1/2 扫描。
- * 全程有预算（目录数 + 时间），最坏情况几秒内返回，绝不卡住启动器。
- */
-function detectGameDir({ env = {}, extraDirs = [], drives = [], budgetMs = 6000, maxScans = 600 } = {}) {
+function detectGameDir({
+  env = {},
+  extraDirs = [],
+  drives = [],
+  launcherDir = '',
+  budgetMs = 6000,
+  maxScans = 800,
+  maxDirReads = 2500,
+} = {}) {
   const deadline = Date.now() + budgetMs;
   let scans = 0;
-  let hlOnly = null;
+  let dirReads = 0;
   let searched = 0;
+  let hlOnly = null;
 
-  const overBudget = () => scans >= maxScans || Date.now() > deadline;
+  const overBudget = () => scans >= maxScans || dirReads >= maxDirReads || Date.now() > deadline;
+
+  const scan = (dir) => {
+    if (dirReads >= maxDirReads || Date.now() > deadline) return [];
+    dirReads += 1;
+    return subDirNames(dir);
+  };
 
   const tryDir = (dir) => {
-    if (overBudget()) return null;
+    if (!dir || overBudget()) return null;
     scans += 1;
     searched += 1;
     const found = resolveGameFiles(dir);
@@ -450,50 +500,69 @@ function detectGameDir({ env = {}, extraDirs = [], drives = [], budgetMs = 6000,
     return null;
   };
 
-  for (const dir of gameDirCandidates({ env, extraDirs, drives })) {
+  // 1. 启动器周围：整包解压后启动器就在 hl.exe 旁边，这一步通常直接命中
+  const nearby = launcherNearbyDirs(launcherDir);
+  for (const dir of nearby) {
     const hit = tryDir(dir);
     if (hit) return hit;
   }
 
-  // 各盘根目录：先看一级子目录，再看二级（跳过明显不该进的大目录）
-  const SKIP = new Set(['windows', '$recycle.bin', 'system volume information', 'programdata', 'users', 'perflogs', 'recovery', 'intel', 'amd', 'nvidia', 'msocache']);
+  // 2. 外部线索（注册表登记的安装位置）
+  for (const dir of extraDirs) {
+    const hit = tryDir(dir);
+    if (hit) return hit;
+  }
+
+  // 3. 目录名带 FCX 的文件夹：逐盘广度优先，深度 3
+  if (drives.length > 0) {
+    for (const drive of drives) {
+      if (overBudget()) break;
+      const root = drive.endsWith('\\') ? drive : drive + '\\';
+      const queue = scan(root)
+        .filter((name) => !SKIP_SCAN_DIRS.has(name.toLowerCase()))
+        .filter((name) => !name.toLowerCase().startsWith('program files'))
+        .map((name) => ({ dir: path.join(root, name), depth: 1 }));
+
+      while (queue.length > 0 && !overBudget()) {
+        const item = queue.shift();
+        if (matchDirKeyword(path.basename(item.dir), DIR_KEYWORDS)) {
+          const hit = tryDir(item.dir);
+          if (hit) return hit;
+        }
+        if (item.depth >= 3) continue;
+        for (const name of scan(item.dir)) {
+          if (SKIP_SCAN_DIRS.has(name.toLowerCase())) continue;
+          queue.push({ dir: path.join(item.dir, name), depth: item.depth + 1 });
+        }
+      }
+    }
+  }
+
+  // 4. 常见整合包名字
+  for (const dir of commonGameDirs({ env, drives })) {
+    const hit = tryDir(dir);
+    if (hit) return hit;
+  }
+
+  // 5. 各盘一、二级目录兜底
   for (const drive of drives) {
     if (overBudget()) break;
-    let tops = [];
-    try {
-      tops = fs.readdirSync(drive + '\\', { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const entry of tops) {
+    const root = drive.endsWith('\\') ? drive : drive + '\\';
+    for (const top of scan(root)) {
       if (overBudget()) break;
-      if (!entry.isDirectory()) continue;
-      if (SKIP.has(entry.name.toLowerCase())) continue;
-      if (entry.name.toLowerCase().startsWith('program files')) {
-        // Program Files 下面只看一层常见名字，避免递归浏览器整个目录
-        continue;
-      }
-      const topDir = path.join(drive + '\\', entry.name);
+      const low = top.toLowerCase();
+      if (SKIP_SCAN_DIRS.has(low) || low.startsWith('program files')) continue;
+      const topDir = path.join(root, top);
       const topHit = tryDir(topDir);
       if (topHit) return topHit;
-
-      let subs = [];
-      try {
-        subs = fs.readdirSync(topDir, { withFileTypes: true });
-      } catch {
-        continue;
-      }
-      for (const sub of subs) {
-        if (overBudget()) break;
-        if (!sub.isDirectory()) continue;
-        const hit = tryDir(path.join(topDir, sub.name));
+      for (const sub of scan(topDir)) {
+        const hit = tryDir(path.join(topDir, sub));
         if (hit) return hit;
       }
     }
   }
 
-  if (hlOnly) return hlOnly;
-  return null;
+  return hlOnly;
 }
 
 // ================= 资源落地 =================
@@ -559,7 +628,6 @@ module.exports = {
   findHlExe,
   findModDir,
   resolveGameFiles,
-  parseSteamLibraryFolders,
   gameDirCandidates,
   detectGameDir,
   detectEngineCfg,
