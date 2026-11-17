@@ -132,6 +132,7 @@ const api = {
   },
   dialog: {
     pickGameDir: async () => ({ hlPath: settings.hlPath, modDir: settings.esfModDir }),
+    autoFindGameDir: async () => ({ hlPath: settings.hlPath, modDir: settings.esfModDir }),
   },
   auth: {
     login: fakeLogin,

@@ -360,6 +360,142 @@ function resolveGameFiles(selectedDir) {
   return { hlPath: '', modDir: '', root };
 }
 
+// ================= 自动寻找游戏目录 =================
+
+/** Steam 库文件夹 vdf 里所有 "path" 值（纯字符串解析，不引入第三方依赖） */
+function parseSteamLibraryFolders(vdfText) {
+  const out = [];
+  const re = /"path"\s+"([^"]+)"/gi;
+  let hit;
+  while ((hit = re.exec(String(vdfText || ''))) !== null) {
+    const raw = hit[1].replace(/\\\\/g, '\\');
+    if (raw) out.push(raw);
+  }
+  return out;
+}
+
+/** 各盘根目录下常见的整合包放置位置（新手解压后大多落在这些名字里） */
+const DRIVE_SUBDIR_HINTS = [
+  'Half-Life',
+  'hl',
+  '半条命',
+  'CS1.6',
+  'cs1.6',
+  'CS1.6\Half-Life',
+  'Half-Life\Half-Life',
+  'Games\Half-Life',
+  'Games\CS1.6',
+  '游戏\Half-Life',
+  '游戏\半条命',
+  'ESF\Half-Life',
+  'Steam\steamapps\common\Half-Life',
+  'SteamLibrary\steamapps\common\Half-Life',
+  'Program Files\Half-Life',
+  'Program Files (x86)\Half-Life',
+];
+
+/** 候选目录：先放调用方给的（注册表/Steam），再放常见安装位置与各盘启发式路径 */
+function gameDirCandidates({ env = {}, extraDirs = [], drives = [] } = {}) {
+  const list = [];
+  const seen = new Set();
+  const push = (dir) => {
+    if (!dir || typeof dir !== 'string') return;
+    const trimmed = dir.trim().replace(/^"|"$/g, '');
+    if (!trimmed || !/^[a-zA-Z]:[\\/]/.test(trimmed)) return;
+    const key = path.resolve(trimmed).toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    list.push(path.resolve(trimmed));
+  };
+
+  extraDirs.forEach(push);
+
+  const programFiles = [env['ProgramFiles(x86)'], env.ProgramFiles, env.ProgramW6432].filter(Boolean);
+  for (const base of programFiles) {
+    push(path.join(base, 'Steam', 'steamapps', 'common', 'Half-Life'));
+    push(path.join(base, 'Half-Life'));
+    push(path.join(base, 'CS1.6', 'Half-Life'));
+  }
+
+  for (const drive of drives) {
+    for (const sub of DRIVE_SUBDIR_HINTS) {
+      push(path.join(drive + '\\', sub));
+    }
+  }
+
+  return list;
+}
+
+/**
+ * 自动找游戏目录。
+ *
+ * 顺序：候选目录逐个验证 → 各盘根目录深度 1/2 扫描。
+ * 全程有预算（目录数 + 时间），最坏情况几秒内返回，绝不卡住启动器。
+ */
+function detectGameDir({ env = {}, extraDirs = [], drives = [], budgetMs = 6000, maxScans = 600 } = {}) {
+  const deadline = Date.now() + budgetMs;
+  let scans = 0;
+  let hlOnly = null;
+  let searched = 0;
+
+  const overBudget = () => scans >= maxScans || Date.now() > deadline;
+
+  const tryDir = (dir) => {
+    if (overBudget()) return null;
+    scans += 1;
+    searched += 1;
+    const found = resolveGameFiles(dir);
+    if (found.hlPath && found.modDir) return { ...found, searched, scans };
+    if (found.hlPath && !hlOnly) hlOnly = { ...found, searched, scans };
+    return null;
+  };
+
+  for (const dir of gameDirCandidates({ env, extraDirs, drives })) {
+    const hit = tryDir(dir);
+    if (hit) return hit;
+  }
+
+  // 各盘根目录：先看一级子目录，再看二级（跳过明显不该进的大目录）
+  const SKIP = new Set(['windows', '$recycle.bin', 'system volume information', 'programdata', 'users', 'perflogs', 'recovery', 'intel', 'amd', 'nvidia', 'msocache']);
+  for (const drive of drives) {
+    if (overBudget()) break;
+    let tops = [];
+    try {
+      tops = fs.readdirSync(drive + '\\', { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of tops) {
+      if (overBudget()) break;
+      if (!entry.isDirectory()) continue;
+      if (SKIP.has(entry.name.toLowerCase())) continue;
+      if (entry.name.toLowerCase().startsWith('program files')) {
+        // Program Files 下面只看一层常见名字，避免递归浏览器整个目录
+        continue;
+      }
+      const topDir = path.join(drive + '\\', entry.name);
+      const topHit = tryDir(topDir);
+      if (topHit) return topHit;
+
+      let subs = [];
+      try {
+        subs = fs.readdirSync(topDir, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      for (const sub of subs) {
+        if (overBudget()) break;
+        if (!sub.isDirectory()) continue;
+        const hit = tryDir(path.join(topDir, sub.name));
+        if (hit) return hit;
+      }
+    }
+  }
+
+  if (hlOnly) return hlOnly;
+  return null;
+}
+
 // ================= 资源落地 =================
 
 /**
@@ -423,6 +559,9 @@ module.exports = {
   findHlExe,
   findModDir,
   resolveGameFiles,
+  parseSteamLibraryFolders,
+  gameDirCandidates,
+  detectGameDir,
   detectEngineCfg,
   applyEngineArgs,
   restoreEngineCfg,

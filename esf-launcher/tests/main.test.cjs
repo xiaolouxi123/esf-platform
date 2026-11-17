@@ -311,6 +311,7 @@ function ipc(channel, payload) {
   check('主进程接口齐全', () => {
     const expected = [
       'app:info', 'config:get', 'settings:get', 'settings:update', 'dialog:pick-game-dir',
+      'dialog:auto-find-game-dir',
       'auth:login', 'auth:register', 'auth:me', 'auth:logout',
       'stats:get', 'servers:list', 'maps:scan',
       'launch:token', 'launch:join', 'launch:local',

@@ -108,6 +108,26 @@ fs.writeFileSync(
 );
 console.log(`sitemap/robots      -> ${SITE}`);
 
+// ---- 4. deploy 脚本里的 launcher 版本（去掉「发版后脚本自己不同步」的坑） ----
+const deployScript = path.join(root, 'deploy', 'deploy-esf-server.ps1');
+let deployText = fs.readFileSync(deployScript, 'utf8');
+if (!/\$LatestVer = '[^']*'/.test(deployText)) {
+  throw new Error('deploy-esf-server.ps1 里找不到 $LatestVer');
+}
+deployText = deployText.replace(/(\$LatestVer = ')[^']*(')/, (m, a, b) => a + version + b);
+fs.writeFileSync(deployScript, deployText, 'utf8');
+console.log(`deploy script       -> ${version}`);
+
+// ---- 5. KB 服务器清单里的客户端版本 ----
+const serversMd = path.join(root, 'docs', 'kb', 'environment', 'servers.md');
+let kbText = fs.readFileSync(serversMd, 'utf8');
+if (!/最新 \d+\.\d+\.\d+/.test(kbText)) {
+  throw new Error('docs/kb/environment/servers.md 里找不到「最新 x.y.z」');
+}
+kbText = kbText.replace(/最新 \d+\.\d+\.\d+/g, `最新 ${version}`);
+fs.writeFileSync(serversMd, kbText, 'utf8');
+console.log(`KB servers.md       -> ${version}`);
+
 console.log(`\n完成：全部由 ${path.relative(root, pkgPath)} 的 ${version} 派生。`);
 console.log('注意：release/latest.yml、server/updates/latest.yml 是发布产物（含 sha512），');
 console.log('      由发布流程生成，本脚本不伪造哈希；用 check-versions.cjs 检查一致性。');
