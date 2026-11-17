@@ -611,6 +611,53 @@ function appendLog(modDir, line) {
   }
 }
 
+// ================= 就地更新 =================
+
+/**
+ * 生成「等启动器退出 → 静默覆盖安装到当前目录 → 重新打开」的 PowerShell 脚本。
+ *
+ * 为什么不直接用 electron-updater 的 quitAndInstall：绿色整合包没有安装记录，
+ * NSIS 会装到 %LOCALAPPDATA%\Programs，启动器所在目录永远不更新。
+ * 为什么不把 /D 交给 Node spawn：NSIS 规定 /D= 必须是最后一个参数且不能带引号，
+ * 而 Node 会给含空格的参数自动加引号，安装器就忽略 /D 装回默认目录。脚本里改用
+ * ProcessStartInfo.Arguments 原样拼命令行，路径里的空格不会被加引号。
+ */
+function buildApplyUpdateScript({ installer, appDir, exeName, pid }) {
+  const psString = (value) => `'${String(value == null ? '' : value).replace(/'/g, "''")}'`;
+  const lines = [
+    "$ErrorActionPreference = 'Stop'",
+    `$targetPid = ${Number(pid) || 0}`,
+    `$appDir = ${psString(appDir)}`,
+    `$exeName = ${psString(exeName)}`,
+    `$installer = ${psString(installer)}`,
+    "$log = Join-Path $env:TEMP 'esf-update-apply.log'",
+    'function Write-EsfLog($msg) { Add-Content -LiteralPath $log -Value ("[{0}] {1}" -f (Get-Date -Format \'s\'), $msg) -Encoding UTF8 }',
+    'Write-EsfLog "wait launcher exit pid=$targetPid"',
+    'while ($targetPid -gt 0 -and (Get-Process -Id $targetPid -ErrorAction SilentlyContinue)) { Start-Sleep -Milliseconds 700 }',
+    'Write-EsfLog "install $installer -> $appDir"',
+    '$psi = New-Object System.Diagnostics.ProcessStartInfo',
+    '$psi.FileName = $installer',
+    '$psi.Arguments = "/S /D=" + $appDir',
+    '$psi.UseShellExecute = $false',
+    '$psi.WorkingDirectory = $env:TEMP',
+    'try {',
+    '  $proc = [System.Diagnostics.Process]::Start($psi)',
+    '  $proc.WaitForExit()',
+    '  Write-EsfLog "installer exit $($proc.ExitCode)"',
+    '} catch { Write-EsfLog ("install failed: " + $_.Exception.Message) }',
+    'Start-Sleep -Seconds 1',
+    'try {',
+    '  $exePath = Join-Path $appDir $exeName',
+    '  if (Test-Path -LiteralPath $exePath) {',
+    '    $running = Get-Process -Name ([System.IO.Path]::GetFileNameWithoutExtension($exeName)) -ErrorAction SilentlyContinue',
+    '    if (-not $running) { Write-EsfLog "relaunch $exePath"; Start-Process -FilePath $exePath }',
+    '  }',
+    '} catch { Write-EsfLog ("relaunch failed: " + $_.Exception.Message) }',
+    'Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue',
+  ];
+  return lines.join('\r\n') + '\r\n';
+}
+
 module.exports = {
   CFG_NAME,
   LOG_NAME,
@@ -634,4 +681,5 @@ module.exports = {
   applyEngineArgs,
   restoreEngineCfg,
   appendLog,
+  buildApplyUpdateScript,
 };

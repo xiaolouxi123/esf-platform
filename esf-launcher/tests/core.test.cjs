@@ -242,5 +242,33 @@ check('没有任何线索时返回 null，不抛异常', () => {
   fs.rmSync(drive, { recursive: true, force: true });
 });
 
+check('就地更新脚本：/D= 用裸参数拼接，路径里的空格不加引号', () => {
+  const script = core.buildApplyUpdateScript({
+    installer: 'C:\\tmp\\ESF-Platform-Setup-0.6.52.exe',
+    appDir: 'C:\\FCX\\ESF平台 0.62',
+    exeName: 'ESF 平台.exe',
+    pid: 4321,
+  });
+  // NSIS 只认未加引号的 /D=，所以必须是 "$psi.Arguments = "/S /D=" + $appDir"
+  assert.ok(script.includes('$psi.Arguments = "/S /D=" + $appDir'), '缺少裸 /D 拼接');
+  assert.ok(!script.includes('"/D=' + 'C:'), '不能把路径直接塞进带引号的 /D');
+  assert.ok(script.includes("$appDir = 'C:\\FCX\\ESF平台 0.62'"), '安装目录未写入脚本');
+  assert.ok(script.includes('$targetPid = 4321'), '缺少等待进程号');
+  assert.ok(script.includes('Start-Sleep -Milliseconds 700'), '缺少等待循环');
+  assert.ok(script.includes('relaunch'), '缺少重启步骤');
+  assert.ok(script.endsWith('\r\n'), '批处理/PS 脚本行尾必须是 CRLF');
+});
+
+check('就地更新脚本：单引号路径按 PowerShell 规则转义成两个单引号', () => {
+  const script = core.buildApplyUpdateScript({
+    installer: "C:\\tmp\\it's here\\setup.exe",
+    appDir: "C:\\O'Brien\\ESF",
+    exeName: 'ESF 平台.exe',
+    pid: 1,
+  });
+  assert.ok(script.includes("$appDir = 'C:\\O''Brien\\ESF'"), '目录单引号未转义');
+  assert.ok(script.includes("$installer = 'C:\\tmp\\it''s here\\setup.exe'"), '安装包单引号未转义');
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`\n通过 ${passed} 项检查${process.exitCode ? '（存在失败）' : ''}`);

@@ -113,7 +113,9 @@ function startUpdateDownload(version) {
 
 function setupAutoUpdater() {
   autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = true;
+  // 关掉「退出时自动装」：绿色整合包里那样会被 NSIS 装到 %LOCALAPPDATA%\Programs，
+  // 老目录永不更新。改为用户点「立即重启安装」时走 applyUpdateInPlace() 就地覆盖。
+  autoUpdater.autoInstallOnAppQuit = false;
   autoUpdater.logger = {
     info: (...args) => updateLog('INFO', ...args),
     warn: (...args) => updateLog('WARN', ...args),
@@ -139,7 +141,12 @@ function setupAutoUpdater() {
   );
   autoUpdater.on('update-downloaded', (info) => {
     updateToken = null;
-    sendUpdate({ status: 'downloaded', version: info && info.version });
+    sendUpdate({
+      status: 'downloaded',
+      version: info && info.version,
+      // 缓存里的安装包绝对路径，就地更新脚本要用
+      downloadedFile: info && info.downloadedFile ? String(info.downloadedFile) : '',
+    });
   });
   autoUpdater.on('error', (err) => {
     if (updateCancelled) {
@@ -177,6 +184,64 @@ function sanitizeUpdaterCache() {
   } catch (err) {
     updateLog('WARN', '更新缓存校验跳过:', err.message);
   }
+}
+
+/**
+ * 就地更新：绿色整合包（启动器和 FCX 游戏在同一个文件夹、没有安装记录）走
+ * electron-updater 自带的 quitAndInstall 会被 NSIS 装到 %LOCALAPPDATA%\Programs，
+ * 老目录永远不更新，玩家等于装了两份。这里自己拉起安装器，用 /S + /D=<当前目录>
+ * 静默覆盖到启动器所在目录——安装器自定义脚本（build/installer.nsh）只删启动器
+ * 自己的文件，游戏本体不会被碰。
+ *
+ * NSIS 规定 /D= 必须是最后一个参数且不能带引号（哪怕路径有空格），Node 的 spawn
+ * 会自动加引号，所以只能写一个 PowerShell 脚本、用进程参数原文传命令行。
+ */
+function isWritableDir(dir) {
+  try {
+    const probe = path.join(dir, `.esf-write-${Date.now()}.tmp`);
+    fs.writeFileSync(probe, 'ok');
+    fs.unlinkSync(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeApplyUpdateScript() {
+  const installer = String(updateState.downloadedFile || '');
+  if (!installer || !fs.existsSync(installer)) throw new Error('更新包已被清理，请重新检查更新');
+  const appDir = path.dirname(app.getPath('exe'));
+  const exeName = path.basename(app.getPath('exe'));
+  if (!isWritableDir(appDir)) throw new Error(`没有写入权限：${appDir}`);
+
+  const dir = path.join(app.getPath('temp'), `esf-update-${Date.now()}`);
+  fs.mkdirSync(dir, { recursive: true });
+  const scriptPath = path.join(dir, 'apply-update.ps1');
+  // 脚本正文在 launcher-core 里生成，方便单测（含 /D= 不能加引号的说明）
+  const body = core.buildApplyUpdateScript({
+    installer,
+    appDir,
+    exeName,
+    pid: process.pid,
+  });
+  // PowerShell 5.1 读无 BOM 的 UTF-8 会按 ANSI 解析，中文路径会变乱码
+  fs.writeFileSync(scriptPath, `\ufeff${body}`, 'utf8');
+  return scriptPath;
+}
+
+function applyUpdateInPlace() {
+  const scriptPath = writeApplyUpdateScript();
+  updateLog('INFO', `就地更新脚本: ${scriptPath}`);
+  const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', scriptPath], {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
+  });
+  child.unref();
+  setTimeout(() => {
+    quitting = true;
+    app.quit();
+  }, 400);
 }
 
 async function autoCheckOnce() {
@@ -1327,7 +1392,13 @@ handle('update:auto-check', async () => {
 
 handle('update:auto-install', async () => {
   if (updateState.status !== 'downloaded') throw new Error('还没有下载完成的更新');
-  setTimeout(() => autoUpdater.quitAndInstall(), 300);
+  try {
+    applyUpdateInPlace();
+  } catch (err) {
+    // 就地覆盖失败（例如装在 Program Files 没有写权限）时退回官方安装器流程
+    updateLog('WARN', '就地更新失败，改用标准安装器:', err.message);
+    setTimeout(() => autoUpdater.quitAndInstall(), 300);
+  }
   return true;
 });
 
