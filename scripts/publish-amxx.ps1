@@ -7,7 +7,9 @@ param(
     [string]$ServerUser = 'administrator',
     [string]$PasswordFile = "$env:TEMP\esf-newbox.pwd",
     [string]$RemoteDir = 'C:\esf\updates\amxx',
-    [switch]$SkipUpload
+    [switch]$SkipUpload,
+    [switch]$AllowRebuild,
+    [switch]$SkipBuildCheck
 )
 $ErrorActionPreference = 'Stop'
 $managed = @('esf_gamemode.amxx', 'esf_platform_auth.amxx', 'esf_ranked_lock.amxx', 'test_ranked.amxx')
@@ -47,6 +49,20 @@ $manifest = [ordered]@{
     notes    = $Notes
     plugins  = $pluginInfo
 }
+# Same version + new content is delivered by the updater, but it was the root of the 0.53 incident.
+# Check that every plugin binary actually contains the package version (its BUILD constant).
+$missing = @()
+foreach ($f in $files) {
+    $text = [System.IO.File]::ReadAllText($f.FullName, [System.Text.Encoding]::GetEncoding(28591))
+    if ($text.IndexOf($Version) -lt 0) { $missing += $f.Name }
+}
+if ($missing.Count -gt 0) {
+    Write-Warning ("plugin binaries missing version string " + $Version + ": " + ($missing -join ', '))
+    Write-Warning '  -> likely built from stale sources; fix the BUILD constant or pass -SkipBuildCheck'
+    # Advisory only: .amxx payloads may be compressed, so a missing string does not prove a stale build.
+    if ($SkipBuildCheck) { 'build check skipped (-SkipBuildCheck)' }
+}
+
 $manifestPath = Join-Path $OutDir 'manifest.json'
 $json = $manifest | ConvertTo-Json -Depth 5; [System.IO.File]::WriteAllText($manifestPath, $json, (New-Object System.Text.UTF8Encoding($false)))
 "zip    : $zipPath ($($zipInfo.Length) bytes)"
@@ -60,6 +76,21 @@ if (-not $SkipUpload) {
     $cred = New-Object System.Management.Automation.PSCredential($ServerUser, $sec)
     $s = New-PSSession -ComputerName $ServerHost -Credential $cred -Authentication Negotiate
     try {
+        # 同版本护栏：远端已发布过同一版本号时，内容不同必须显式确认，内容相同直接跳过。
+        $remoteRaw = Invoke-Command -Session $s -ScriptBlock { param($d) $p = Join-Path $d 'manifest.json'; if (Test-Path $p) { Get-Content $p -Raw } } -ArgumentList $RemoteDir
+        if ($remoteRaw) {
+            $remote = $remoteRaw | ConvertFrom-Json
+            if ($remote.version -eq $Version) {
+                if ($remote.sha256 -eq $zipHash) {
+                    "already published: $Version / $zipHash (nothing to upload)"
+                    if (-not $AllowRebuild) { Remove-PSSession $s; exit 0 }
+                } elseif (-not $AllowRebuild) {
+                    throw "version $Version already published with different content (remote $($remote.sha256), local $zipHash). Pass -AllowRebuild to republish."
+                } else {
+                    "rebuild confirmed for $Version (-AllowRebuild)"
+                }
+            }
+        }
         Invoke-Command -Session $s -ScriptBlock { param($d) if (-not (Test-Path $d)) { New-Item -ItemType Directory -Force -Path $d | Out-Null } } -ArgumentList $RemoteDir
         Copy-Item -ToSession $s -Path $zipPath -Destination "$RemoteDir\$zipName" -Force
         Copy-Item -ToSession $s -Path $manifestPath -Destination "$RemoteDir\manifest.json" -Force

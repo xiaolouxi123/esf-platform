@@ -62,7 +62,9 @@ router.get('/servers', requireAuth, async (req, res, next) => {
         }
         return {
           serverKey: row.server_key,
-          name: row.live_name || row.display_name,
+          name: row.display_name || row.live_name,
+          displayName: row.display_name || null,
+          liveName: row.live_name || null,
           mode: row.mode || '混战',
           ip: row.ip,
           port: Number(row.port),
@@ -201,7 +203,8 @@ router.get('/servers/detail', requireAuth, async (req, res, next) => {
       query.connect();
       const info = await withTimeout(query.serverInfo(), QUERY_TIMEOUT_MS);
       result.online = true;
-      result.name = info.name || result.name;
+      result.liveName = info.name || null;
+      if (!result.name) result.name = info.name || result.name;
       result.map = info.map || null;
       result.players = Number(info.players) || 0;
       result.maxPlayers = Number(info.max_players) || 0;
