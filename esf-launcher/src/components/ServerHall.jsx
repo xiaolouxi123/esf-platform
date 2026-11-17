@@ -124,6 +124,7 @@ export default function ServerHall({
   const [keyword, setKeyword] = useState('');
   const [filter, setFilter] = useState('all');
   const [mode, setMode] = useState('all');
+  const [onlyFree, setOnlyFree] = useState(false);
   const [customServers, setCustomServers] = useState([]);
   const [customOpen, setCustomOpen] = useState(false);
   const [customForm, setCustomForm] = useState({ name: '', address: '' });
@@ -187,6 +188,7 @@ export default function ServerHall({
     if (filter === 'online' && !server.online) return false;
     if (filter === 'fav' && !favorites.has(server.serverKey)) return false;
     if (mode !== 'all' && (server.mode || '混战') !== mode) return false;
+    if (onlyFree && (!server.online || server.players >= server.maxPlayers)) return false;
 
     const text = `${server.name} ${server.map || ''} ${server.ip}`.toLowerCase();
     return text.includes(keyword.trim().toLowerCase());
@@ -200,6 +202,14 @@ export default function ServerHall({
 
   const onlineList = servers.filter((server) => server.online);
   const onlinePlayers = onlineList.reduce((sum, server) => sum + (Number(server.players) || 0), 0);
+  const freeList = onlineList.filter(
+    (server) => server.players < server.maxPlayers && !server.ranked && !server.challenge
+  );
+  const pick = [...freeList].sort(
+    (a, b) => (Number(b.players) || 0) - (Number(a.players) || 0) || (Number(a.ping) || 0) - (Number(b.ping) || 0)
+  )[0] || null;
+  const offlineCount = servers.length - onlineList.length;
+  const fullCount = onlineList.filter((server) => server.players >= server.maxPlayers).length;
   const avgPing = onlineList.length
     ? Math.round(onlineList.reduce((sum, server) => sum + (Number(server.ping) || 0), 0) / onlineList.length)
     : 0;
@@ -242,6 +252,7 @@ export default function ServerHall({
             <span className="tag tag--code">{servers.length} 台已登记</span>
             <span className="tag">15 秒自动刷新</span>
             <span className="tag">AMXX 身份校验</span>
+            {offlineCount > 0 && <span className="tag">离线 {offlineCount} 台</span>}
           </div>
         </div>
 
@@ -285,6 +296,33 @@ export default function ServerHall({
         </div>
       </header>
 
+      {pick && (
+        <section className="server-pick">
+          <span className="server-pick-icon">
+            <Icon name="spark" size={16} />
+          </span>
+          <div className="server-pick-copy">
+            <b>现在最值得进的一台</b>
+            <span>
+              {pick.name} · {pick.map || '未知地图'} · {pick.players}/{pick.maxPlayers} 人在打 · {pick.ping}ms
+            </span>
+          </div>
+          <div className="server-pick-tags">
+            <span className="tag">{pick.mode || '混战'}</span>
+            <span className="tag tag--good">{pick.maxPlayers - pick.players} 个空位</span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={busyKey === pick.serverKey}
+            onClick={() => onJoin && onJoin(pick)}
+          >
+            {busyKey === pick.serverKey ? <span className="spinner" /> : <Icon name="play" size={13} />}
+            直接进服
+          </button>
+        </section>
+      )}
+
       <div className="servers-filters">
         <div className="search">
           <Icon name="search" size={15} />
@@ -321,6 +359,14 @@ export default function ServerHall({
               {item.label}
             </button>
           ))}
+          <button
+            type="button"
+            className={onlyFree ? 'is-active' : ''}
+            onClick={() => setOnlyFree((value) => !value)}
+            title={`只显示在线且未满、也没有排位/约战锁定的服务器（当前满员 ${fullCount} 台）`}
+          >
+            有空位 <em>{freeList.length}</em>
+          </button>
         </div>
       </div>
 
@@ -339,21 +385,41 @@ export default function ServerHall({
       />
 
       <div className="servers-foot">
-        <section className="custom-servers" ref={customRef}>
-          <div className="section-head">
-            <h2>
-              我的服务器 <span className="pill">{customServers.length}</span>
-            </h2>
+        <section className={`custom-servers${customServers.length === 0 ? ' is-empty' : ''}`} ref={customRef}>
+          {customServers.length === 0 && !customOpen ? (
+            <div className="custom-empty-row">
+              <span className="custom-empty-icon">
+                <Icon name="server" size={15} />
+              </span>
+              <div className="custom-empty-copy">
+                <b>还没有自建服务器</b>
+                <small>只存在本机，不走平台登记，也不带平台身份</small>
+              </div>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={openCustom}>
+                <Icon name="plus" size={14} />
+                添加服务器
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="section-head">
+                <h2>
+                  我的服务器 <span className="pill">{customServers.length}</span>
+                </h2>
 
-            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCustomOpen((value) => !value)}>
-              <Icon name={customOpen ? 'close' : 'plus'} size={14} />
-              {customOpen ? '收起' : '添加服务器'}
-            </button>
-          </div>
+                <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCustomOpen((value) => !value)}>
+                  <Icon name={customOpen ? 'close' : 'plus'} size={14} />
+                  {customOpen ? '收起' : '添加服务器'}
+                </button>
+              </div>
 
-          <p className="custom-hint">
-            只保存在本机，不走平台登记；直连时不带平台身份，AMXX 不会做身份校验。
-          </p>
+              {customServers.length > 0 && (
+                <p className="custom-hint">
+                  只保存在本机，不走平台登记；直连时不带平台身份，AMXX 不会做身份校验。
+                </p>
+              )}
+            </>
+          )}
 
           {customOpen && (
             <form className="custom-form" onSubmit={addCustom}>
@@ -417,13 +483,6 @@ export default function ServerHall({
         </section>
       </div>
 
-      <footer className="hall-tip">
-        <Icon name="help" size={14} />
-        <span>
-          展开行查看玩家；击杀/死亡需要 AMXX 统计插件上报。要把新服加进平台列表，在 server 目录执行
-          <code>npm run server:add</code>。
-        </span>
-      </footer>
     </div>
   );
 }

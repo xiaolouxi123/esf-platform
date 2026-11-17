@@ -159,6 +159,7 @@ export default function ServerRoomList({
               <span className="room-title">
                 <b>
                   {server.name}
+                  <span className="room-mode-tag">{server.mode || '混战'}</span>
                   {ranked && <span className="room-ranked-tag">排位 {ranked.mode} · 比赛中</span>}
                   {challenge && (
                     <span className="room-challenge-tag">
@@ -303,6 +304,27 @@ export default function ServerRoomList({
                     </div>
                   </div>
                 )}
+
+                <div className="room-detail-top">
+                  <span>
+                    <em>地图</em>
+                    <b>{server.map || '未知地图'}</b>
+                  </span>
+                  <span>
+                    <em>模式</em>
+                    <b>{server.mode || '混战'}</b>
+                  </span>
+                  <span>
+                    <em>地址</em>
+                    <b>
+                      {server.ip}:{server.port}
+                    </b>
+                  </span>
+                  <span>
+                    <em>空位</em>
+                    <b>{Math.max(0, Number(server.maxPlayers || 0) - Number(server.players || 0))} 个</b>
+                  </span>
+                </div>
 
                 <div className="room-detail-head">
                   <span>玩家</span>
