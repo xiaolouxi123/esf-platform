@@ -46,17 +46,8 @@ async function getProfile(userId) {
   };
 }
 
-async function playerRows(matchId) {
-  const rows = await q(
-    `SELECT p.team, p.slot, p.ready, p.rating_before, p.rating_after, p.afk,
-            u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.role
-       FROM ranked_match_players p
-       JOIN users u ON u.id = p.user_id
-      WHERE p.match_id = ?
-      ORDER BY p.team ASC, p.slot ASC`,
-    [matchId]
-  );
-  return rows.map((row) => ({
+function mapPlayerRow(row) {
+  return {
     id: Number(row.id),
     username: row.username,
     gameName: row.game_name,
@@ -69,7 +60,26 @@ async function playerRows(matchId) {
     rating: Number(row.rating_before || 1000),
     ratingAfter: row.rating_after === null ? null : Number(row.rating_after),
     afk: Number(row.afk) === 1,
-  }));
+  };
+}
+
+/** 历史战绩只需渲染昵称与分数：头像 data URI 会让单场记录膨胀到 17KB，这里丢掉内联头像 */
+function slimPlayer(player) {
+  const avatarUrl = String(player.avatarUrl || '');
+  return avatarUrl.startsWith('data:') ? { ...player, avatarUrl: '' } : player;
+}
+
+async function playerRows(matchId) {
+  const rows = await q(
+    `SELECT p.team, p.slot, p.ready, p.rating_before, p.rating_after, p.afk,
+            u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.role
+       FROM ranked_match_players p
+       JOIN users u ON u.id = p.user_id
+      WHERE p.match_id = ?
+      ORDER BY p.team ASC, p.slot ASC`,
+    [matchId]
+  );
+  return rows.map(mapPlayerRow);
 }
 
 async function getMatch(matchId, userId) {
@@ -138,73 +148,81 @@ async function getMatch(matchId, userId) {
   };
 }
 
-async function getLastResult(userId) {
-  const row = await one(
-    `SELECT m.id
-       FROM ranked_match_players p
-       JOIN ranked_matches m ON m.id = p.match_id
-      WHERE p.user_id = ? AND m.status = 'finished'
-      ORDER BY m.finished_at DESC, m.id DESC
-      LIMIT 1`,
-    [userId]
-  );
-  if (!row) return null;
-
-  const match = await getMatch(row.id, userId);
-  const me = match?.players?.find((player) => player.id === Number(userId));
-  if (!match || !me || !match.winner) return null;
-
-  return {
-    matchId: match.id,
-    mode: match.mode,
-    winner: match.winner,
-    myTeam: me.team,
-    result: me.team === match.winner ? 'win' : 'loss',
-    ratingBefore: me.rating,
-    ratingAfter: me.ratingAfter,
-    ratingDelta: me.ratingAfter === null ? null : me.ratingAfter - me.rating,
-    finishedAt: match.finishedAt,
-    server: match.server,
-    players: match.players,
-    teams: match.teams,
-  };
-}
-
-/** 最近 N 场排位结果（历史战绩用；结构与 lastResult 一致） */
+/** 最近 N 场排位结果（历史战绩 / 结算面板用）：两条查询取完，不再每场递归 getMatch */
 async function history(userId, limit = 10) {
   const size = Math.min(30, Math.max(1, Number(limit) || 10));
   const rows = await q(
-    `SELECT m.id
+    `SELECT m.id, m.mode, m.server_key, m.winner, m.started_at, m.finished_at,
+            COALESCE(st.map, m.map) AS map,
+            s.name AS server_name, s.ip, s.port
        FROM ranked_match_players p
        JOIN ranked_matches m ON m.id = p.match_id
-      WHERE p.user_id = ? AND m.status = 'finished'
+       JOIN servers s ON s.server_key = m.server_key
+       LEFT JOIN server_status st ON st.server_id = s.id
+      WHERE p.user_id = ? AND m.status = 'finished' AND m.winner IS NOT NULL
       ORDER BY m.finished_at DESC, m.id DESC
       LIMIT ?`,
     [userId, size]
   );
+  if (!rows.length) return [];
+
+  const ids = rows.map((row) => Number(row.id));
+  const rowsAll = await q(
+    `SELECT p.match_id, p.team, p.slot, p.ready, p.rating_before, p.rating_after, p.afk,
+            u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.role
+       FROM ranked_match_players p
+       JOIN users u ON u.id = p.user_id
+      WHERE p.match_id IN (${ids.map(() => '?').join(',')})
+      ORDER BY p.team ASC, p.slot ASC`,
+    ids
+  );
+  const byMatch = new Map();
+  for (const row of rowsAll) {
+    const key = Number(row.match_id);
+    const list = byMatch.get(key) || [];
+    list.push(slimPlayer(mapPlayerRow(row)));
+    byMatch.set(key, list);
+  }
 
   const out = [];
   for (const row of rows) {
-    const match = await getMatch(row.id, userId);
-    const me = match?.players?.find((player) => player.id === Number(userId));
-    if (!match || !me || !match.winner) continue;
+    const list = byMatch.get(Number(row.id)) || [];
+    const me = list.find((player) => player.id === Number(userId));
+    if (!me) continue;
     out.push({
-      matchId: match.id,
-      mode: match.mode,
-      winner: match.winner,
+      matchId: Number(row.id),
+      mode: row.mode,
+      winner: row.winner,
       myTeam: me.team,
-      result: me.team === match.winner ? 'win' : 'loss',
+      result: me.team === row.winner ? 'win' : 'loss',
       ratingBefore: me.rating,
       ratingAfter: me.ratingAfter,
       ratingDelta: me.ratingAfter === null ? null : me.ratingAfter - me.rating,
       afk: Boolean(me.afk),
-      finishedAt: match.finishedAt,
-      server: match.server,
-      players: match.players,
-      teams: match.teams,
+      map: row.map || null,
+      startedAt: row.started_at || null,
+      finishedAt: row.finished_at,
+      server: {
+        serverKey: row.server_key,
+        name: row.server_name,
+        ip: row.ip,
+        port: Number(row.port),
+        map: row.map || null,
+      },
+      players: list,
+      teams: {
+        a: list.filter((player) => player.team === 'a'),
+        b: list.filter((player) => player.team === 'b'),
+      },
     });
   }
   return out;
+}
+
+/** 最近一场结算：直接复用 history 的单条查询，避免每次轮询都重跑一遍 getMatch */
+async function getLastResult(userId) {
+  const [latest] = await history(userId, 1);
+  return latest || null;
 }
 
 async function getState(userId) {

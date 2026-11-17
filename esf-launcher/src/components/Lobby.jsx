@@ -1694,7 +1694,7 @@ export default function Lobby({
                   </div>
                   <div className="deck-actions">
                     <button type="button" className="btn btn-sm btn-ghost" onClick={() => { playSfx("tab"); setPage("ranked"); }}>排行榜</button>
-                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => { playSfx("tab"); setPage("ranked"); }}>战绩与 BO3</button>
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => { playSfx("tab"); setPage("ranked"); }}>我的战绩</button>
                     <span className="deck-actions-hint">每场胜负都会改写这段徽章</span>
                   </div>
                 </div>

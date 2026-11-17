@@ -13809,3 +13809,141 @@ select:focus {
   overflow: visible;
   filter: drop-shadow(0 6px 14px rgba(255, 140, 40, 0.22));
 }
+
+/* 排位结算面板：真实对局数据（地图 / 用时 / 段位变化 / 近 5 场） */
+.rr-hero {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin: 6px 0 4px;
+}
+.rr-hero-medal {
+  flex: none;
+  width: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.rr-hero-medal svg {
+  overflow: visible;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.45));
+}
+.rr-hero-medal.is-empty {
+  justify-content: center;
+  min-height: 120px;
+}
+.rr-hero-tier {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(214, 226, 220, 0.9);
+}
+.rr-hero-main {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.rr-hero-main .rr-title {
+  margin: 0 0 8px !important;
+  font-size: 26px !important;
+}
+.rr-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.rr-chip {
+  font-size: 10.5px;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #9fb2ac;
+  background: rgba(255, 255, 255, 0.03);
+}
+.rr-chip.is-up {
+  color: #86efac;
+  border-color: rgba(74, 222, 128, 0.32);
+  background: rgba(74, 222, 128, 0.1);
+}
+.rr-chip.is-down {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.3);
+  background: rgba(248, 113, 113, 0.1);
+}
+.rr-progress {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rr-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+.rr-progress-track {
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.rr-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.35s ease;
+}
+.result-player-afk {
+  font-style: normal;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 9.5px;
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.12);
+}
+.rr-form {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.rr-form-label {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+.rr-form-pill {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+.rr-form-pill.is-win {
+  color: #86efac;
+  background: rgba(74, 222, 128, 0.14);
+}
+.rr-form-pill.is-loss {
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.13);
+}
+.rr-form-note {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+@media (max-width: 760px) {
+  .rr-hero { gap: 14px; }
+  .rr-hero-medal { width: 104px; }
+}
+

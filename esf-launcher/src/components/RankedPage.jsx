@@ -768,6 +768,12 @@ export default function RankedPage({ user, toast, servers = [] }) {
 
       <RankedResultModal
         result={result}
+        recent={history}
+        onRematch={() => {
+          if (result) dismissedResultRef.current = `${result.matchId}:${result.finishedAt || ''}`;
+          setResult(null);
+          queue();
+        }}
         onClose={() => {
           if (result) dismissedResultRef.current = `${result.matchId}:${result.finishedAt || ''}`;
           setResult(null);
