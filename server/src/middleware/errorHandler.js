@@ -25,10 +25,13 @@ function errorHandler(err, req, res, next) {
   }
 
   if (err instanceof ZodError) {
+    // 旧版客户端只显示 message 字段，笼统的「参数不合法」会让人不知道为什么失败；
+    // 直接把第一条字段错误提上来，details 保留完整列表给新客户端。
+    const first = err.issues.find((issue) => issue.message);
     return res.status(400).json({
       ok: false,
       code: 'VALIDATION_FAILED',
-      message: '参数不合法',
+      message: first ? first.message : '参数不合法',
       details: err.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })),
     });
   }
