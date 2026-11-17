@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import RankedResultModal from './RankedResultModal';
+import RankMedal from './RankMedal';
+import RankTip from './RankTip';
+import { RANK_TIERS, rankOf } from '../lib/rankLadder';
 import { readRankedCache, writeRankedCache } from '../lib/rankedCache';
 import { playSfx } from '../lib/sfx';
 
@@ -9,19 +12,6 @@ const MODE_META = {
   '1v1': { label: '1v1', sub: '单排', desc: '单人匹配，纯个人实力', slots: 1 },
   '2v2': { label: '2v2', sub: '双人', desc: '两人一队，配合取胜', slots: 2 },
 };
-
-const TIER_COLOR = {
-  青铜: '#c98f5a',
-  白银: '#c7d0dd',
-  黄金: '#ffd166',
-  铂金: '#63e6d4',
-  钻石: '#7ea8ff',
-  王者: '#ff8a1f',
-};
-
-function tierColor(tier) {
-  return TIER_COLOR[tier] || '#c7d0dd';
-}
 
 function formatFinishedAt(value) {
   const ms = Date.parse(value || '');
@@ -34,41 +24,24 @@ function formatFinishedAt(value) {
   return sameDay ? `今天 ${time}` : `${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${time}`;
 }
 
-const TIER_ORDER = [
-  { name: '青铜', min: 0 },
-  { name: '白银', min: 1100 },
-  { name: '黄金', min: 1300 },
-  { name: '铂金', min: 1500 },
-  { name: '钻石', min: 1700 },
-  { name: '王者', min: 1900 },
-];
-
-function tierInfo(rating) {
-  const value = Number.isFinite(rating) ? rating : 1000;
-  let index = 0;
-  TIER_ORDER.forEach((tier, i) => {
-    if (value >= tier.min) index = i;
-  });
-  const current = TIER_ORDER[index];
-  const next = TIER_ORDER[index + 1];
-  const percent = next
-    ? Math.min(100, Math.max(0, ((value - current.min) / (next.min - current.min)) * 100))
-    : 100;
-  return { value, index, current, next, percent };
-}
-
 function TierTrack({ index }) {
   return (
-    <div className="rank-tier-track">
-      {TIER_ORDER.map((tier, i) => (
-        <span
-          key={tier.name}
-          className={i <= index ? 'is-reached' : ''}
-          style={i <= index ? { '--tier-color': tierColor(tier.name) } : undefined}
-        >
-          {tier.name}
-        </span>
-      ))}
+    <div className="rank-tier-track" role="list" aria-label={`天梯共 ${RANK_TIERS.length} 段，当前第 ${index + 1} 段`}>
+      {RANK_TIERS.map((tier, i) => {
+        const state = i < index ? ' is-passed' : i === index ? ' is-current' : '';
+        return (
+          <span
+            key={tier.key}
+            role="listitem"
+            className={`rank-step${state}`}
+            style={{ '--tier-color': tier.color }}
+            title={`${tier.name} · ${tier.floor} 分起`}
+          >
+            <i />
+            <b>{tier.short}</b>
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -318,19 +291,22 @@ function RankSide({ leaderboard, user }) {
         {leaderboard.length === 0 ? (
           <p className="rank-board-empty">还没有人上榜，先打一场。</p>
         ) : (
-          leaderboard.slice(0, 12).map((row) => (
-            <div className={`rank-board-row${row.id === user?.id ? ' is-self' : ''}`} key={row.id}>
-              <span className="rank-board-pos">{row.position}</span>
-              <Avatar user={row} size="xs" />
-              <span className="rank-board-name">
-                <b>{row.gameName}</b>
-                <small style={{ color: tierColor(row.tier) }}>
-                  {row.tier} · {row.rating}
-                </small>
-              </span>
-              <em>{row.winRate}%</em>
-            </div>
-          ))
+          leaderboard.slice(0, 12).map((row) => {
+            const rowRank = rankOf(row.rating);
+            return (
+              <div className={`rank-board-row${row.id === user?.id ? ' is-self' : ''}`} key={row.id}>
+                <span className="rank-board-pos">{row.position}</span>
+                <Avatar user={row} size="xs" />
+                <span className="rank-board-name">
+                  <b>{row.gameName}</b>
+                  <small style={{ color: rowRank.color }}>
+                    {rowRank.name} · {row.rating}
+                  </small>
+                </span>
+                <em>{row.winRate}%</em>
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -553,7 +529,8 @@ export default function RankedPage({ user, toast, servers = [] }) {
   const matched = state.state === 'matched';
   // 匹配成功即进入聚焦态：页面上只留对局卡，段位/战绩/排行榜收进「段位详情」
   const focusMode = matched && Boolean(match);
-  const rank = tierInfo(profile?.rating);
+  const rank = rankOf(profile?.rating);
+  const hasRank = Boolean(profile);
   const currentMode = MODE_META[mode] || MODE_META['1v1'];
 
   return (
@@ -566,8 +543,8 @@ export default function RankedPage({ user, toast, servers = [] }) {
               {MODE_META[match.mode]?.label || match.mode} 排位对局
             </span>
             <span className="rank-focus-tags">
-              <span className="tag tag--rank" style={{ color: tierColor(rank.current.name) }}>
-                {rank.current.name}
+              <span className="tag tag--rank" style={{ color: rank.color }}>
+                {hasRank ? rank.name : '未定级'}
               </span>
               <span className="tag tag--code">{rank.value} 分</span>
             </span>
@@ -625,6 +602,7 @@ export default function RankedPage({ user, toast, servers = [] }) {
         <span className="hero-art" aria-hidden="true" />
         <span className="hero-mask" aria-hidden="true" />
         <div className="ranked-hero-content">
+          <div className="ranked-hero-main">
           <div className="eyebrow">
             <b>天梯排位</b>
             <span className={`eyebrow-status${queued ? ' is-live' : ''}`}>
@@ -634,8 +612,8 @@ export default function RankedPage({ user, toast, servers = [] }) {
           </div>
           <h1 className="ranked-title">排位竞技场</h1>
           <div className="hero-tags">
-            <span className="tag tag--rank" style={{ color: tierColor(rank.current.name) }}>
-              {rank.current.name}
+            <span className="tag tag--rank" style={{ color: rank.color }}>
+              {hasRank ? rank.name : '未定级'}
             </span>
             <span className="tag tag--code">{rank.value} 分</span>
             <span className="tag">1v1 / 2v2</span>
@@ -644,15 +622,30 @@ export default function RankedPage({ user, toast, servers = [] }) {
           <div className="rank-tier-line">
             <TierTrack index={rank.index} />
             <span>
-              {rank.next ? `距 ${rank.next.name} 还差 ${Math.max(0, rank.next.min - rank.value)} 分` : '已达最高段位'}
+              {rank.next ? `距 ${rank.next.name} 还差 ${rank.toNext} 分` : '已达最高段位'}
             </span>
           </div>
           <div className="rank-progress-bar">
-            <i style={{ width: `${rank.percent}%`, background: tierColor(rank.current.name) }} />
+            <i style={{ width: `${rank.percent}%`, background: rank.color }} />
           </div>
           <p className="ranked-hint">
             {currentMode.desc} · 匹配范围随时间扩大，1v1 需 2 人、2v2 需 4 人
           </p>
+          </div>
+
+          <div className="ranked-hero-medal">
+            <RankTip index={rank.index} stars={rank.stars} rating={rank.value}>
+              <RankMedal tier={rank.index} stars={rank.stars} size={148} />
+            </RankTip>
+            <b style={{ color: rank.color }}>{hasRank ? rank.name : '未定级'}</b>
+            <span className="ranked-hero-stars" aria-label={`${rank.stars} / 5 星`}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Icon key={i} name="starFill" size={12} className={i < rank.stars ? 'is-on' : 'is-off'} />
+              ))}
+            </span>
+            <small>{rank.tier.intro}</small>
+            <em className="ranked-hero-tip">悬停徽章 · 查看全部段位</em>
+          </div>
         </div>
 
         <div className="ranked-hero-foot">
