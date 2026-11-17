@@ -1,0 +1,565 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-17T20:26:55.158Z",
+  "title": "Design System: ESF 平台",
+  "extensions": {
+    "colorMeta": {
+      "night-stage": {
+        "role": "neutral",
+        "displayName": "舞台底",
+        "canonical": "#0b0e14",
+        "purpose": "窗口底与背景遮罩基色。",
+        "tonalRamp": [
+          "#0a0d13",
+          "#24272d",
+          "#40434a",
+          "#5e6268",
+          "#7f8288",
+          "#a1a4aa",
+          "#c4c7cd",
+          "#e8ebf1"
+        ]
+      },
+      "night-raised": {
+        "role": "neutral",
+        "displayName": "抬升面",
+        "canonical": "#121722",
+        "purpose": "侧栏、常驻面板、玻璃面板底色。",
+        "tonalRamp": [
+          "#090d17",
+          "#212732",
+          "#3e434f",
+          "#5c626d",
+          "#7d828d",
+          "#9fa4af",
+          "#c2c7d1",
+          "#e7ebf5"
+        ]
+      },
+      "night-float": {
+        "role": "neutral",
+        "displayName": "悬浮面",
+        "canonical": "#1a2130",
+        "purpose": "卡片、弹窗、选中行。",
+        "tonalRamp": [
+          "#070d1a",
+          "#202736",
+          "#3c4353",
+          "#5a6271",
+          "#7b8291",
+          "#9da4b2",
+          "#c0c7d5",
+          "#e5ebf8"
+        ]
+      },
+      "night-sunken": {
+        "role": "neutral",
+        "displayName": "凹陷面",
+        "canonical": "#222a3a",
+        "purpose": "输入内嵌区、进度槽。",
+        "tonalRamp": [
+          "#070d1a",
+          "#1f2736",
+          "#3b4354",
+          "#596272",
+          "#7a8292",
+          "#9ca4b3",
+          "#c0c7d6",
+          "#e4ebf9"
+        ]
+      },
+      "stage-ink": {
+        "role": "neutral",
+        "displayName": "舞台墨",
+        "canonical": "#1c0f03",
+        "purpose": "橙底上的深色标签文字，主按钮专用。",
+        "tonalRamp": [
+          "#160a01",
+          "#312416",
+          "#4e4033",
+          "#6d5f52",
+          "#8d7f72",
+          "#aea195",
+          "#d1c4b9",
+          "#f4e9de"
+        ]
+      },
+      "text-bright": {
+        "role": "neutral",
+        "displayName": "正文白",
+        "canonical": "#eef1f7",
+        "purpose": "标题与正文最高对比色。",
+        "tonalRamp": [
+          "#0c0d0f",
+          "#252729",
+          "#414346",
+          "#606265",
+          "#808286",
+          "#a1a4a9",
+          "#c4c7cc",
+          "#e8ebf1"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "次级灰",
+        "canonical": "#a4adc2",
+        "purpose": "说明文字、列表次信息。",
+        "tonalRamp": [
+          "#090d17",
+          "#222733",
+          "#3d4351",
+          "#5b6172",
+          "#7a8294",
+          "#9ba4b8",
+          "#bec7db",
+          "#e3ebff"
+        ]
+      },
+      "text-dim": {
+        "role": "neutral",
+        "displayName": "弱信息灰",
+        "canonical": "#7a8399",
+        "purpose": "时间、路径、元信息。",
+        "tonalRamp": [
+          "#080d19",
+          "#212635",
+          "#3c4354",
+          "#596175",
+          "#798298",
+          "#9ba4b9",
+          "#bec7dc",
+          "#e3ebff"
+        ]
+      },
+      "amber-action": {
+        "role": "primary",
+        "displayName": "琥珀行动",
+        "canonical": "#ff8a1f",
+        "purpose": "唯一行动色：主按钮、选中、关键数字。",
+        "tonalRamp": [
+          "#2d0000",
+          "#510200",
+          "#772400",
+          "#9f4200",
+          "#c86100",
+          "#f38111",
+          "#ffa64d",
+          "#ffcd7e"
+        ]
+      },
+      "amber-ember": {
+        "role": "primary",
+        "displayName": "熔岩橙",
+        "canonical": "#ff5d1f",
+        "purpose": "主按钮渐变终点、品牌标、外发光基色。",
+        "tonalRamp": [
+          "#360000",
+          "#5e0000",
+          "#870000",
+          "#b22400",
+          "#de4600",
+          "#ff6931",
+          "#ff9462",
+          "#ffbd8e"
+        ]
+      },
+      "amber-bright": {
+        "role": "primary",
+        "displayName": "亮琥珀",
+        "canonical": "#ff9e45",
+        "purpose": "橙色元素的悬停提亮。",
+        "tonalRamp": [
+          "#280000",
+          "#4a1000",
+          "#6f2e00",
+          "#954b00",
+          "#bd6a0e",
+          "#e68a33",
+          "#ffad59",
+          "#ffd487"
+        ]
+      },
+      "amber-soft-text": {
+        "role": "primary",
+        "displayName": "暖沙",
+        "canonical": "#ffd9b0",
+        "purpose": "橙色浅底上的文字。",
+        "tonalRamp": [
+          "#180900",
+          "#35220c",
+          "#543e26",
+          "#765c40",
+          "#997c5d",
+          "#bd9d7a",
+          "#e3c099",
+          "#ffe4bb"
+        ]
+      },
+      "ki-cyan": {
+        "role": "tertiary",
+        "displayName": "气蓝",
+        "canonical": "#3fd0ff",
+        "purpose": "信息态与观战/在线等辅助状态。",
+        "tonalRamp": [
+          "#001128",
+          "#002e49",
+          "#004d6c",
+          "#006e91",
+          "#0090b7",
+          "#22b4e0",
+          "#4ed9ff",
+          "#83fdff"
+        ]
+      },
+      "oni-green": {
+        "role": "secondary",
+        "displayName": "鬼绿",
+        "canonical": "#3ddc97",
+        "purpose": "成功态、在线点。",
+        "tonalRamp": [
+          "#001800",
+          "#00360f",
+          "#005629",
+          "#007845",
+          "#009b62",
+          "#20c180",
+          "#50e6a2",
+          "#85ffc8"
+        ]
+      },
+      "danger-red": {
+        "role": "secondary",
+        "displayName": "危险红",
+        "canonical": "#ff5f6d",
+        "purpose": "错误、失败、封禁。",
+        "tonalRamp": [
+          "#340000",
+          "#5b0005",
+          "#84001e",
+          "#ae2439",
+          "#da4555",
+          "#ff6773",
+          "#ff9199",
+          "#ffbabf"
+        ]
+      },
+      "warn-gold": {
+        "role": "secondary",
+        "displayName": "警戒金",
+        "canonical": "#ffc861",
+        "purpose": "警告与待处理。",
+        "tonalRamp": [
+          "#1e0500",
+          "#3d1f00",
+          "#5e3b00",
+          "#805a00",
+          "#a5791c",
+          "#cb9b3c",
+          "#f3bd58",
+          "#ffe281"
+        ]
+      },
+      "role-owner": {
+        "role": "secondary",
+        "displayName": "所有者橙",
+        "canonical": "#ff9e45",
+        "purpose": "所有者角色点与徽章。",
+        "tonalRamp": [
+          "#280000",
+          "#4a1000",
+          "#6f2e00",
+          "#954b00",
+          "#bd6a0e",
+          "#e68a33",
+          "#ffad59",
+          "#ffd487"
+        ]
+      },
+      "role-admin": {
+        "role": "secondary",
+        "displayName": "管理员红",
+        "canonical": "#ff7385",
+        "purpose": "管理员角色点与徽章。",
+        "tonalRamp": [
+          "#2f0001",
+          "#550012",
+          "#7c122b",
+          "#a53346",
+          "#cf5164",
+          "#fb7082",
+          "#ff97a6",
+          "#ffbfcc"
+        ]
+      },
+      "role-ops": {
+        "role": "secondary",
+        "displayName": "运营蓝",
+        "canonical": "#58d9ff",
+        "purpose": "运营角色点与徽章。",
+        "tonalRamp": [
+          "#001224",
+          "#002e44",
+          "#004d66",
+          "#006e8a",
+          "#0e90af",
+          "#38b4d6",
+          "#58d9ff",
+          "#8afdff"
+        ]
+      },
+      "role-creator": {
+        "role": "secondary",
+        "displayName": "作者紫",
+        "canonical": "#b79dff",
+        "purpose": "作者角色点与徽章。",
+        "tonalRamp": [
+          "#130030",
+          "#2c1752",
+          "#493477",
+          "#67519e",
+          "#8870c6",
+          "#aa91f0",
+          "#cdb5ff",
+          "#f1daff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "页面主标题与大数字，一屏最多一处。"
+      },
+      "h1": {
+        "displayName": "Headline",
+        "purpose": "区块标题，如「对局已找到」。"
+      },
+      "h2": {
+        "displayName": "Title",
+        "purpose": "卡片标题、弹窗标题、成员分组名。"
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "正文与列表主信息，长文本 65–75 字符宽。"
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "表单标签、按钮文字、列表次信息。"
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "辅助说明、时间、来源。"
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "表头、眉标、徽章；大写 + 0.08em 字距，最小可用字号。"
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "IP、端口、版本号、路径与代码。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "card",
+        "value": "0 2px 8px rgba(0,0,0,0.25)",
+        "purpose": "静态卡片与列表行的轻微脱离。"
+      },
+      {
+        "name": "overlay",
+        "value": "0 12px 32px rgba(0,0,0,0.35)",
+        "purpose": "抽屉、下拉、悬浮面板。"
+      },
+      {
+        "name": "modal",
+        "value": "0 24px 64px rgba(0,0,0,0.5)",
+        "purpose": "结算弹窗与确认框。"
+      },
+      {
+        "name": "action-glow",
+        "value": "0 0 0 1px rgba(255,138,31,0.35), 0 8px 24px rgba(255,138,31,0.18)",
+        "purpose": "仅主按钮、品牌标、当前焦点。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "dur-hover",
+        "value": "120ms",
+        "purpose": "悬停、按压、颜色切换。"
+      },
+      {
+        "name": "dur-press",
+        "value": "90ms",
+        "purpose": "按下反馈。"
+      },
+      {
+        "name": "dur-panel",
+        "value": "180ms",
+        "purpose": "抽屉、面板、折叠。"
+      },
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        "purpose": "默认缓动。"
+      },
+      {
+        "name": "ease-pop",
+        "value": "cubic-bezier(0.2, 1.4, 0.4, 1)",
+        "purpose": "少量弹入（弹窗、结果卡）。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "xl",
+        "value": "1400px"
+      },
+      {
+        "name": "lg",
+        "value": "1260px"
+      },
+      {
+        "name": "md",
+        "value": "1180px"
+      },
+      {
+        "name": "sm",
+        "value": "1080px"
+      },
+      {
+        "name": "xs",
+        "value": "980px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "唯一的行动按钮：机台键帽，内高光 + 橙光 + 按下下沉。",
+      "html": "<button class=\"ds-btn-primary\">进入大厅</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 15px; border: 1px solid transparent; border-radius: 10px; font: 600 13px/1.4 'Segoe UI','Microsoft YaHei UI',system-ui,sans-serif; color: #1c0f03; background: linear-gradient(135deg,#ffd18f 0%,#ff9c33 48%,#ff6a1f 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 10px 24px rgba(255,110,20,.28); cursor: pointer; transition: transform .16s ease, box-shadow .16s ease; } .ds-btn-primary:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 14px 30px rgba(255,110,20,.34); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,142,40,.28), inset 0 1px 0 rgba(255,255,255,.45); } .ds-btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "次级操作：3.5% 白底 + 发丝描边，hover 提亮。",
+      "html": "<button class=\"ds-btn-ghost\">取消对局</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 15px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; font: 600 13px/1.4 'Segoe UI','Microsoft YaHei UI',system-ui,sans-serif; color: #dfe4ef; background: rgba(255,255,255,.035); cursor: pointer; transition: background .16s ease, border-color .16s ease, transform .16s ease; } .ds-btn-ghost:hover { background: rgba(255,255,255,.075); border-color: rgba(255,255,255,.2); } .ds-btn-ghost:active { transform: translateY(1px); } .ds-btn-ghost:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,142,40,.28); }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "内嵌深底输入框，聚焦时橙色描边 + 3px 光晕。",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">账号</span><span class=\"ds-field-input\"><input placeholder=\"3~20 位字母 / 数字 / 下划线\" /></span></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; font: 400 14px/1.5 'Segoe UI','Microsoft YaHei UI',system-ui,sans-serif; } .ds-field-label { font-size: 11.5px; color: #a4adc2; } .ds-field-input { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; background: rgba(0,0,0,.28); transition: border-color .15s ease, box-shadow .15s ease; } .ds-field-input:focus-within { border-color: rgba(255,138,31,.55); box-shadow: 0 0 0 3px rgba(255,138,31,.12); } .ds-field-input input { flex: 1; min-width: 0; background: none; border: none; outline: none; font-size: 12.5px; color: #eef1f7; font-family: inherit; } .ds-field-input input::placeholder { color: #4f5468; }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "顶栏胶囊导航：未选中为弱文字，选中为实心橙胶囊 + 深色字。",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-item is-active\">大厅</button><button class=\"ds-nav-item\">排位</button><button class=\"ds-nav-item\">服务器</button></nav>",
+      "css": ".ds-nav { display: inline-flex; gap: 2px; padding: 5px; border-radius: 999px; background: linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.018)); border: 1px solid rgba(255,255,255,.075); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); } .ds-nav-item { display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px; border: 1px solid transparent; border-radius: 999px; font: 500 12.5px/1.4 'Segoe UI','Microsoft YaHei UI',system-ui,sans-serif; color: #a4adc2; background: none; cursor: pointer; white-space: nowrap; transition: color .12s cubic-bezier(.2,.8,.2,1), background .12s cubic-bezier(.2,.8,.2,1); } .ds-nav-item:hover { color: #eef1f7; background: rgba(255,255,255,.05); } .ds-nav-item.is-active { color: #1c0e02; font-weight: 600; background: linear-gradient(180deg,#ffb157,#ff8a1f 62%,#ff7a1f); border-color: transparent; box-shadow: 0 6px 18px rgba(255,122,31,.3), inset 0 1px 0 rgba(255,255,255,.45); }"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "模式与筛选 chip；选中态 14% 橙底 + 35% 描边。",
+      "html": "<div style=\"display:flex;gap:4px\"><button class=\"ds-chip is-active\">单挑</button><button class=\"ds-chip\">2v2</button><button class=\"ds-chip\">混战</button></div>",
+      "css": ".ds-chip { padding: 4px 9px; border-radius: 7px; border: 1px solid transparent; font: 500 11px/1.3 'Segoe UI','Microsoft YaHei UI',system-ui,sans-serif; color: #a4adc2; background: none; cursor: pointer; transition: background .12s ease, color .12s ease, border-color .12s ease; } .ds-chip:hover { background: rgba(255,255,255,.05); color: #eef1f7; } .ds-chip.is-active { background: rgba(255,138,31,.14); border-color: rgba(255,138,31,.35); color: #ffd9b0; }"
+    },
+    {
+      "name": "Glass Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "常驻面板与卡片：半透明底 + 14px blur + 发丝线 + 顶部高光渐变。",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">在线房间 4 台</h3><p class=\"ds-card-sub\">[ESF-FCX]单挑房[1] · 114.132.84.150:27016</p></div>",
+      "css": ".ds-card { padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,.07); background: linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012)), rgba(18,23,34,.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 2px 8px rgba(0,0,0,.25); font: 400 14px/1.5 'Segoe UI','Microsoft YaHei UI',system-ui,sans-serif; color: #eef1f7; } .ds-card-title { font-size: 18px; font-weight: 600; margin: 0 0 4px; } .ds-card-sub { font-size: 12px; color: #7a8399; }"
+    },
+    {
+      "name": "Member Row",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "右栏常驻成员行：头像 + 状态点 + 名字/状态 + 头衔徽章，离线降到 50%。",
+      "html": "<div class=\"ds-member\"><span class=\"ds-member-avatar\">天</span><span class=\"ds-member-meta\"><b>天野雪辉</b><small>在大厅 · 金币 0</small></span><span class=\"ds-member-badge\">所有者</span></div><div class=\"ds-member is-offline\"><span class=\"ds-member-avatar\">克</span><span class=\"ds-member-meta\"><b>克林</b><small>离线</small></span></div>",
+      "css": ".ds-member { display: flex; align-items: center; gap: 8px; padding: 6px 5px; border-radius: 8px; font: 400 12px/1.3 'Segoe UI','Microsoft YaHei UI',system-ui,sans-serif; color: #eef1f7; cursor: pointer; transition: background .12s ease; } .ds-member:hover { background: rgba(255,255,255,.035); } .ds-member.is-offline { opacity: .5; } .ds-member-avatar { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #1a0d02; background: linear-gradient(135deg,#ffc46b,#ff5d1f); flex: none; } .ds-member-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; } .ds-member-meta b { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-member-meta small { font-size: 10.5px; color: #a4adc2; } .ds-member.is-offline small { color: #7a8399; } .ds-member-badge { margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.07); color: #a4adc2; }"
+    },
+    {
+      "name": "Switch",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "设置项开关：38×21 胶囊，开启为橙渐变，标签在左。",
+      "html": "<label class=\"ds-switch\"><span>界面音效</span><span class=\"ds-switch-track is-on\"><i></i></span></label>",
+      "css": ".ds-switch { display: inline-flex; align-items: center; gap: 10px; font: 400 13px/1.4 'Segoe UI','Microsoft YaHei UI',system-ui,sans-serif; color: #eef1f7; cursor: pointer; } .ds-switch-track { position: relative; width: 38px; height: 21px; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.07); box-sizing: border-box; transition: background .16s ease, border-color .16s ease; } .ds-switch-track i { position: absolute; top: 3px; left: 3px; width: 13px; height: 13px; border-radius: 50%; background: #e8edf7; transition: left .16s ease; } .ds-switch-track.is-on { background: linear-gradient(180deg,#ffab4f,#ff8a1f); border-color: rgba(255,160,90,.5); } .ds-switch-track.is-on i { left: 20px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "夜战擂台",
+    "overview": "ESF 平台不是一个后台，而是「今晚开一场」的开赛控制台。虚化压暗的龙珠海报铺满整窗，左上渗出暖橙、右下渗出冰蓝，像深夜擂台边的两盏灯。主角永远是比赛本身：对局卡、席位、比分、延迟数字；光线只负责把擂台边缘照亮，不抢人。\n\n密度上它是 Operate 界面：三段外壳（64px 顶栏 / 内容 / 28px 状态栏）、左侧窄轨导航、中央舞台、右侧 300px 成员名单常驻。信息严格三层（主 / 次 / 弱），字号只用 8 档；但氛围层不克制——玻璃面板、1px 发丝线、主按钮的内高光，让工具界面保留街机机台的重量感。\n\n明确的拒绝：不要企业仪表盘的白底卡片与浅色表格；不要紫蓝渐变的 SaaS 风；不要给所有元素加发光；不要用投影堆叠来假装层级（层级由色调与描边承担）。橙色是行动色，不是装饰色。",
+    "keyCharacteristics": [
+      "深色三层舞台（#0b0e14 / #121722 / #1a2130），单一琥珀橙 #ff8a1f 只给行动与选中",
+      "玻璃只做浮层：rgba 面板 + blur(14px) + 1px 发丝线；正文卡片优先不透明色调分层",
+      "机台按键：1px 内高光 + 橙色外发光 + 按下下沉 1px",
+      "系统字体（Segoe UI / Microsoft YaHei UI），无 webfont；眉标用 11px 大写 + 0.08–0.2em 字距",
+      "四档圆角 6 / 10 / 16 / 999；1px 描边；图标 24 viewBox、1.7 描边、圆头",
+      "动效两档：120ms 状态反馈、180–200ms 浮层；可被「减少动效」整体关闭"
+    ],
+    "rules": [
+      {
+        "name": "The One Voice Rule",
+        "body": "橙色只出现在「可行动 / 已选中 / 关键数字」三类位置，单屏面积约 10% 以内；同一屏不允许出现第二个暖色强调。",
+        "section": "colors"
+      },
+      {
+        "name": "The Three-Stage Rule",
+        "body": "背景只有三层：舞台 #0b0e14、抬升 #121722、悬浮 #1a2130；输入与凹槽用 #222a3a。不要新增第四层「更深的黑」。",
+        "section": "colors"
+      },
+      {
+        "name": "The One-Step Semantic Rule",
+        "body": "成功 / 危险 / 警告 / 信息各只有一档色（#3ddc97 / #ff5f6d / #ffc861 / #3fd0ff），不做深浅阶梯，也不用它们做装饰。",
+        "section": "colors"
+      },
+      {
+        "name": "The Eyebrow Rule",
+        "body": "大写 + 字距只用于分组眉标（DRAGON BALL · ESF、段位、表头），字距 0.08–0.2em；正文与按钮永不加宽字距。",
+        "section": "typography"
+      },
+      {
+        "name": "The No-Half-Pixel Rule",
+        "body": "新字号只能取上表 8 档；现存 12.5px / 11.5px 属历史遗留，改动时向下归并到 12 / 11。",
+        "section": "typography"
+      },
+      {
+        "name": "The Glass-Only-For-Overlay Rule",
+        "body": "backdrop-filter 只用于浮层与常驻面板；普通内容卡片用不透明 #1a2130，避免半透明叠半透明导致发灰。",
+        "section": "elevation"
+      },
+      {
+        "name": "The Flat-At-Rest Rule",
+        "body": "卡片静止时不发光、不缩放；只有 hover / focus / 选中三态才改变描边或亮度。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do 用 token 取色：任何新样式引用 var(--accent) / var(--bg-1) / var(--fs-*) 等，不写新的十六进制。",
+      "Do 让橙色只出现在主按钮、当前选中、关键数字上；其余信息用白与三级灰表达。",
+      "Do 用 1px 发丝线与色调分层表达层级；浮层才用 blur 与阴影。",
+      "Do 保持主按钮的机台手感：内高光 + 橙光 + 按下 1px 下沉，三件套缺一不可。",
+      "Do 给「结果」类界面统一用一套 Modal：标题 + 可滚动内容 + 底部主次按钮。",
+      "Do 尊重系统「减少动效」：所有动画在 .is-static-motion 或 prefers-reduced-motion 下归零。"
+    ],
+    "donts": [
+      "Don't 新增第四种背景黑或第二支强调色；语义色也不能当装饰。",
+      "Don't 给卡片、列表行、标题加发光或渐变文字（hero 大标题的白色渐变是唯一例外）。",
+      "Don't 用半透明面板叠加半透明面板；叠出来会发灰、字发虚。",
+      "Don't 写半像素字号（12.5 / 11.5）或新的圆角值；一律归并到 8 档字号与 4 档圆角。",
+      "Don't 引入第二套设计语言（Material 卡片、Tailwind 默认灰阶、商业组件库皮肤）。",
+      "Don't 用纯白 #fff 做正文或边框；正文最高 #eef1f7，边框最高 14% 白。"
+    ]
+  }
+}
