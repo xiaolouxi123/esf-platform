@@ -332,6 +332,7 @@ const pingPresence = (settings, token, payload) =>
 const presenceList = (settings, token) => request(settings, { path: '/api/presence', token });
 
 const membersList = (settings, token) => request(settings, { path: '/api/members', token });
+const membersPresence = (settings, token) => request(settings, { path: '/api/members/presence', token });
 const memberDetail = (settings, token, id) =>
   request(settings, { path: `/api/members/${encodeURIComponent(id)}`, token });
 const setCombatLevel = (settings, token, id, combatLevel) =>
@@ -491,6 +492,7 @@ module.exports = {
   pingPresence,
   presenceList,
   membersList,
+  membersPresence,
   memberDetail,
   setCombatLevel,
   setMemberStatus,

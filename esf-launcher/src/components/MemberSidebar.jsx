@@ -199,6 +199,7 @@ export default function MemberSidebar({
 
   useEffect(() => {
     let alive = true;
+    let presenceBusy = false;
 
     const load = async () => {
       try {
@@ -209,20 +210,61 @@ export default function MemberSidebar({
       }
     };
 
+    // 轻量状态：800ms 一次，只合并在线/排队/约战字段，不重拉头像与资料。
+    const loadPresence = async () => {
+      if (presenceBusy) return;
+      presenceBusy = true;
+      try {
+        const data = await window.electronAPI.members.presence();
+        if (!alive) return;
+        const rows = Array.isArray(data?.members) ? data.members : [];
+        if (rows.length === 0) return;
+        const byId = new Map(rows.map((row) => [Number(row.id), row]));
+        setMembers((prev) =>
+          prev.map((member) => {
+            const next = byId.get(Number(member.id));
+            if (!next) return { ...member, online: false, state: 'offline', ranked: null, challenge: null };
+            return {
+              ...member,
+              online: next.online,
+              state: next.state,
+              serverKey: next.serverKey,
+              serverName: next.serverName,
+              serverMap: next.serverMap,
+              ranked: next.ranked,
+              challenge: next.challenge,
+              updatedAt: next.updatedAt,
+            };
+          })
+        );
+      } catch {
+        /* 轮询失败保留上一份 */
+      } finally {
+        presenceBusy = false;
+      }
+    };
+
     load();
-    const timer = setInterval(load, 5000);
+    loadPresence();
+
+    const fullTimer = setInterval(load, 15000);
+    const fastTimer = setInterval(loadPresence, 800);
     const refresh = () => {
-      if (document.visibilityState === 'visible') load();
+      if (document.visibilityState === 'visible') {
+        loadPresence();
+        load();
+      }
     };
     window.addEventListener('focus', refresh);
-    window.addEventListener('esf:presence', load);
+    window.addEventListener('esf:presence', refresh);
     document.addEventListener('visibilitychange', refresh);
 
     return () => {
       alive = false;
-      clearInterval(timer);
+      clearInterval(fullTimer);
+      clearInterval(fastTimer);
       window.removeEventListener('focus', refresh);
-      window.removeEventListener('esf:presence', load);
+      window.removeEventListener('esf:presence', refresh);
       document.removeEventListener('visibilitychange', refresh);
     };
   }, []);

@@ -324,8 +324,9 @@ export default function RankedPage({ user, toast, servers = [] }) {
   const [mode, setMode] = useState('1v1');
   // 有缓存先用缓存渲染，避免每次点开都空等一次网络往返
   const [state, setState] = useState(() => readRankedCache('state') || { state: 'loading', profile: null });
-  const availableServers = (servers || []).filter((s) => s.online && !s.locked);
-  const serverUnavailable = availableServers.length === 0;
+  const matchServers = (servers || []).filter((s) => s.isMatch);
+  const poolBusy = matchServers.length > 0 && matchServers.every((s) => !s.online || s.locked);
+  const serverUnavailable = matchServers.length === 0;
   const [leaderboard, setLeaderboard] = useState(() => readRankedCache('leaderboard') || []);
   const [history, setHistory] = useState(() => readRankedCache('history') || []);
   const [betTeam, setBetTeam] = useState('a');
@@ -697,7 +698,13 @@ export default function RankedPage({ user, toast, servers = [] }) {
                   title={serverUnavailable ? '暂时无服务器可提供排位' : '开始匹配'}
                 >
                   {busy === 'queue' ? <span className="spinner" /> : <Icon name="swords" size={16} />}
-                  {busy === 'queue' ? '正在匹配…' : serverUnavailable ? '暂无可用服务器' : '开始匹配'}
+                  {busy === 'queue'
+                    ? '正在匹配…'
+                    : serverUnavailable
+                      ? '暂无可用服务器'
+                      : poolBusy
+                        ? '排队等空位'
+                        : '开始匹配'}
                 </button>
                 {serverUnavailable && (
                   <p className="rank-server-hint">暂时无服务器可提供排位，请稍后再试。</p>
@@ -731,11 +738,17 @@ export default function RankedPage({ user, toast, servers = [] }) {
                 <span className="spinner" />
               </div>
               <div>
-                <h2>正在寻找队友与对手</h2>
+                <h2>{state.pool && state.pool.free === 0 ? '比赛服全忙，正在排队等空位' : '正在寻找队友与对手'}</h2>
                 <p>
                   {MODE_META[state.queue?.mode || mode]?.label} · 已等待 {state.queue?.elapsed ?? 0} 秒 · 评分{' '}
                   {profile?.rating ?? 1000}
+                  {state.pool ? ` · 比赛服 ${state.pool.free}/${state.pool.total} 空闲` : ''}
                 </p>
+                {state.pool && state.pool.free === 0 && (
+                  <p className="rank-pool-hint">
+                    三台比赛服都在对局或约战中。空出一台后会自动拉你进场，不用重新匹配；想换服可先取消。
+                  </p>
+                )}
               </div>
             </section>
           )}

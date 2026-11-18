@@ -260,7 +260,10 @@ export default function ChallengePage({
     return Math.max(0, Math.ceil((start + 120000 - now) / 1000));
   }, [myRoom, now]);
   const challengeServers = useMemo(
-    () => servers.filter((server) => server.serverKey === 'fcx-1v1-1'),
+    () =>
+      servers
+        .filter((server) => server.isMatch)
+        .sort((a, b) => Number(b.online) - Number(a.online) || Number(a.ping) - Number(b.ping)),
     [servers]
   );
 
@@ -758,6 +761,7 @@ export default function ChallengePage({
                     </button>
                   ))}
                 </span>
+                <small>{form.bestOf === 1 ? '一局定胜负' : '三局两胜'}</small>
               </span>
               <span className="challenge-victory-inline">
                 <Icon name="swords" size={13} />

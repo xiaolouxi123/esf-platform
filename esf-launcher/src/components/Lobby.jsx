@@ -13,7 +13,7 @@ import ChallengePage from './ChallengePage';
 import PluginsPage from './PluginsPage';
 import ChallengeResultModal from './ChallengeResultModal';
 import ReleasesModal from './ReleasesModal';
-import ServerRoomList from './ServerRoomList';
+import LobbyRooms from './LobbyRooms';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import { DEFAULT_RANKS, normalizeRanks } from '../lib/ranks';
 import { readRankedCache, writeRankedCache } from '../lib/rankedCache';
@@ -1162,7 +1162,7 @@ export default function Lobby({
           </div>
         </aside>
 
-        <main className="center">
+        <main className={`center${activePage === 'lobby' ? ' center--lobby' : ''}`}>
           {activePage === 'ranked' ? (
             <RankedPage user={user} toast={toast} servers={servers} />
           ) : activePage === 'challenges' ? (
@@ -1477,6 +1477,14 @@ export default function Lobby({
                       <i />
                       {localMode === 'deathmatch' ? '混战模式' : '组队模式'}
                     </span>
+                    {offlineServers.length > 0 && (
+                      <span
+                        className="tag tag--bad"
+                        title={offlineServers.map((server) => server.name).join('、')}
+                      >
+                        离线 {offlineServers.length} 台
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1742,24 +1750,6 @@ export default function Lobby({
               )}
 
               <section className="section">
-                {offlineServers.length > 0 && (
-                  <div className="server-alert">
-                    <Icon name="alert" size={15} />
-                    <span>
-                      {offlineServers.length} 个服务器当前离线：
-                      {offlineServers.map((server) => server.name).join('、')}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-ghost"
-                      onClick={() => refreshServers()}
-                      disabled={serversLoading}
-                    >
-                      重新检测
-                    </button>
-                  </div>
-                )}
-
                 <div className="section-head">
                   <h2>
                     在线房间 <span className="pill">{onlineServers.length}</span>
@@ -1787,18 +1777,17 @@ export default function Lobby({
                     <p>{serversLoading ? '正在获取…' : '当前没有在线房间'}</p>
                   </div>
                 ) : (
-                  <ServerRoomList
-                    servers={onlineServers.slice(0, 5)}
-                    loading={serversLoading}
+                  <LobbyRooms
+                    servers={[...onlineServers]
+                      .sort((a, b) => Number(Boolean(b.isMatch)) - Number(Boolean(a.isMatch)))
+                      .slice(0, 4)}
                     onJoin={joinServer}
                     busyKey={joinBusyKey}
                     favorites={favServers}
                     onToggleFavorite={toggleServerFav}
-                    syncedAt={lastSyncAt}
                     currentUserId={user?.id}
+                    onOpenRanked={() => setPage('ranked')}
                     onOpenChallenge={() => setPage('challenges')}
-                    onSpectate={spectateServer}
-              onQueue={queueServer}
                   />
                 )}
               </section>

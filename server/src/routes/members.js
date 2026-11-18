@@ -144,6 +144,80 @@ router.patch('/members/:id/combat-level', requireAuth, async (req, res, next) =>
 });
 
 /** 单个成员详情：公开资料 + 战绩统计 */
+
+/**
+ * 轻量在线状态：成员栏 1 秒轮询用，只回状态字段，不带头像与资料。
+ * 完整名单仍走 GET /members（15 秒一次，负责新上线成员与改名）。
+ */
+router.get('/members/presence', requireAuth, async (req, res, next) => {
+  try {
+    const rows = await q(
+      `SELECT u.id, p.state, p.server_key, p.updated_at,
+              s.name AS server_name, st.map AS server_map,
+              (SELECT rq.mode FROM ranked_queue rq
+                WHERE rq.user_id = u.id AND rq.matched_match_id IS NULL
+                LIMIT 1) AS ranked_queue_mode,
+              (SELECT rm.mode FROM ranked_match_players rmp
+                 JOIN ranked_matches rm ON rm.id = rmp.match_id
+                WHERE rmp.user_id = u.id AND rm.status IN ('waiting', 'live')
+                ORDER BY rm.id DESC LIMIT 1) AS ranked_match_mode,
+              (SELECT rm.status FROM ranked_match_players rmp
+                 JOIN ranked_matches rm ON rm.id = rmp.match_id
+                WHERE rmp.user_id = u.id AND rm.status IN ('waiting', 'live')
+                ORDER BY rm.id DESC LIMIT 1) AS ranked_match_status,
+              cr.id AS challenge_room_id, cr.status AS challenge_status,
+              cp.ready AS challenge_ready, cp.team AS challenge_team
+         FROM users u
+         LEFT JOIN presence p
+           ON p.user_id = u.id
+          AND p.updated_at > (NOW() - INTERVAL ? SECOND)
+         LEFT JOIN servers s ON s.server_key = p.server_key
+         LEFT JOIN server_status st ON st.server_id = s.id
+         LEFT JOIN challenge_rooms cr
+           ON cr.id = (SELECT cp1.room_id FROM challenge_room_players cp1
+                         JOIN challenge_rooms cr1 ON cr1.id = cp1.room_id
+                        WHERE cp1.user_id = u.id AND cr1.status IN ('waiting', 'live')
+                        ORDER BY cp1.room_id DESC LIMIT 1)
+         LEFT JOIN challenge_room_players cp
+           ON cp.room_id = cr.id AND cp.user_id = u.id
+        WHERE u.status = 'active'
+        ORDER BY u.id ASC
+        LIMIT 500`,
+      [ONLINE_WINDOW_SECONDS]
+    );
+
+    res.json({
+      ok: true,
+      data: {
+        members: rows.map((row) => ({
+          id: Number(row.id),
+          online: Boolean(row.updated_at),
+          state: row.updated_at ? row.state : 'offline',
+          serverKey: row.server_key || null,
+          serverName: row.server_name || null,
+          serverMap: row.server_map || null,
+          ranked: row.ranked_queue_mode
+            ? { mode: row.ranked_queue_mode, status: 'queued' }
+            : row.ranked_match_mode
+              ? { mode: row.ranked_match_mode, status: row.ranked_match_status }
+              : null,
+          challenge: row.challenge_room_id
+            ? {
+                roomId: Number(row.challenge_room_id),
+                status: row.challenge_status,
+                ready: Boolean(Number(row.challenge_ready)),
+                team: row.challenge_team || null,
+              }
+            : null,
+          updatedAt: row.updated_at || null,
+        })),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/members/:id', requireAuth, async (req, res, next) => {
   try {
     const id = Number(req.params.id);

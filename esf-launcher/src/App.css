@@ -14681,6 +14681,10 @@ select:focus {
   font-weight: 600;
   color: var(--text);
 }
+.challenge-bestof > small {
+  font-size: 10px;
+  color: var(--dim);
+}
 .challenge-bestof-switch {
   display: inline-flex;
   gap: 2px;
@@ -14741,4 +14745,381 @@ select:focus {
   padding-bottom: 6px;
 }
 
+/* ---- 比赛服 / 公开服区分（0.6.56） ---- */
+.room-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px 3px;
+}
+.room-group:not(:first-of-type) {
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 11px;
+}
+.room-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.room-group--match .room-group-label {
+  color: #ffc08c;
+  background: rgba(255, 132, 58, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 143, 64, 0.34);
+}
+.room-group--public .room-group-label {
+  color: #a8d8ee;
+  background: rgba(90, 180, 230, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(120, 200, 255, 0.2);
+}
+.room-group small {
+  font-size: 10.5px;
+  color: var(--dim);
+}
+.room-group em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 10px;
+  color: var(--dim);
+}
+.room-kind {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: 1px;
+}
+.room-kind.is-match {
+  color: #ffc08c;
+  background: rgba(255, 132, 58, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 143, 64, 0.3);
+}
+.room-kind.is-public {
+  color: #a8d8ee;
+  background: rgba(90, 180, 230, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(120, 200, 255, 0.16);
+}
+.room--match .room-row {
+  box-shadow: inset 2px 0 0 rgba(255, 143, 64, 0.55);
+}
+.servers-page .rooms .room-row {
+  padding: 8px 8px;
+}
+.room-title b {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.rank-pool-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #ffcf9d;
+}
 
+/* ---- 大厅房间卡（0.6.56） ---- */
+.lobby-rooms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.lobby-room {
+  position: relative;
+  padding: 10px 12px 9px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(23, 31, 45, 0.72), rgba(12, 18, 28, 0.82));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+.lobby-room::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(120, 200, 255, 0.35);
+}
+.lobby-room.is-match::before {
+  background: linear-gradient(180deg, #ffb877, #ff5d1f);
+}
+.lobby-room.is-offline {
+  opacity: 0.62;
+}
+.lobby-room header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.lobby-room-kind {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  color: #a8d8ee;
+  background: rgba(90, 180, 230, 0.12);
+}
+.lobby-room.is-match .lobby-room-kind {
+  color: #ffc08c;
+  background: rgba(255, 132, 58, 0.16);
+}
+.lobby-room header b {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.lobby-room-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  color: var(--dim);
+}
+.lobby-room-meta i {
+  font-style: normal;
+  opacity: 0.5;
+}
+.lobby-room-meta em {
+  font-style: normal;
+  font-size: 9.5px;
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+.lobby-room-meta em.is-ranked {
+  color: #ffc08c;
+  background: rgba(255, 132, 58, 0.14);
+}
+.lobby-room-meta em.is-challenge {
+  color: #b8a8ff;
+  background: rgba(150, 130, 255, 0.14);
+}
+.lobby-room footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.lobby-room-ping {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #7fe0a6;
+}
+.lobby-room-ping.is-warn {
+  color: #ffb27a;
+}
+.lobby-room-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.lobby-room-count em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--dim);
+}
+.lobby-room-spacer {
+  flex: 1 1 auto;
+}
+.lobby-room footer .btn {
+  min-width: 64px;
+}
+@media (max-width: 1120px) {
+  .lobby-rooms {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== 大厅首屏压缩：hero + deck 收紧，让房间卡进入首屏 ===== */
+.center--lobby .hero {
+  min-height: 0;
+  padding: 16px 22px 14px;
+  gap: 14px;
+}
+.center--lobby .hero .hero-title {
+  font-size: 36px;
+  line-height: 1.02;
+}
+.center--lobby .hero-sub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.center--lobby .hero .hero-tags {
+  margin-top: 2px;
+}
+.center--lobby .hero-pulse > div {
+  padding: 6px 13px 7px;
+}
+.center--lobby .hero-pulse b {
+  font-size: 16px;
+}
+.center--lobby .hero .btn-lg {
+  height: 38px;
+  padding: 0 16px;
+}
+.center--lobby .quick-card--deck {
+  padding: 12px 15px;
+  gap: 8px;
+}
+.center--lobby .deck-rank {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+.center--lobby .deck-rank > svg,
+.center--lobby .deck-rank .rank-tip svg {
+  width: 76px;
+  height: 76px;
+}
+.center--lobby .deck-steps {
+  gap: 6px;
+}
+.center--lobby .deck-steps b {
+  width: 18px;
+  height: 18px;
+  font-size: 9px;
+}
+.center--lobby .lobby-rooms {
+  gap: 8px;
+}
+
+@media (max-height: 860px) {
+  .center--lobby .hero {
+    padding: 12px 22px 12px;
+    gap: 10px;
+  }
+  .center--lobby .hero .hero-title {
+    font-size: 34px;
+  }
+  .center--lobby .hero-sub {
+    display: none;
+  }
+  .center--lobby .quick-card--deck {
+    padding: 10px 14px;
+    gap: 6px;
+  }
+  .center--lobby .deck-rank {
+    grid-template-columns: 66px minmax(0, 1fr);
+  }
+  .center--lobby .deck-rank > svg,
+  .center--lobby .deck-rank .rank-tip svg {
+    width: 66px;
+    height: 66px;
+  }
+  .center--lobby .deck-ladder,
+  .center--lobby .deck-actions-hint {
+    display: none;
+  }
+}
+
+@media (max-height: 860px) {
+  .center--lobby .lobby-room {
+    padding: 8px 12px 7px;
+  }
+  .center--lobby .lobby-room footer {
+    margin-top: 6px;
+  }
+  .center--lobby .lobby-rooms {
+    gap: 6px;
+  }
+}
+
+@media (max-height: 860px) {
+  .center--lobby .hero {
+    padding-bottom: 10px;
+    gap: 8px;
+  }
+  .center--lobby .quick-card--deck {
+    padding: 9px 14px;
+  }
+  .center--lobby .lobby-room {
+    padding: 7px 12px 6px;
+  }
+}
+
+/* ===== 服务器页底部：默认收成一条，把高度让给公开服 ===== */
+.servers-page .servers-foot:not(.is-open) {
+  display: flex;
+  max-height: 46px;
+}
+.servers-foot-bar {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+.servers-foot-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.servers-foot-btn:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.servers-foot-btn b {
+  font-size: 10px;
+  color: var(--dim);
+}
+.servers-foot-hint {
+  margin-left: auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 10px;
+  color: var(--dim);
+}
+.servers-foot.is-open {
+  display: grid;
+  max-height: 150px;
+}
+.servers-foot-head {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 20px;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+@media (max-height: 860px) {
+  .servers-page .servers-hero {
+    height: 178px;
+    max-height: 178px;
+    padding: 12px 22px 10px;
+  }
+}
+
+@media (max-height: 860px) {
+  .servers-page .servers-hero {
+    height: 196px;
+    max-height: 196px;
+    padding: 13px 22px 11px;
+  }
+}

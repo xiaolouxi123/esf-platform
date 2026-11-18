@@ -598,9 +598,6 @@ async function createRoom(user, fields = {}) {
   const title = normalizeTitle(fields.title, `${user.game_name || user.username} 的约战`);
   const map = normalizeMap(fields.map);
   const serverKey = String(fields.serverKey || '').trim() || CHALLENGE_SERVER_KEY;
-  if (serverKey !== CHALLENGE_SERVER_KEY) {
-    throw badRequest('目前约战只开放「单挑 1」服务器');
-  }
   const victoryType = normalizeVictoryType(fields.victoryType);
   const victoryLimit = normalizeVictoryLimit(fields.victoryLimit);
   const bestOf = normalizeBestOf(fields.bestOf);
@@ -608,10 +605,12 @@ async function createRoom(user, fields = {}) {
   if (!serverKey) throw badRequest('请选择一台服务器后再开房');
 
   if (serverKey) {
-    const server = await one('SELECT server_key FROM servers WHERE server_key = ? AND enabled = 1 LIMIT 1', [
-      serverKey,
-    ]);
+    const server = await one(
+      'SELECT server_key, is_match FROM servers WHERE server_key = ? AND enabled = 1 LIMIT 1',
+      [serverKey]
+    );
     if (!server) throw badRequest('指定的服务器不存在或已停用');
+    if (!Number(server.is_match)) throw badRequest('这台服务器不是比赛服，不能开约战');
   }
 
   await expireStaleRooms();
@@ -949,6 +948,14 @@ async function startRoom(user, roomId) {
       [room.server_key, roomId]
     );
     if (busy.length > 0) throw conflict('该服务器已有约战正在进行');
+
+    const [rankedBusy] = await conn.query(
+      `SELECT id FROM ranked_matches
+        WHERE server_key = ? AND status IN ('waiting','live')
+        LIMIT 1 FOR UPDATE`,
+      [room.server_key]
+    );
+    if (rankedBusy.length > 0) throw conflict('该服务器正在打排位，换一台再开');
 
     await conn.query("UPDATE challenge_rooms SET status = 'live', started_at = NOW() WHERE id = ?", [
       roomId,

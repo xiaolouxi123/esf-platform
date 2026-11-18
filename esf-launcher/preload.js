@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   members: {
     list: () => call('members:list'),
+    presence: () => call('members:presence'),
     detail: (id) => call('members:detail', { id }),
     setCombatLevel: (id, combatLevel) => call('members:set-combat-level', { id, combatLevel }),
     setStatus: (text) => call('members:set-status', { text }),

@@ -251,7 +251,13 @@ async function main() {
 
     // 0.6.4 约战多局：房间当前局号（1-3）
     await ensureColumn(conn, env.db.name, 'challenge_rooms', 'round_no', 'INT UNSIGNED NOT NULL DEFAULT 1');
-  await ensureColumn(conn, env.db.name, 'challenge_rooms', 'best_of', 'TINYINT UNSIGNED NOT NULL DEFAULT 3');
+    await ensureColumn(conn, env.db.name, 'challenge_rooms', 'best_of', 'TINYINT UNSIGNED NOT NULL DEFAULT 3');
+
+    // 0.6.56 比赛服池：天梯与约战只从 is_match=1 的服务器里挑
+    await ensureColumn(conn, env.db.name, 'servers', 'is_match', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER mode');
+    await conn.query(
+      "UPDATE servers SET is_match = 1 WHERE server_key IN ('fcx-1v1-1', 'fcx-1v1-3', 'fcx-1v1-4')"
+    );
 
     // 0.5.23 约战限时：默认 15 分钟一局
     await ensureColumn(

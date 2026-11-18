@@ -72,7 +72,6 @@ export default function ChallengeResultModal({ result, onClose, onOpenChallenges
   const playersB = (result.players || []).filter((player) => player.team === 'b');
   const duration = formatDuration(result.startedAt, result.endedAt);
   const bestOf = Number(result.bestOf) === 1 ? 1 : 3;
-  const seriesTarget = bestOf === 1 ? 1 : 2;
   const chips = [
     result.mode ? result.mode + ' 约战' : null,
     result.map ? '地图 ' + result.map : null,
@@ -115,7 +114,9 @@ export default function ChallengeResultModal({ result, onClose, onOpenChallenges
         </div>
         <div className="crm-rule">
           {result.victoryType === 'series'
-            ? `赛制：${bestOf === 1 ? '一局定胜负' : '三局两胜'} · 先到 ${seriesTarget} 胜`
+            ? bestOf === 1
+              ? '赛制：一局定胜负 · 单局结算'
+              : '赛制：三局两胜 · 先到 2 胜'
             : `胜利条件：${victoryLabel(result)}达到 ${result.victoryLimit || 10} 次`}
         </div>
 

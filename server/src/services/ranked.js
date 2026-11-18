@@ -219,6 +219,34 @@ async function history(userId, limit = 10) {
   return out;
 }
 
+/** 比赛服池：总台数 / 在线 / 空闲，队列页用它解释「为什么还没进比赛」 */
+async function matchPoolStatus() {
+  const rows = await q(
+    `SELECT s.server_key,
+            COALESCE(st.online, 0) AS online,
+            EXISTS (
+              SELECT 1 FROM ranked_matches rm
+               WHERE rm.server_key = s.server_key AND rm.status IN ('waiting','live')
+            ) AS ranked_busy,
+            EXISTS (
+              SELECT 1 FROM challenge_rooms cr
+               WHERE cr.server_key = s.server_key AND cr.status = 'live'
+            ) AS challenge_busy
+       FROM servers s
+       LEFT JOIN server_status st ON st.server_id = s.id
+      WHERE s.enabled = 1 AND s.is_match = 1`
+  );
+  let online = 0;
+  let free = 0;
+  for (const row of rows) {
+    if (Number(row.online)) {
+      online += 1;
+      if (!Number(row.ranked_busy) && !Number(row.challenge_busy)) free += 1;
+    }
+  }
+  return { total: rows.length, online, free };
+}
+
 /** 最近一场结算：直接复用 history 的单条查询，避免每次轮询都重跑一遍 getMatch */
 async function getLastResult(userId) {
   const [latest] = await history(userId, 1);
@@ -265,10 +293,11 @@ async function getState(userId) {
       state: 'queued',
       profile,
       queue: { mode: queued.mode, joinedAt: queued.joined_at, elapsed: Number(queued.elapsed || 0) },
+      pool: await matchPoolStatus(),
     };
   }
 
-  return { state: 'idle', profile, lastResult: await getLastResult(userId) };
+  return { state: 'idle', profile, lastResult: await getLastResult(userId), pool: await matchPoolStatus() };
 }
 
 function pickGroup(entries, size, tolerance = 200) {
@@ -315,7 +344,7 @@ async function tryMatch(mode) {
       `SELECT s.server_key, s.ip, s.port, st.map
          FROM servers s
          JOIN server_status st ON st.server_id = s.id
-        WHERE s.enabled = 1 AND st.online = 1
+        WHERE s.enabled = 1 AND s.is_match = 1 AND st.online = 1
           AND NOT EXISTS (
             SELECT 1 FROM ranked_matches rm
              WHERE rm.server_key = s.server_key

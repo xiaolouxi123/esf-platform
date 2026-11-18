@@ -130,6 +130,7 @@ export default function ServerHall({
   const [customForm, setCustomForm] = useState({ name: '', address: '' });
   const [customBusy, setCustomBusy] = useState(false);
   const [customError, setCustomError] = useState('');
+  const [footOpen, setFootOpen] = useState(false);
   const customRef = useRef(null);
 
   const openCustom = () => {
@@ -193,6 +194,7 @@ export default function ServerHall({
     const text = `${server.name} ${server.map || ''} ${server.ip}`.toLowerCase();
     return text.includes(keyword.trim().toLowerCase());
   });
+  visible.sort((a, b) => Number(Boolean(b.isMatch)) - Number(Boolean(a.isMatch)));
 
   const filters = [
     { key: 'all', label: '全部' },
@@ -205,9 +207,6 @@ export default function ServerHall({
   const freeList = onlineList.filter(
     (server) => server.players < server.maxPlayers && !server.ranked && !server.challenge
   );
-  const pick = [...freeList].sort(
-    (a, b) => (Number(b.players) || 0) - (Number(a.players) || 0) || (Number(a.ping) || 0) - (Number(b.ping) || 0)
-  )[0] || null;
   const offlineCount = servers.length - onlineList.length;
   const fullCount = onlineList.filter((server) => server.players >= server.maxPlayers).length;
   const avgPing = onlineList.length
@@ -296,33 +295,6 @@ export default function ServerHall({
         </div>
       </header>
 
-      {pick && (
-        <section className="server-pick">
-          <span className="server-pick-icon">
-            <Icon name="spark" size={16} />
-          </span>
-          <div className="server-pick-copy">
-            <b>现在最值得进的一台</b>
-            <span>
-              {pick.name} · {pick.map || '未知地图'} · {pick.players}/{pick.maxPlayers} 人在打 · {pick.ping}ms
-            </span>
-          </div>
-          <div className="server-pick-tags">
-            <span className="tag">{pick.mode || '混战'}</span>
-            <span className="tag tag--good">{pick.maxPlayers - pick.players} 个空位</span>
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            disabled={busyKey === pick.serverKey}
-            onClick={() => onJoin && onJoin(pick)}
-          >
-            {busyKey === pick.serverKey ? <span className="spinner" /> : <Icon name="play" size={13} />}
-            直接进服
-          </button>
-        </section>
-      )}
-
       <div className="servers-filters">
         <div className="search">
           <Icon name="search" size={15} />
@@ -384,7 +356,29 @@ export default function ServerHall({
         onOpenChallenge={onOpenChallenge}
       />
 
-      <div className="servers-foot">
+      <div className={`servers-foot${footOpen ? ' is-open' : ''}`}>
+        {!footOpen ? (
+          <div className="servers-foot-bar">
+            <button type="button" className="servers-foot-btn" onClick={() => setFootOpen(true)}>
+              <Icon name="server" size={14} />
+              我的服务器
+              <b>{customServers.length}</b>
+            </button>
+            <button type="button" className="servers-foot-btn" onClick={() => setFootOpen(true)}>
+              <Icon name="wifi" size={14} />
+              直连查询
+            </button>
+            <span className="servers-foot-hint">自定义服只存在本机，不占平台名额</span>
+          </div>
+        ) : (
+          <>
+            <div className="servers-foot-head">
+              <span>我的服务器与直连查询</span>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setFootOpen(false)}>
+                <Icon name="close" size={13} />
+                收起
+              </button>
+            </div>
         <section className={`custom-servers${customServers.length === 0 ? ' is-empty' : ''}`} ref={customRef}>
           {customServers.length === 0 && !customOpen ? (
             <div className="custom-empty-row">
@@ -481,6 +475,8 @@ export default function ServerHall({
 
           <LookupBar onJoin={onJoin} busyKey={busyKey} />
         </section>
+          </>
+        )}
       </div>
 
     </div>
