@@ -36,6 +36,7 @@ const createSchema = z.object({
   serverKey: z.string().trim().min(1).max(32),
   victoryType: z.enum(['kills', 'deaths']).default('kills'),
   victoryLimit: z.coerce.number().int().min(3).max(50).default(10),
+  bestOf: z.union([z.literal(1), z.literal(3)]).default(3),
 });
 
 router.post('/challenges', async (req, res, next) => {

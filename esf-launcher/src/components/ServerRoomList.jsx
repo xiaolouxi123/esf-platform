@@ -197,7 +197,14 @@ export default function ServerRoomList({
                 <button
                   type="button"
                   className={`btn btn-sm ${lockedForMe ? 'btn-ghost' : server.online ? 'btn-primary' : 'btn-ghost'}`}
-                  disabled={!server.online || busy || lockedForMe}
+                  disabled={!server.online || busy || (lockedForMe && !ranked && !challenge)}
+                  title={
+                    ranked && !rankedParticipant
+                      ? '排位赛进行中，只有本场参赛玩家可以进入；点此查看排位详情'
+                      : challenge && !challengeParticipant
+                        ? '约战进行中，只有参赛玩家可以进入；点此查看约战房间，或使用观战/排队'
+                        : undefined
+                  }
                   onClick={stop(() => {
                     if (ranked && !rankedParticipant) {
                       onOpenRanked?.();
@@ -213,9 +220,9 @@ export default function ServerRoomList({
                   {busy ? (
                     <span className="spinner" />
                   ) : ranked ? (
-                    rankedParticipant ? '进入比赛' : '比赛中'
+                    rankedParticipant ? '进入比赛' : '查看排位'
                   ) : challenge ? (
-                    challengeParticipant ? '进入约战' : '约战中'
+                    challengeParticipant ? '进入约战' : '查看约战'
                   ) : server.online ? (
                     '加入'
                   ) : (
