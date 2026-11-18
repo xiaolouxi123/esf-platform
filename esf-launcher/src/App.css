@@ -16321,7 +16321,7 @@ select:focus {
 
 /* fit: 5 history rows and 8 board rows without inner scrolling */
 .ranked-page .rank-history-list { gap: 2px; padding-right: 0; }
-.ranked-page .rank-board-list { gap: 0; padding: 3px 0 1px; }
+.ranked-page .rank-board-list { gap: 0; padding: 1px 0 0; }
 
 .ranked-page .rank-board--v2 .rank-board-row { height: 28px; min-height: 28px; }
 
@@ -16565,3 +16565,301 @@ select:focus {
   .tierline-v2 .tl-v2-gap { flex-basis: 84px; }
   .tierline-v2 .tl-v2-stop b { font-size: 9.5px; }
 }
+
+/* Live feedback 2026-11-19: wider leaderboard/rules, full history */
+.ranked-page > .ranked-grid {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.rank-history-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.rank-history-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #c6d2e6;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.rank-history-all:hover {
+  border-color: rgba(255, 143, 64, 0.38);
+  background: rgba(255, 143, 64, 0.08);
+  color: #ffd0a3;
+}
+
+.rank-history-all:focus-visible {
+  outline: 2px solid rgba(255, 143, 64, 0.7);
+  outline-offset: 2px;
+}
+
+.rank-history-list.is-all {
+  gap: 3px;
+  padding-right: 3px;
+}
+
+.ranked-page .rank-history-list.is-all::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ranked-page .rank-history-list.is-all::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+
+.ranked-page .rank-board--v2 {
+  padding: 8px 12px 5px;
+}
+
+.ranked-page .rank-board--v2 .rank-board-head {
+  padding-bottom: 4px;
+}
+
+.ranked-page .rank-board-head h3 {
+  font-size: 14px;
+}
+
+.ranked-page .rank-board-head p {
+  font-size: 10.5px;
+}
+
+.ranked-page .rank-board-head > span {
+  font-size: 10px;
+}
+
+.ranked-page .rank-board--v2 .rank-board-row {
+  height: 28px;
+  min-height: 28px;
+  padding: 2px 8px;
+  gap: 8px;
+}
+
+.ranked-page .rank-board-pos {
+  width: 22px;
+  font-size: 10.5px;
+}
+
+.ranked-page .rank-board-name b {
+  font-size: 12px;
+  line-height: 1.12;
+}
+
+.ranked-page .rank-board-name small {
+  font-size: 10px;
+  line-height: 1.12;
+}
+
+.ranked-page .rank-board-rate {
+  width: 64px;
+}
+
+.ranked-page .rank-board-rate b {
+  font-size: 12px;
+  line-height: 1.12;
+}
+
+.ranked-page .rank-board-rate small {
+  font-size: 9.5px;
+  line-height: 1.12;
+}
+
+.ranked-page .rank-board-foot {
+  font-size: 10.5px;
+}
+
+.ranked-page .rank-board-foot b {
+  font-size: 11px;
+}
+
+.ranked-page .rank-tips--v2 {
+  padding: 7px 11px;
+}
+
+.ranked-page .rank-tips--v2 h4 {
+  font-size: 12px;
+}
+
+.ranked-page .rank-tips--v2 header {
+  margin-bottom: 3px;
+}
+
+.ranked-page .rank-tips--v2 ol {
+  gap: 2px;
+}
+
+.ranked-page .rank-tips--v2 header span {
+  font-size: 9.5px;
+}
+
+.ranked-page .rank-tips--v2 li {
+  gap: 7px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.ranked-page .rank-tips--v2 li b {
+  font-size: 10px;
+}
+
+@media (max-width: 1280px) {
+  .ranked-page > .ranked-grid {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+
+.history-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: rgba(4, 7, 12, 0.74);
+  backdrop-filter: blur(5px);
+  animation: historyFade 0.16s ease;
+}
+
+.history-modal {
+  width: min(760px, 100%);
+  max-height: min(82vh, 760px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 143, 64, 0.2);
+  border-radius: 18px;
+  background:
+    radial-gradient(90% 60% at 100% 0%, rgba(255, 143, 64, 0.08), transparent 55%),
+    linear-gradient(180deg, #111827, #0a0f18);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
+  animation: historyIn 0.18s ease;
+}
+
+.history-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px 12px;
+}
+
+.history-modal-kicker {
+  color: #ffb877;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.history-modal-head h2 {
+  margin: 3px 0 4px;
+  font-size: 24px;
+}
+
+.history-modal-head p {
+  color: var(--dim);
+  font-size: 11.5px;
+}
+
+.history-modal-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #c6d2e6;
+  cursor: pointer;
+}
+
+.history-modal-close:hover {
+  border-color: rgba(255, 143, 64, 0.36);
+  color: #ffd0a3;
+}
+
+.history-modal-summary {
+  display: flex;
+  gap: 22px;
+  margin: 0 20px 10px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.history-modal-summary b {
+  margin-left: 4px;
+  color: #e8eefb;
+  font-size: 12px;
+}
+
+.history-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+  padding: 2px 14px 16px;
+}
+
+.history-modal-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.history-modal-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+
+.history-modal .rank-history-row--modal {
+  height: auto;
+  min-height: 52px;
+  max-height: none;
+  padding: 7px 10px;
+  overflow: visible;
+}
+
+.history-modal .rank-history-row--modal .rank-history-line b {
+  font-size: 12.5px;
+}
+
+.history-modal .rank-history-row--modal .rank-history-sub {
+  font-size: 11px;
+}
+
+.history-modal .rank-history-row--modal .rank-history-sub b {
+  font-size: 11px;
+}
+
+.history-modal .rank-history-row--modal .rank-history-rate small {
+  font-size: 10.5px;
+}
+
+@keyframes historyFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes historyIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-modal-backdrop,
+  .history-modal { animation: none; }
+}
+

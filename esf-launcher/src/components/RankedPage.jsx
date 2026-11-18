@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
 import RankedResultModal from './RankedResultModal';
@@ -216,7 +217,7 @@ function historyOpponents(row, userId) {
   return players.filter((player) => player.id !== userId);
 }
 
-function HistoryPanel({ history, user, rank, onOpen, onQueue }) {
+function HistoryPanel({ history, user, rank, onOpen, onQueue, onShowHistory }) {
   const recent = history.slice(0, 5);
   const wins = recent.filter((row) => row.result === 'win').length;
   const losses = recent.length - wins;
@@ -239,7 +240,17 @@ function HistoryPanel({ history, user, rank, onOpen, onQueue }) {
             <Icon name="clock" size={15} /> 我的战绩
           </h3>
         </div>
-        <span className="rank-history-count">{hasHistory ? '最近 ' + recent.length + ' 场' : '最近 5 场'}</span>
+        {hasHistory ? (
+          <div className="rank-history-head-actions">
+            <span className="rank-history-count">最近 {recent.length} 场</span>
+            <button type="button" className="rank-history-all" onClick={onShowHistory}>
+              历史战绩
+              <Icon name="chevronRight" size={11} />
+            </button>
+          </div>
+        ) : (
+          <span className="rank-history-count">最近 5 场</span>
+        )}
       </header>
 
       {hasHistory ? (
@@ -367,6 +378,94 @@ function HistoryPanel({ history, user, rank, onOpen, onQueue }) {
         </>
       )}
     </section>
+  );
+}
+
+function HistoryModal({ history, user, rank, onClose, onOpen }) {
+  const wins = history.filter((row) => row.result === 'win').length;
+  const losses = history.length - wins;
+
+  return createPortal(
+    <div className="history-modal-backdrop" onClick={onClose}>
+      <section
+        className="history-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="历史战绩"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="history-modal-head">
+          <div>
+            <span className="history-modal-kicker">RANKED · HISTORY</span>
+            <h2>历史战绩</h2>
+            <p>最近 {history.length} 场 · 点任意一场查看结算</p>
+          </div>
+          <button type="button" className="history-modal-close" onClick={onClose} aria-label="关闭历史战绩">
+            <Icon name="close" size={16} />
+          </button>
+        </header>
+        <div className="history-modal-summary">
+          <span>
+            近 {history.length} 场 <b>{wins} 胜 {losses} 负</b>
+          </span>
+          <span>
+            胜率 <b>{history.length ? Math.round((wins / history.length) * 100) : 0}%</b>
+          </span>
+          <span>
+            段位 <b style={{ color: rank?.color || 'var(--accent)' }}>{rank?.name || '未定级'}</b>
+          </span>
+        </div>
+        <div className="history-modal-list">
+          {history.map((row) => {
+            const opponents = historyOpponents(row, user?.id);
+            const duration = historyDuration(row);
+            const before = Number.isFinite(row.ratingBefore) ? row.ratingBefore : '—';
+            const after = Number.isFinite(row.ratingAfter) ? row.ratingAfter : '—';
+            const delta = Number.isFinite(row.ratingDelta) ? row.ratingDelta : null;
+            return (
+              <button
+                type="button"
+                className={'rank-history-row rank-history-row--modal is-' + (row.result === 'win' ? 'win' : 'loss')}
+                key={String(row.matchId) + ':' + (row.finishedAt || '')}
+                onClick={() => onOpen(row)}
+              >
+                <span className={'rank-history-tag' + (row.result === 'win' ? ' is-win' : ' is-loss')}>
+                  {row.result === 'win' ? '胜' : '负'}
+                </span>
+                {row.afk ? <span className="rank-history-afk">AFK</span> : null}
+                <span className="rank-history-main">
+                  <span className="rank-history-line">
+                    <b>{row.mode} 排位</b>
+                    <em>
+                      <Icon name="map" size={11} /> {row.map || row.server?.map || '随机地图'}
+                    </em>
+                  </span>
+                  <span className="rank-history-sub">
+                    {opponents.length ? (
+                      <span>
+                        对手 <b>{opponents.map((player) => player.gameName).join('、')}</b>
+                      </span>
+                    ) : (
+                      <span>{row.players?.length || 0} 人对局</span>
+                    )}
+                    {duration ? <span className="rank-history-sep">{duration}</span> : null}
+                    <span className="rank-history-sep">{formatFinishedAt(row.finishedAt) || '刚刚'}</span>
+                  </span>
+                </span>
+                <span className="rank-history-rate">
+                  <b className={delta !== null && delta >= 0 ? 'is-up' : 'is-down'}>
+                    {delta === null ? '—' : (delta > 0 ? '+' : '') + delta}
+                  </b>
+                  <small>{before} → {after}</small>
+                </span>
+                <Icon name="chevronRight" size={13} className="rank-history-chevron" />
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    </div>,
+    document.body
   );
 }
 
@@ -538,6 +637,7 @@ export default function RankedPage({ user, toast, servers = [] }) {
   const [showDetail, setShowDetail] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [result, setResult] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const launchRef = useRef(null);
   const matchRef = useRef(null);
   const seenResultRef = useRef(
@@ -599,7 +699,7 @@ export default function RankedPage({ user, toast, servers = [] }) {
 
   const loadHistory = useCallback(async () => {
     try {
-      const data = await window.electronAPI.ranked.history(10);
+      const data = await window.electronAPI.ranked.history(30);
       setHistory(data.matches || []);
       writeRankedCache('history', data.matches || []);
     } catch {
@@ -963,8 +1063,12 @@ export default function RankedPage({ user, toast, servers = [] }) {
               history={history}
               user={user}
               rank={rank}
-              onOpen={(row) => setResult({ ...row, fromHistory: true })}
+              onOpen={(row) => {
+                setHistoryOpen(false);
+                setResult({ ...row, fromHistory: true });
+              }}
               onQueue={queue}
+              onShowHistory={() => setHistoryOpen(true)}
             />
           )}
         </div>
@@ -984,6 +1088,19 @@ export default function RankedPage({ user, toast, servers = [] }) {
           <p>正在连接 {match?.server?.name} · 平台会自动收进托盘</p>
         </div>
       )}
+
+      {historyOpen ? (
+        <HistoryModal
+          history={history}
+          user={user}
+          rank={rank}
+          onClose={() => setHistoryOpen(false)}
+          onOpen={(row) => {
+            setHistoryOpen(false);
+            setResult({ ...row, fromHistory: true });
+          }}
+        />
+      ) : null}
 
       <RankedResultModal
         result={result}
