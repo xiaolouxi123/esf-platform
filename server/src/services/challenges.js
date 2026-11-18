@@ -461,7 +461,7 @@ async function getState(userId) {
 /** 锁服查询：一台服务器同时只能有一个约战 live。 */
 async function activeChallengesByServer() {
   const rows = await q(
-    `SELECT r.id, r.server_key, r.mode, r.title, r.host_id,
+    `SELECT r.id, r.server_key, r.mode, r.title, r.host_id, r.best_of,
             c.victory_type, c.victory_limit,
             (SELECT COUNT(*) FROM challenge_room_players p WHERE p.room_id = r.id) AS players
        FROM challenge_rooms r
@@ -480,6 +480,7 @@ async function activeChallengesByServer() {
       players: Number(row.players || 0),
       victoryType: row.victory_type || 'kills',
       victoryLimit: Number(row.victory_limit || 10),
+      bestOf: Number(row.best_of || 3) === 1 ? 1 : 3,
     });
   }
   return map;

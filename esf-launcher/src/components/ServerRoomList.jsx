@@ -163,7 +163,7 @@ export default function ServerRoomList({
                   {ranked && <span className="room-ranked-tag">排位 {ranked.mode} · 比赛中</span>}
                   {challenge && (
                     <span className="room-challenge-tag">
-                      约战 {challenge.mode} · {challenge.victoryType === 'deaths' ? `死亡 ${challenge.victoryLimit}` : `击杀 ${challenge.victoryLimit}`}
+                      约战 {challenge.mode} · BO{Number(challenge.bestOf) === 1 ? 1 : 3}
                     </span>
                   )}
                 </b>
