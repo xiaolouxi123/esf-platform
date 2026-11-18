@@ -16325,3 +16325,112 @@ select:focus {
 
 .ranked-page .rank-history-row:hover { transform: none; }
 .ranked-page .rank-board-pos { font-size: 10.5px; }
+
+/* Hero dragon backdrop — accepted Live Mode variant 1 (motion: slow) */
+@keyframes dragonHeroPan {
+  from { transform: scale(1.02) translate3d(0, 0, 0); }
+  to { transform: scale(1.085) translate3d(-1.6%, -1.1%, 0); }
+}
+@keyframes dragonHeroGlow {
+  0%, 100% { opacity: .42; transform: scale(1); }
+  50% { opacity: .72; transform: scale(1.06); }
+}
+@keyframes dragonHeroSweep {
+  0%, 18% { transform: translateX(-20%) rotate(12deg); opacity: 0; }
+  30% { opacity: .9; }
+  54% { transform: translateX(330%) rotate(12deg); opacity: 0; }
+  100% { transform: translateX(330%) rotate(12deg); opacity: 0; }
+}
+@keyframes dragonHeroEmbers {
+  from { background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 0 -26px, 0 -18px, 0 -34px, 0 -22px, 0 -30px, 0 -16px, 0 -38px, 0 -24px; }
+}
+.hero--dragon {
+  overflow: hidden;
+  border-color: rgba(255, 138, 31, 0.28);
+  background: #090e16;
+}
+.hero--dragon .hero-art {
+  inset: -7%;
+  background-size: 128% auto;
+  background-position: 64% 46%;
+  background-repeat: no-repeat;
+  filter: saturate(1.24) brightness(.64) contrast(1.08);
+  transform-origin: 64% 48%;
+  animation: dragonHeroPan 26s ease-in-out infinite alternate;
+  will-change: transform;
+}
+.hero--dragon .hero-mask {
+  z-index: 2;
+  background:
+    linear-gradient(90deg, rgba(6, 9, 14, .97) 0%, rgba(6, 9, 14, .9) 34%, rgba(6, 9, 14, .34) 62%, rgba(6, 9, 14, .48) 100%),
+    linear-gradient(0deg, rgba(6, 9, 14, .94) 0%, rgba(6, 9, 14, .08) 48%, transparent 74%),
+    radial-gradient(520px 260px at 70% 40%, rgba(255, 138, 31, .15), transparent 70%);
+}
+.hero--dragon .hero-glow {
+  position: absolute;
+  right: -4%;
+  top: -18%;
+  width: 62%;
+  height: 136%;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255, 176, 74, .34), rgba(255, 138, 31, .1) 52%, transparent 76%);
+  mix-blend-mode: screen;
+  filter: blur(18px);
+  animation: dragonHeroGlow 7.5s ease-in-out infinite;
+}
+.hero--dragon .hero-sweep {
+  position: absolute;
+  top: -35%;
+  bottom: -35%;
+  left: -18%;
+  width: 30%;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 210, 140, .14) 38%, rgba(255, 246, 220, .42) 50%, rgba(255, 190, 96, .16) 62%, transparent);
+  filter: blur(7px);
+  mix-blend-mode: screen;
+  animation: dragonHeroSweep 19s ease-in-out infinite;
+}
+.hero--dragon .hero-embers {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: .72;
+  background-image:
+    radial-gradient(2px 2px at 58% 52%, rgba(255, 210, 140, .95), transparent 70%),
+    radial-gradient(1.5px 1.5px at 66% 38%, rgba(255, 190, 96, .85), transparent 70%),
+    radial-gradient(2px 2px at 74% 58%, rgba(255, 226, 170, .8), transparent 70%),
+    radial-gradient(1.5px 1.5px at 62% 72%, rgba(255, 170, 70, .8), transparent 70%),
+    radial-gradient(2px 2px at 80% 44%, rgba(255, 236, 190, .7), transparent 70%),
+    radial-gradient(1.5px 1.5px at 54% 40%, rgba(255, 200, 120, .65), transparent 70%),
+    radial-gradient(2px 2px at 70% 26%, rgba(255, 220, 160, .55), transparent 70%),
+    radial-gradient(1.5px 1.5px at 86% 62%, rgba(255, 180, 80, .55), transparent 70%);
+  background-repeat: no-repeat;
+  animation: dragonHeroEmbers 10s linear infinite;
+}
+.hero--dragon .hero-content,
+.hero--dragon .hero-foot {
+  position: relative;
+  z-index: 6;
+}
+.hero--dragon .hero-title {
+  text-shadow: 0 3px 26px rgba(0, 0, 0, .55);
+}
+.app-root.is-static-motion .hero--dragon .hero-art,
+.app-root.is-static-motion .hero--dragon .hero-glow,
+.app-root.is-static-motion .hero--dragon .hero-sweep,
+.app-root.is-static-motion .hero--dragon .hero-embers {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero--dragon .hero-art,
+  .hero--dragon .hero-glow,
+  .hero--dragon .hero-sweep,
+  .hero--dragon .hero-embers {
+    animation: none !important;
+  }
+}
+

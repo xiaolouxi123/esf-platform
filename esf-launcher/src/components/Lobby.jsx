@@ -21,6 +21,7 @@ import { RANK_TIERS, rankOf } from '../lib/rankLadder';
 import RankMedal from './RankMedal';
 import RankTip from './RankTip';
 import { playSfx } from '../lib/sfx';
+import heroDragon from '../assets/hero-dragon.webp';
 import dragonBall from '../assets/dragon-ball.webp';
 import {
   isStaff,
@@ -1447,126 +1448,131 @@ export default function Lobby({
               )}
 
 
-              <section className={`hero hero--${selectedMeta.tone} hero--mode-${localMode}`}>
-                <span className="hero-art" aria-hidden="true" />
-                <span className="hero-mask" aria-hidden="true" />
 
-                <div className="hero-content">
-                  <span className="eyebrow">
-                    <b>DRAGON BALL · ESF</b>
-                    <em className={`eyebrow-status${hasGameDir ? '' : ' is-off'}`}>
-                      {hasGameDir ? '已就绪' : '未就绪'}
-                    </em>
-                    <span className="eyebrow-note">平台身份校验</span>
-                  </span>
-
-                  <h1 className="hero-title">
-                    把对局
-                    <br />
-                    变成一段<em>旅程</em>
-                  </h1>
-                  <p className="hero-sub">账号、服务器、连服凭证全部打通。从平台启动，游戏里自动认身份。</p>
-
-                  <div className="hero-tags">
-                    <span className="tag tag--code">{selectedMap || '未选择'}</span>
-                    <span className="tag">
-                      {selectedMeta.name}
-                      {selectedMeta.categoryLabel && selectedMeta.categoryLabel !== '其他' ? ` · ${selectedMeta.categoryLabel}` : ''}
-                    </span>
-                    <span className={`tag tag--mode ${localMode === 'team' ? 'tag--team' : 'tag--dm'}`}>
-                      <i />
-                      {localMode === 'deathmatch' ? '混战模式' : '组队模式'}
-                    </span>
-                    {offlineServers.length > 0 && (
-                      <span
-                        className="tag tag--bad"
-                        title={offlineServers.map((server) => server.name).join('、')}
-                      >
-                        离线 {offlineServers.length} 台
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="hero-foot">
-                  <div className="hero-pulse">
-                    <div>
-                      <b>{onlineServers.length}</b>
-                      <span>台在线</span>
-                    </div>
-                    <div>
-                      <b>{onlinePlayers}</b>
-                      <span>人在打</span>
-                    </div>
-                    <div>
-                      <b>
-                        {avgPing === null ? '—' : avgPing}
-                        {avgPing === null ? '' : <em>ms</em>}
-                      </b>
-                      <span>平均延迟</span>
-                    </div>
-                    <div>
-                      <b>{Number(coins || 0).toLocaleString('zh-CN')}</b>
-                      <span>我的金币</span>
-                    </div>
-                  </div>
-
-                  <div className="hero-actions">
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-lg"
-                      onClick={() => {
-                        playSfx('tab');
-                        setMapOpen(true);
-                      }}
-                    >
-                      <Icon name="map" size={15} /> 换地图
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-lg"
-                      onClick={() => {
-                        playSfx('tab');
-                        setLocalOpen(true);
-                      }}
-                    >
-                      <Icon name="play" size={15} /> 本地对局
-                    </button>
-                    {rankedMatched ? (
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-lg hero-cta"
-                        onClick={enterRankedMatch}
-                        disabled={queueBusy === 'join'}
-                        title={(rankedMatch.readyCount ?? 0) >= (rankedMatch.playerCount ?? 0) ? '进入排位服务器' : '全员准备后才能进入，可先在场内热身'}
-                      >
-                        {queueBusy === 'join' ? <span className="spinner" /> : <Icon name="play" size={16} />}
-                        进入比赛
-                      </button>
-                    ) : rankedQueued ? (
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-lg hero-cta"
-                        onClick={cancelMatch}
-                        disabled={queueBusy === 'cancel'}
-                      >
-                        {queueBusy === 'cancel' ? <span className="spinner" /> : <Icon name="close" size={16} />}
-                        取消匹配
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-lg hero-cta"
-                        onClick={quickMatch}
-                        disabled={queueBusy === 'queue'}
-                      >
-                        {queueBusy === 'queue' ? <span className="spinner" /> : <Icon name="swords" size={16} />}
-                        快速匹配
-                      </button>
-                    )}
-                  </div>
-                </div>
+              <section className={`hero hero--${selectedMeta.tone} hero--mode-${localMode} hero--dragon`}>
+              <span className="hero-art" style={{ backgroundImage: `url(${heroDragon})` }} aria-hidden="true" />
+              <span className="hero-mask" aria-hidden="true" />
+              <span className="hero-glow" aria-hidden="true" />
+              <span className="hero-sweep" aria-hidden="true" />
+              <span className="hero-embers" aria-hidden="true" />
+              
+              <div className="hero-content">
+              <span className="eyebrow">
+              <b>DRAGON BALL · ESF</b>
+              <em className={`eyebrow-status${hasGameDir ? '' : ' is-off'}`}>
+              {hasGameDir ? '已就绪' : '未就绪'}
+              </em>
+              <span className="eyebrow-note">平台身份校验</span>
+              </span>
+              
+              <h1 className="hero-title">
+              把对局
+              <br />
+              变成一段<em>旅程</em>
+              </h1>
+              <p className="hero-sub">账号、服务器、连服凭证全部打通。从平台启动，游戏里自动认身份。</p>
+              
+              <div className="hero-tags">
+              <span className="tag tag--code">{selectedMap || '未选择'}</span>
+              <span className="tag">
+              {selectedMeta.name}
+              {selectedMeta.categoryLabel && selectedMeta.categoryLabel !== '其他' ? ` · ${selectedMeta.categoryLabel}` : ''}
+              </span>
+              <span className={`tag tag--mode ${localMode === 'team' ? 'tag--team' : 'tag--dm'}`}>
+              <i />
+              {localMode === 'deathmatch' ? '混战模式' : '组队模式'}
+              </span>
+              {offlineServers.length > 0 && (
+              <span
+              className="tag tag--bad"
+              title={offlineServers.map((server) => server.name).join('、')}
+              >
+              离线 {offlineServers.length} 台
+              </span>
+              )}
+              </div>
+              </div>
+              
+              <div className="hero-foot">
+              <div className="hero-pulse">
+              <div>
+              <b>{onlineServers.length}</b>
+              <span>台在线</span>
+              </div>
+              <div>
+              <b>{onlinePlayers}</b>
+              <span>人在打</span>
+              </div>
+              <div>
+              <b>
+              {avgPing === null ? '—' : avgPing}
+              {avgPing === null ? '' : <em>ms</em>}
+              </b>
+              <span>平均延迟</span>
+              </div>
+              <div>
+              <b>{Number(coins || 0).toLocaleString('zh-CN')}</b>
+              <span>我的金币</span>
+              </div>
+              </div>
+              
+              <div className="hero-actions">
+              <button
+              type="button"
+              className="btn btn-ghost btn-lg"
+              onClick={() => {
+              playSfx('tab');
+              setMapOpen(true);
+              }}
+              >
+              <Icon name="map" size={15} /> 换地图
+              </button>
+              <button
+              type="button"
+              className="btn btn-ghost btn-lg"
+              onClick={() => {
+              playSfx('tab');
+              setLocalOpen(true);
+              }}
+              >
+              <Icon name="play" size={15} /> 本地对局
+              </button>
+              {rankedMatched ? (
+              <button
+              type="button"
+              className="btn btn-primary btn-lg hero-cta"
+              onClick={enterRankedMatch}
+              disabled={queueBusy === 'join'}
+              title={(rankedMatch.readyCount ?? 0) >= (rankedMatch.playerCount ?? 0) ? '进入排位服务器' : '全员准备后才能进入，可先在场内热身'}
+              >
+              {queueBusy === 'join' ? <span className="spinner" /> : <Icon name="play" size={16} />}
+              进入比赛
+              </button>
+              ) : rankedQueued ? (
+              <button
+              type="button"
+              className="btn btn-primary btn-lg hero-cta"
+              onClick={cancelMatch}
+              disabled={queueBusy === 'cancel'}
+              >
+              {queueBusy === 'cancel' ? <span className="spinner" /> : <Icon name="close" size={16} />}
+              取消匹配
+              </button>
+              ) : (
+              <button
+              type="button"
+              className="btn btn-primary btn-lg hero-cta"
+              onClick={quickMatch}
+              disabled={queueBusy === 'queue'}
+              >
+              {queueBusy === 'queue' ? <span className="spinner" /> : <Icon name="swords" size={16} />}
+              快速匹配
+              </button>
+              )}
+              </div>
+              </div>
               </section>
+
 
               {(rankedQueued || rankedMatched) && (
                 <section className={`lobby-match${rankedMatched ? ' is-found' : ''}`}>
