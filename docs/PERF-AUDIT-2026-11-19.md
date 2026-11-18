@@ -62,7 +62,7 @@
 
 - 腾讯云元数据 `instance/bandwidth-limit-egress` = 1572864 B/s（12Mbps），ingress 同。
 - 本机 HTTPS 单流/4 并发只测到 2.77–2.93Mbps，未跑满；可能是 Caddy/TLS/路由限制，需另查。
-- 对游戏服而言 8 人 × 80KB/s 仍在 12Mbps 内，但平台更新、语音/资源下载与游戏同抢出口时会抖动。
+- 对单台游戏服而言 8 人 × 80KB/s ≈ 5.1Mbps，仍在 12Mbps 内；但两台 EVM 同时满 8 人理论上限约 10.2Mbps，再加 FCX 与平台更新会逼近整机 12Mbps。实际快照通常低于上限，满员时仍需看 `tx_kbps`。
 
 ## 已排除
 
