@@ -64,19 +64,9 @@ node "..\scripts\sync-versions.cjs"
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "sync versions failed" }
 
 # 部署包必须由当前源码重建，否则 check-versions 会报「bundle 由旧版本构建」
-$python = $env:ESF_PYTHON
-if (-not $python) {
-  foreach ($candidate in @('python', 'py')) {
-    $probe = Get-Command $candidate -ErrorAction SilentlyContinue
-    if ($probe) { $python = $probe.Source; break }
-  }
-}
-if ($python) {
-  & $python "..\scripts\build-server-bundle.py"
-  if ($LASTEXITCODE -ne 0) { Pop-Location; throw "build-server-bundle.py failed" }
-} else {
-  Write-Host "  ! 没找到 python：跳过部署包重建（可设 ESF_PYTHON 指定解释器）" -ForegroundColor Yellow
-}
+# Node builder is the primary path since clean Windows boxes often have no Python.
+node "..\scripts\build-server-bundle.cjs"
+if ($LASTEXITCODE -ne 0) { Pop-Location; throw "build-server-bundle.cjs failed" }
 
 node "..\scripts\check-versions.cjs"
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "version consistency check failed" }
@@ -115,6 +105,7 @@ $files = @(
   'scripts/sync-versions.cjs',
   'scripts/check-versions.cjs',
   'scripts/build-server-bundle.py',
+  'scripts/build-server-bundle.cjs',
   'docs/kb',
   'docs/design',
   'website',
