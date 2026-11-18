@@ -12,6 +12,7 @@ const POLL_INTERVAL_MS = 15_000;
 const QUERY_TIMEOUT_MS = 3_000;
 
 let timer = null;
+let inFlight = false;
 
 function withTimeout(promise, ms, label) {
   return Promise.race([
@@ -57,23 +58,40 @@ async function pollServer(server) {
 }
 
 async function pollOnce() {
-  const servers = await q('SELECT id, server_key, ip, port FROM servers WHERE enabled = 1');
-  for (const server of servers) {
-    await pollServer(server);
+  // 上一轮还没结束就跳过：服务器卡住时 15 秒定时器会不断叠加连接，
+  // 反而把 A2S 查询和事件循环拖慢。
+  if (inFlight) return;
+  inFlight = true;
+  try {
+    const servers = await q('SELECT id, server_key, ip, port FROM servers WHERE enabled = 1');
+    // 四台服务器并行查询；单台超时 3 秒，最坏一轮 3 秒，而不是 12 秒。
+    await Promise.allSettled(servers.map((server) => pollServer(server)));
+  } finally {
+    inFlight = false;
   }
 }
 
-function startPoller() {
-  pollOnce().catch((err) => console.warn('[poller] 首轮轮询失败:', err.message));
-  timer = setInterval(() => {
-    pollOnce().catch((err) => console.warn('[poller] 轮询失败:', err.message));
+function scheduleNext() {
+  timer = setTimeout(async () => {
+    try {
+      await pollOnce();
+    } catch (err) {
+      console.warn('[poller] 轮询失败:', err.message);
+    }
+    scheduleNext();
   }, POLL_INTERVAL_MS);
   timer.unref?.();
+}
+
+function startPoller() {
+  if (timer) return timer;
+  pollOnce().catch((err) => console.warn('[poller] 首轮轮询失败:', err.message));
+  scheduleNext();
   return timer;
 }
 
 function stopPoller() {
-  if (timer) clearInterval(timer);
+  if (timer) clearTimeout(timer);
   timer = null;
 }
 

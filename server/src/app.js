@@ -3,6 +3,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 
 const env = require('./env');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
@@ -14,6 +15,39 @@ app.disable('x-powered-by');
 app.set('trust proxy', 'loopback');
 app.use(securityHeaders);
 app.use(express.json({ limit: '32kb' }));
+
+// 平台接口大多是 JSON，成员名单/状态每秒轮询；gzip 能把 12KB 的名单压到 6.8KB，
+// 2KB 的在线状态压到 249B。弱网和 12Mbps 小带宽机器上这比加机器更直接。
+function gzipJson(req, res, next) {
+  const accept = String(req.headers['accept-encoding'] || '');
+  if (!/\bgzip\b/.test(accept) || req.method === 'HEAD') return next();
+
+  const originalJson = res.json.bind(res);
+  res.json = (body) => {
+    if (res.headersSent) return originalJson(body);
+    let raw;
+    try {
+      raw = Buffer.from(JSON.stringify(body));
+    } catch {
+      return originalJson(body);
+    }
+    if (raw.length < 1024) {
+      res.setHeader('Content-Length', raw.length);
+      return originalJson(body);
+    }
+    zlib.gzip(raw, (err, compressed) => {
+      if (err) return originalJson(body);
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Vary', 'Accept-Encoding');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Length', compressed.length);
+      res.end(compressed);
+    });
+    return res;
+  };
+  next();
+}
+app.use(gzipJson);
 
 app.use('/api', require('./routes/health'));
 app.use('/api', require('./routes/config'));
