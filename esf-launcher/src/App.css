@@ -5327,7 +5327,7 @@ select:focus {
 .rank-history-tag.is-win { color: #7ee0a8; background: rgba(126, 224, 168, 0.14); }
 .rank-history-tag.is-loss { color: #ff8c7a; background: rgba(255, 140, 122, 0.14); }
 .rank-history-main { flex: 1; min-width: 0; }
-.rank-history-main b { display: block; font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #dbe7e1; }
+.rank-history-line b { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #dbe7e1; }
 .rank-history-main small { display: block; margin-top: 2px; font-size: 9px; color: var(--dim); }
 .rank-history-rate { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-variant-numeric: tabular-nums; }
 .rank-history-rate b { font-size: 11.5px; font-weight: 800; }
@@ -16140,3 +16140,188 @@ select:focus {
 .rank-board--v2 .rank-board-foot {
   padding-top: 5px;
 }
+
+/* 0.6.57 polish: readable history rows, full TOP 8, neutral room CTA */
+.ranked-page .rank-history-row {
+  height: 46px;
+  min-height: 46px;
+  max-height: 46px;
+  padding: 4px 9px;
+  overflow: hidden;
+  outline: none;
+}
+.ranked-page .rank-history-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.ranked-page .rank-history-row:focus-visible {
+  outline: 2px solid rgba(255, 143, 64, 0.75);
+  outline-offset: -2px;
+  background: rgba(255, 143, 64, 0.06);
+}
+.ranked-page .rank-history-line {
+  gap: 7px;
+}
+.ranked-page .rank-history-line b {
+  display: inline;
+  font-size: 12px;
+  line-height: 1.2;
+  color: #e6edf9;
+}
+.ranked-page .rank-history-line em {
+  font-size: 10.5px;
+  line-height: 1.2;
+}
+.ranked-page .rank-history-sub {
+  gap: 7px;
+  margin-top: 2px;
+  overflow: hidden;
+  font-size: 10.5px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+}
+.ranked-page .rank-history-sub b {
+  display: inline;
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: #cbd6e8;
+}
+.ranked-page .rank-history-rate small {
+  font-size: 10px;
+}
+.ranked-page .rank-history-afk {
+  font-size: 9.5px;
+}
+.ranked-page .rank-history-head p {
+  font-size: 10.5px;
+}
+.ranked-page .rank-history-overview span {
+  font-size: 10px;
+}
+.rank-history-head .rank-history-count {
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #aab5c8;
+  font-size: 10.5px;
+  letter-spacing: 0;
+}
+.ranked-page .rank-history-empty {
+  justify-content: center;
+  gap: 26px;
+}
+.ranked-page .rank-history-empty-visual > svg {
+  opacity: 1;
+  filter: saturate(1);
+}
+.ranked-page .rank-history-empty-visual > span {
+  font-size: 9.5px;
+}
+.rank-history-empty-meta {
+  display: inline-block;
+  margin: 0 0 8px;
+  color: #8d99ad;
+  font-size: 10.5px;
+}
+.ranked-page .rank-history-empty-copy p {
+  max-width: 360px;
+  font-size: 11px;
+}
+.ranked-page .rank-history-empty-tips > div {
+  font-size: 10px;
+}
+.ranked-page .rank-history-empty-tips b {
+  font-size: 9.5px;
+}
+.ranked-page .rank-board-head > span {
+  font-size: 10px;
+}
+.ranked-page .rank-board-head p {
+  font-size: 10px;
+}
+.ranked-page .rank-board--v2 .rank-board-row {
+  min-height: 27px;
+  height: 27px;
+  padding: 1px 6px;
+  gap: 7px;
+}
+.ranked-page .rank-board-name b {
+  font-size: 11.5px;
+  line-height: 1.15;
+}
+.ranked-page .rank-board-name small {
+  font-size: 9.5px;
+  line-height: 1.15;
+}
+.ranked-page .rank-board-rate b {
+  font-size: 11.5px;
+  line-height: 1.15;
+}
+.ranked-page .rank-board-rate small {
+  font-size: 9.5px;
+  line-height: 1.15;
+}
+.ranked-page .rank-board-foot {
+  font-size: 10px;
+}
+.ranked-page .rank-board-foot b {
+  font-size: 10.5px;
+}
+.rank-board-row.is-empty {
+  opacity: 0.62;
+}
+.rank-board-row.is-empty:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+.rank-board-avatar-empty {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 1px dashed rgba(255, 255, 255, 0.13);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.015);
+}
+.rank-board-row.is-empty .rank-board-name b {
+  color: #aeb9cc;
+}
+.ranked-page .rank-tips--v2 li {
+  font-size: 10px;
+  line-height: 1.35;
+}
+.ranked-page .rank-tips--v2 li b {
+  font-size: 9.5px;
+}
+.ranked-page .rank-tips--v2 header span {
+  font-size: 9px;
+}
+.ranked-page .rank-step b {
+  color: rgba(198, 208, 226, 0.72);
+  font-size: 10.5px;
+}
+.ranked-page .ranked-hero-tip {
+  font-size: 10px;
+}
+.deck-room-btn {
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+  color: #e3e9f4;
+  font-size: 12px;
+}
+.deck-room-btn:hover {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.085);
+  color: #ffffff;
+}
+.deck-room-btn .icon:last-child {
+  opacity: 0.42;
+}
+
+/* fit: 5 history rows and 8 board rows without inner scrolling */
+.ranked-page .rank-history-list { gap: 2px; padding-right: 0; }
+.ranked-page .rank-board-list { gap: 0; padding: 3px 0 1px; }
+
+.ranked-page .rank-board--v2 .rank-board-row { height: 28px; min-height: 28px; }
+
+.ranked-page .rank-history-row:hover { transform: none; }
+.ranked-page .rank-board-pos { font-size: 10.5px; }

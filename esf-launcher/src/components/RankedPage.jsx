@@ -204,7 +204,7 @@ function HistoryPanel({ history, user, rank, onOpen, onQueue }) {
   const wins = recent.filter((row) => row.result === 'win').length;
   const losses = recent.length - wins;
   const net = recent.reduce((sum, row) => sum + (Number.isFinite(row.ratingDelta) ? row.ratingDelta : 0), 0);
-  const seconds = history
+  const seconds = recent
     .map((row) => {
       const started = Date.parse(row.startedAt || '');
       const finished = Date.parse(row.finishedAt || '');
@@ -221,9 +221,8 @@ function HistoryPanel({ history, user, rank, onOpen, onQueue }) {
           <h3>
             <Icon name="clock" size={15} /> 我的战绩
           </h3>
-          <p>每场结算都会写回平台，关掉客户端也不会丢</p>
         </div>
-        <span className="rank-history-count">{hasHistory ? '已记录 ' + history.length + ' 场' : '近 10 场'}</span>
+        <span className="rank-history-count">{hasHistory ? '最近 ' + recent.length + ' 场' : '最近 5 场'}</span>
       </header>
 
       {hasHistory ? (
@@ -249,7 +248,7 @@ function HistoryPanel({ history, user, rank, onOpen, onQueue }) {
           </div>
 
           <div className="rank-history-list">
-            {history.map((row) => {
+            {recent.map((row) => {
               const opponents = historyOpponents(row, user?.id);
               const duration = historyDuration(row);
               const before = Number.isFinite(row.ratingBefore) ? row.ratingBefore : '—';
@@ -302,28 +301,11 @@ function HistoryPanel({ history, user, rank, onOpen, onQueue }) {
             })}
           </div>
 
-          {history.length < 5 && (
-            <div className="rank-history-fill">
-              <span className="rank-history-fill-icon">
-                <Icon name="spark" size={14} />
-              </span>
-              <div>
-                <b>还差 {5 - history.length} 场凑满近 5 场</b>
-                <small>多打几场，段位变化和对局节奏会更清楚。</small>
-              </div>
-              {onQueue ? (
-                <button type="button" className="btn btn-ghost btn-sm" onClick={onQueue}>
-                  去匹配
-                </button>
-              ) : null}
-            </div>
-          )}
-
           <footer className="rank-history-foot">
             <span>
-              <Icon name="clock" size={12} /> 每 20 秒自动同步
+              <Icon name="clock" size={12} /> 最近 {recent.length} 场 · 每 20 秒自动同步
             </span>
-            {onQueue && history.length < 10 ? (
+            {onQueue ? (
               <button type="button" className="btn btn-ghost btn-sm" onClick={onQueue}>
                 <Icon name="swords" size={13} /> 再打一场
               </button>
@@ -338,12 +320,12 @@ function HistoryPanel({ history, user, rank, onOpen, onQueue }) {
               <span>SEASON 1</span>
             </div>
             <div className="rank-history-empty-copy">
-              <span className="rank-eyebrow">你的排位档案</span>
               <h4>第一场排位，等你开打</h4>
+              <span className="rank-history-empty-meta">0 / 1 场 · 首场后显示真实段位</span>
               <p>段位分、对手、地图和用时都会写进这里。排位只动段位分，不扣金币。</p>
               <div className="rank-history-empty-actions">
                 {onQueue ? (
-                  <button type="button" className="btn btn-primary btn-sm" onClick={onQueue}>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={onQueue}>
                     <Icon name="swords" size={14} /> 开始第一场
                   </button>
                 ) : null}
@@ -354,15 +336,15 @@ function HistoryPanel({ history, user, rank, onOpen, onQueue }) {
           <div className="rank-history-empty-tips">
             <div>
               <b>01</b>
-              <span>准备后 3 秒进服</span>
+              <span>排队等对手</span>
             </div>
             <div>
               <b>02</b>
-              <span>赢 +25 / 输 -20</span>
+              <span>全员准备 3 秒进服</span>
             </div>
             <div>
               <b>03</b>
-              <span>战绩自动写回平台</span>
+              <span>结算写回段位</span>
             </div>
           </div>
         </>
@@ -437,7 +419,7 @@ function RankSide({ leaderboard, user, rank, myPosition }) {
             </h3>
             <p>按段位分排序 · 每 12 秒刷新</p>
           </div>
-          <span>TOP {top.length || 8}</span>
+          <span>TOP 8</span>
         </header>
 
         {top.length === 0 ? (
@@ -473,6 +455,20 @@ function RankSide({ leaderboard, user, rank, myPosition }) {
                 </div>
               );
             })}
+            {Array.from({ length: Math.max(0, 8 - top.length) }).map((_, index) => (
+              <div className="rank-board-row is-empty" key={'slot-' + index}>
+                <span className="rank-board-pos">{top.length + index + 1}</span>
+                <span className="rank-board-avatar-empty" />
+                <span className="rank-board-name">
+                  <b>待上榜</b>
+                  <small>完成 1 场排位</small>
+                </span>
+                <span className="rank-board-rate">
+                  <b>—</b>
+                  <small>未定级</small>
+                </span>
+              </div>
+            ))}
           </div>
         )}
 

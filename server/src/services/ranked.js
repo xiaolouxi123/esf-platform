@@ -29,8 +29,8 @@ async function getProfile(userId) {
     [userId]
   );
   const rankRow = await one(
-    'SELECT COUNT(*) AS higher FROM ranked_profiles WHERE rating > ?',
-    [row.rating]
+    'SELECT COUNT(*) AS higher FROM ranked_profiles WHERE matches > 0 AND (rating > ? OR (rating = ? AND wins > ?))',
+    [row.rating, row.rating, row.wins]
   );
   const wallet = await getWallet(userId);
   const total = Number(row.wins || 0) + Number(row.losses || 0);
@@ -41,7 +41,7 @@ async function getProfile(userId) {
     losses: Number(row.losses || 0),
     matches: Number(row.matches || 0),
     winRate: total > 0 ? Math.round((Number(row.wins) / total) * 100) : 0,
-    rank: Number(rankRow?.higher || 0) + 1,
+    rank: total > 0 ? Number(rankRow?.higher || 0) + 1 : 0,
     coins: wallet.coins,
   };
 }
@@ -731,7 +731,7 @@ async function leaderboard(limit = 20) {
             u.id, u.username, u.game_name, u.avatar, u.avatar_url, u.role
        FROM ranked_profiles p
        JOIN users u ON u.id = p.user_id
-      WHERE u.status = 'active'
+      WHERE u.status = 'active' AND p.matches > 0
       ORDER BY p.rating DESC, p.wins DESC
       LIMIT ?`,
     [Math.max(1, Math.min(50, Number(limit) || 20))]

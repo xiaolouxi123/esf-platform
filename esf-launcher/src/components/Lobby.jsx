@@ -1718,13 +1718,13 @@ export default function Lobby({
                       <i>不计分</i>
                     </span>
                   </div>
-                  <p className="deck-copy">约熟人开一间房：自定义地图与人数，房间链接直接发给群友。</p>
+                  <p className="deck-copy">约熟人开一场：地图、人数、BO1 / BO3 都由你定。</p>
                   <ol className="deck-steps">
                     <li>
                       <b>01</b>
                       <span>
-                        开一间房
-                        <small>选地图、人数与是否观战</small>
+                        选好赛制
+                        <small>BO1 / BO3、地图与人数</small>
                       </span>
                     </li>
                     <li>
@@ -1743,7 +1743,7 @@ export default function Lobby({
                     </li>
                   </ol>
                   <button type="button" className="btn deck-room-btn" onClick={() => { playSfx("tab"); setPage("challenges"); }}>
-                    <Icon name="plus" size={14} /> 开一间房
+                    去开房
                     <Icon name="chevronRight" size={13} />
                   </button>
                 </div>
