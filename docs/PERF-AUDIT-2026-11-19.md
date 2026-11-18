@@ -77,6 +77,7 @@
 - 脚本：`server/scripts/perf-watch.cjs`；217 上 `C:\esf\tools\perf-watch.cjs`。
 - 计划任务：`ESFPerfWatch`（ONSTART，SYSTEM，Highest）。
 - 日志：`C:\esf\logs\perf-watch.csv`。
+- FPS 取 3 次 `stats` 的中位数（间隔 300ms），避免换图/进人时的瞬时低值被误记为故障；当前空闲中位数为 174 / 211 / 246。
 - 表头：`time,total_players,evm27015_players,evm27016_players,fcx27017_players,evm27015_fps,evm27016_fps,fcx27017_fps,cpu_pct,free_mb,tx_kbps,rx_kbps`。
 - 2 人对局时抓 `players>0` 的行；若 FPS < 100 或 CPU > 80% 连续 3 个采样，基本可判定主机/引擎瓶颈而非纯网络。
 

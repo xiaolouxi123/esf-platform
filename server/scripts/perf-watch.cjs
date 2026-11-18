@@ -52,9 +52,19 @@ async function queryServer(server) {
     let fps = null;
     try {
       await q.connectRcon(RCON);
-      const r = await q.sendRcon('stats');
-      const m = /\s([\d.]+)\s+(\d+)\s*$/.exec(String(r.data || '').replace(/\0/g, '').trim());
-      if (m) fps = Number(m[1]);
+      // 单次 stats 的 FPS 是瞬时值，换图/进人时会抖到 40-80；取 3 次中位数，
+      // 避免监控日志把正常波动误记成故障。
+      const samples = [];
+      for (let i = 0; i < 3; i += 1) {
+        const r = await q.sendRcon('stats');
+        const m = /\s([\d.]+)\s+(\d+)\s*$/.exec(String(r.data || '').replace(/\0/g, '').trim());
+        if (m) samples.push(Number(m[1]));
+        await sleep(300);
+      }
+      if (samples.length) {
+        samples.sort((a, b) => a - b);
+        fps = samples[Math.floor(samples.length / 2)];
+      }
     } catch { /* rcon optional */ }
     return { players: Number(info.players) || 0, fps };
   } catch {
