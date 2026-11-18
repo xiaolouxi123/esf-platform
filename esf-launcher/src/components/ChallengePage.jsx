@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Icon from './Icon';
 import Avatar from './Avatar';
+import DragonHeroBackdrop from './DragonHeroBackdrop';
 import { DEFAULT_RANKS, rankFor } from '../lib/ranks';
 
 const MODE_META = {
@@ -304,9 +305,8 @@ export default function ChallengePage({
         ))}
       </datalist>
 
-      <header className="hero challenge-hero">
-        <span className="hero-art" />
-        <span className="hero-mask" />
+      <header className="hero challenge-hero hero--dragon">
+        <DragonHeroBackdrop />
         <div className="hero-content">
           <span className="eyebrow">
             <Icon name="swords" size={13} />

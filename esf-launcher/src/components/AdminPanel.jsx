@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from './Icon';
 import Avatar from './Avatar';
+import DragonHeroBackdrop from './DragonHeroBackdrop';
 import AdminServers from './AdminServers';
 import AdminRanks from './AdminRanks';
 import {
@@ -518,9 +519,8 @@ export default function AdminPanel({
 
   return (
     <div className="admin">
-      <header className="hero admin-hero">
-        <span className="hero-art" aria-hidden="true" />
-        <span className="hero-mask" aria-hidden="true" />
+      <header className="hero admin-hero hero--dragon">
+        <DragonHeroBackdrop />
 
         <div className="hero-content">
           <div className="eyebrow">

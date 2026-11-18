@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Avatar from './Avatar';
 import Icon from './Icon';
+import DragonHeroBackdrop from './DragonHeroBackdrop';
 import RankedResultModal from './RankedResultModal';
 import RankMedal from './RankMedal';
 import RankTip from './RankTip';
@@ -902,9 +903,8 @@ export default function RankedPage({ user, toast, servers = [] }) {
         </section>
       ) : (
         <>
-      <header className="ranked-hero">
-        <span className="hero-art" aria-hidden="true" />
-        <span className="hero-mask" aria-hidden="true" />
+      <header className="ranked-hero hero--dragon">
+        <DragonHeroBackdrop />
         <div className="ranked-hero-content">
           <div className="ranked-hero-main">
           <div className="eyebrow">

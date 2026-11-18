@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon';
+import DragonHeroBackdrop from './DragonHeroBackdrop';
 import ServerRoomList from './ServerRoomList';
 import { pingTone } from '../lib/format';
 
@@ -233,9 +234,8 @@ export default function ServerHall({
 
   return (
     <div className="hall servers-page">
-      <header className="hero servers-hero">
-        <span className="hero-art" aria-hidden="true" />
-        <span className="hero-mask" aria-hidden="true" />
+      <header className="hero servers-hero hero--dragon">
+        <DragonHeroBackdrop />
 
         <div className="hero-content">
           <div className="eyebrow">

@@ -16353,7 +16353,9 @@ select:focus {
   background: #090e16;
 }
 .hero--dragon .hero-art {
+  display: block;
   inset: -7%;
+  background-image: url('./assets/hero-dragon.webp');
   background-size: 128% auto;
   background-position: 64% 46%;
   background-repeat: no-repeat;
@@ -16862,4 +16864,22 @@ select:focus {
   .history-modal-backdrop,
   .history-modal { animation: none; }
 }
+
+/* 各页 hero 统一神龙底图：内容层压住光效 */
+.ranked-hero.hero--dragon .ranked-hero-content,
+.ranked-hero.hero--dragon .ranked-hero-foot,
+.plugins-hero.hero--dragon .plugins-hero-copy,
+.plugins-hero.hero--dragon .plugins-hero-stats {
+  position: relative;
+  z-index: 6;
+}
+
+.plugins-hero.hero--dragon::after {
+  display: none;
+}
+
+.plugins-hero.hero--dragon .plugins-hero-copy h1 {
+  text-shadow: 0 3px 26px rgba(0, 0, 0, 0.55);
+}
+
 

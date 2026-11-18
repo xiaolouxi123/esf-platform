@@ -20,8 +20,8 @@ import { readRankedCache, writeRankedCache } from '../lib/rankedCache';
 import { RANK_TIERS, rankOf } from '../lib/rankLadder';
 import RankMedal from './RankMedal';
 import RankTip from './RankTip';
+import DragonHeroBackdrop from './DragonHeroBackdrop';
 import { playSfx } from '../lib/sfx';
-import heroDragon from '../assets/hero-dragon.webp';
 import dragonBall from '../assets/dragon-ball.webp';
 import {
   isStaff,
@@ -1450,11 +1450,7 @@ export default function Lobby({
 
 
               <section className={`hero hero--${selectedMeta.tone} hero--mode-${localMode} hero--dragon`}>
-              <span className="hero-art" style={{ backgroundImage: `url(${heroDragon})` }} aria-hidden="true" />
-              <span className="hero-mask" aria-hidden="true" />
-              <span className="hero-glow" aria-hidden="true" />
-              <span className="hero-sweep" aria-hidden="true" />
-              <span className="hero-embers" aria-hidden="true" />
+              <DragonHeroBackdrop />
               
               <div className="hero-content">
               <span className="eyebrow">

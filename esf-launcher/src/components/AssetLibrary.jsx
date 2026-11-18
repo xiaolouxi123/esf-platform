@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Icon from './Icon';
 import Avatar from './Avatar';
+import DragonHeroBackdrop from './DragonHeroBackdrop';
 import { formatBytes, formatNumber } from '../lib/format';
 
 const KIND_FILTERS = [
@@ -151,9 +152,8 @@ export default function AssetLibrary({ toast, settings }) {
 
   return (
     <div className="assets-page">
-      <header className="hero assets-hero">
-        <span className="hero-art" aria-hidden="true" />
-        <span className="hero-mask" aria-hidden="true" />
+      <header className="hero assets-hero hero--dragon">
+        <DragonHeroBackdrop />
 
         <div className="hero-content">
           <div className="eyebrow">

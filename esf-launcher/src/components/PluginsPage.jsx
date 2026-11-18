@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Icon from './Icon';
+import DragonHeroBackdrop from './DragonHeroBackdrop';
 
 function formatBytes(value) {
   const size = Number(value);
@@ -142,7 +143,8 @@ export default function PluginsPage({ settings, toast }) {
 
   return (
     <div className="plugins-page">
-      <header className="plugins-hero">
+      <header className="plugins-hero hero--dragon">
+        <DragonHeroBackdrop />
         <div className="plugins-hero-copy">
           <span className="eyebrow">
             <i /> SERVER PLUGINS
