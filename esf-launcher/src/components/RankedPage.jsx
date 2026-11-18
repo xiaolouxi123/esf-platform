@@ -178,47 +178,194 @@ function MatchBoard({ match, user, busy, onReady, onLaunch, onFinish, onSpectate
   );
 }
 
-function HistoryPanel({ history, onOpen }) {
+function formatSeconds(total) {
+  const seconds = Math.max(0, Math.round(Number(total) || 0));
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  if (minutes <= 0) return rest + ' 秒';
+  return rest ? minutes + ' 分 ' + rest + ' 秒' : minutes + ' 分';
+}
+
+function historyDuration(row) {
+  const started = Date.parse(row.startedAt || '');
+  const finished = Date.parse(row.finishedAt || '');
+  if (Number.isNaN(started) || Number.isNaN(finished) || finished <= started) return '';
+  return formatSeconds((finished - started) / 1000);
+}
+
+function historyOpponents(row, userId) {
+  const players = Array.isArray(row.players) ? row.players : [];
+  if (row.myTeam) return players.filter((player) => player.team && player.team !== row.myTeam);
+  return players.filter((player) => player.id !== userId);
+}
+
+function HistoryPanel({ history, user, rank, onOpen, onQueue }) {
+  const recent = history.slice(0, 5);
+  const wins = recent.filter((row) => row.result === 'win').length;
+  const losses = recent.length - wins;
+  const net = recent.reduce((sum, row) => sum + (Number.isFinite(row.ratingDelta) ? row.ratingDelta : 0), 0);
+  const seconds = history
+    .map((row) => {
+      const started = Date.parse(row.startedAt || '');
+      const finished = Date.parse(row.finishedAt || '');
+      return !Number.isNaN(started) && !Number.isNaN(finished) && finished > started ? (finished - started) / 1000 : 0;
+    })
+    .filter((value) => value > 0);
+  const avgDuration = seconds.length ? formatSeconds(seconds.reduce((sum, value) => sum + value, 0) / seconds.length) : '—';
+  const hasHistory = history.length > 0;
+
   return (
-    <section className="rank-history">
-      <header>
-        <h3>
-          <Icon name="clock" size={15} /> 我的战绩
-        </h3>
-        <span>{history.length ? `近 ${history.length} 场` : '近 10 场'}</span>
-      </header>
-      {history.length === 0 ? (
-        <p className="rank-board-empty">还没有排位记录，先匹配一场。</p>
-      ) : (
-        <div className="rank-history-list">
-          {history.map((row) => (
-            <button
-              type="button"
-              className="rank-history-row"
-              key={`${row.matchId}:${row.finishedAt || ''}`}
-              onClick={() => onOpen(row)}
-              title="查看结算详情"
-            >
-              <span className={`rank-history-tag${row.result === 'win' ? ' is-win' : ' is-loss'}`}>
-                {row.result === 'win' ? '胜' : '负'}
-              </span>
-              {row.afk ? <span className="rank-history-afk" title="离开比赛被判负，固定扣 30 分">AFK</span> : null}
-              <span className="rank-history-main">
-                <b>{row.mode} 排位</b>
-                <small>
-                  {row.server?.name || row.map || '排位对局'}
-                  {row.finishedAt ? ` · ${formatFinishedAt(row.finishedAt)}` : ''}
-                </small>
-              </span>
-              <span className="rank-history-rate">
-                <b className={Number.isFinite(row.ratingDelta) && row.ratingDelta >= 0 ? 'is-up' : 'is-down'}>
-                  {Number.isFinite(row.ratingDelta) ? `${row.ratingDelta > 0 ? '+' : ''}${row.ratingDelta}` : '—'}
-                </b>
-                <small>{Number.isFinite(row.ratingAfter) ? row.ratingAfter : '—'}</small>
-              </span>
-            </button>
-          ))}
+    <section className="rank-history rank-history--v2">
+      <header className="rank-history-head">
+        <div>
+          <h3>
+            <Icon name="clock" size={15} /> 我的战绩
+          </h3>
+          <p>每场结算都会写回平台，关掉客户端也不会丢</p>
         </div>
+        <span className="rank-history-count">{hasHistory ? '已记录 ' + history.length + ' 场' : '近 10 场'}</span>
+      </header>
+
+      {hasHistory ? (
+        <>
+          <div className="rank-history-overview">
+            <div>
+              <span>近 {recent.length} 场</span>
+              <b>{wins} 胜 {losses} 负</b>
+            </div>
+            <div>
+              <span>净胜分</span>
+              <b className={net >= 0 ? 'is-up' : 'is-down'}>{net > 0 ? '+' + net : net}</b>
+            </div>
+            <div>
+              <span>场均对局</span>
+              <b>{avgDuration}</b>
+            </div>
+            <div className="rank-history-seal">
+              <span>当前段位</span>
+              <b style={{ color: rank?.color || 'var(--accent)' }}>{rank?.name || '未定级'}</b>
+              <small>{rank?.value ?? 0} 分</small>
+            </div>
+          </div>
+
+          <div className="rank-history-list">
+            {history.map((row) => {
+              const opponents = historyOpponents(row, user?.id);
+              const duration = historyDuration(row);
+              const before = Number.isFinite(row.ratingBefore) ? row.ratingBefore : '—';
+              const after = Number.isFinite(row.ratingAfter) ? row.ratingAfter : '—';
+              const delta = Number.isFinite(row.ratingDelta) ? row.ratingDelta : null;
+              return (
+                <button
+                  type="button"
+                  className={'rank-history-row is-' + (row.result === 'win' ? 'win' : 'loss')}
+                  key={String(row.matchId) + ':' + (row.finishedAt || '')}
+                  onClick={() => onOpen(row)}
+                  title="查看结算详情"
+                >
+                  <span className={'rank-history-tag' + (row.result === 'win' ? ' is-win' : ' is-loss')}>
+                    {row.result === 'win' ? '胜' : '负'}
+                  </span>
+                  {row.afk ? (
+                    <span className="rank-history-afk" title="离开比赛被判负，固定扣 30 分">
+                      AFK
+                    </span>
+                  ) : null}
+                  <span className="rank-history-main">
+                    <span className="rank-history-line">
+                      <b>{row.mode} 排位</b>
+                      <em>
+                        <Icon name="map" size={11} /> {row.map || row.server?.map || '随机地图'}
+                      </em>
+                    </span>
+                    <span className="rank-history-sub">
+                      {opponents.length ? (
+                        <span>
+                          对手 <b>{opponents.map((player) => player.gameName).join('、')}</b>
+                        </span>
+                      ) : (
+                        <span>{row.players?.length || 0} 人对局</span>
+                      )}
+                      {duration ? <span className="rank-history-sep">{duration}</span> : null}
+                      <span className="rank-history-sep">{formatFinishedAt(row.finishedAt) || '刚刚'}</span>
+                    </span>
+                  </span>
+                  <span className="rank-history-rate">
+                    <b className={delta !== null && delta >= 0 ? 'is-up' : 'is-down'}>
+                      {delta === null ? '—' : (delta > 0 ? '+' : '') + delta}
+                    </b>
+                    <small>{before} → {after}</small>
+                  </span>
+                  <Icon name="chevronRight" size={13} className="rank-history-chevron" />
+                </button>
+              );
+            })}
+          </div>
+
+          {history.length < 5 && (
+            <div className="rank-history-fill">
+              <span className="rank-history-fill-icon">
+                <Icon name="spark" size={14} />
+              </span>
+              <div>
+                <b>还差 {5 - history.length} 场凑满近 5 场</b>
+                <small>多打几场，段位变化和对局节奏会更清楚。</small>
+              </div>
+              {onQueue ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={onQueue}>
+                  去匹配
+                </button>
+              ) : null}
+            </div>
+          )}
+
+          <footer className="rank-history-foot">
+            <span>
+              <Icon name="clock" size={12} /> 每 20 秒自动同步
+            </span>
+            {onQueue && history.length < 10 ? (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={onQueue}>
+                <Icon name="swords" size={13} /> 再打一场
+              </button>
+            ) : null}
+          </footer>
+        </>
+      ) : (
+        <>
+          <div className="rank-history-empty">
+            <div className="rank-history-empty-visual">
+              <RankMedal tier={rank?.index || 0} stars={rank?.stars || 1} size={96} />
+              <span>SEASON 1</span>
+            </div>
+            <div className="rank-history-empty-copy">
+              <span className="rank-eyebrow">你的排位档案</span>
+              <h4>第一场排位，等你开打</h4>
+              <p>段位分、对手、地图和用时都会写进这里。排位只动段位分，不扣金币。</p>
+              <div className="rank-history-empty-actions">
+                {onQueue ? (
+                  <button type="button" className="btn btn-primary btn-sm" onClick={onQueue}>
+                    <Icon name="swords" size={14} /> 开始第一场
+                  </button>
+                ) : null}
+                <span>1v1 随时可排 · 2v2 叫上朋友</span>
+              </div>
+            </div>
+          </div>
+          <div className="rank-history-empty-tips">
+            <div>
+              <b>01</b>
+              <span>准备后 3 秒进服</span>
+            </div>
+            <div>
+              <b>02</b>
+              <span>赢 +25 / 输 -20</span>
+            </div>
+            <div>
+              <b>03</b>
+              <span>战绩自动写回平台</span>
+            </div>
+          </div>
+        </>
       )}
     </section>
   );
@@ -278,45 +425,88 @@ function BetPanel({ match, betTeam, betAmount, setBetTeam, setBetAmount, onBet, 
   );
 }
 
-function RankSide({ leaderboard, user }) {
+function RankSide({ leaderboard, user, rank, myPosition }) {
+  const top = leaderboard.slice(0, 8);
   return (
-    <>
-      <div className="rank-board">
-        <header>
-          <h3>
-            <Icon name="trophy" size={15} /> 天梯排行榜
-          </h3>
-          <span>全模式</span>
+    <div className="rank-side-stack">
+      <section className="rank-board rank-board--v2">
+        <header className="rank-board-head">
+          <div>
+            <h3>
+              <Icon name="trophy" size={15} /> 天梯排行榜
+            </h3>
+            <p>按段位分排序 · 每 12 秒刷新</p>
+          </div>
+          <span>TOP {top.length || 8}</span>
         </header>
-        {leaderboard.length === 0 ? (
-          <p className="rank-board-empty">还没有人上榜，先打一场。</p>
-        ) : (
-          leaderboard.slice(0, 12).map((row) => {
-            const rowRank = rankOf(row.rating);
-            return (
-              <div className={`rank-board-row${row.id === user?.id ? ' is-self' : ''}`} key={row.id}>
-                <span className="rank-board-pos">{row.position}</span>
-                <Avatar user={row} size="xs" />
-                <span className="rank-board-name">
-                  <b>{row.gameName}</b>
-                  <small style={{ color: rowRank.color }}>
-                    {rowRank.name} · {row.rating}
-                  </small>
-                </span>
-                <em>{row.winRate}%</em>
-              </div>
-            );
-          })
-        )}
-      </div>
 
-      <div className="rank-tips">
-        <h4>规则</h4>
-        <p>胜利 +25 分，失败 -20 分；最低 0 分。</p>
-        <p>比赛开始后服务器锁定，普通玩家无法加入。</p>
-        <p>竞猜仅限赛前，参赛玩家不能下注自己的比赛。</p>
-      </div>
-    </>
+        {top.length === 0 ? (
+          <div className="rank-board-empty rank-board-empty--v2">
+            <span className="rank-board-empty-icon">
+              <Icon name="trophy" size={24} />
+            </span>
+            <b>榜单还是空的</b>
+            <small>第一场排位后，你的名字会出现在这里。</small>
+          </div>
+        ) : (
+          <div className="rank-board-list">
+            {top.map((row) => {
+              const rowRank = rankOf(row.rating);
+              const podium = row.position <= 3 ? ' is-p' + row.position : '';
+              return (
+                <div
+                  className={'rank-board-row' + podium + (row.id === user?.id ? ' is-self' : '')}
+                  key={row.id}
+                >
+                  <span className="rank-board-pos">
+                    {row.position <= 3 ? <Icon name="trophy" size={12} /> : row.position}
+                  </span>
+                  <Avatar user={row} size="xs" />
+                  <span className="rank-board-name">
+                    <b>{row.gameName}</b>
+                    <small style={{ color: rowRank.color }}>{rowRank.name}</small>
+                  </span>
+                  <span className="rank-board-rate">
+                    <b>{row.rating}</b>
+                    <small>{row.matches ? row.winRate + '% 胜率' : '未定级'}</small>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <footer className="rank-board-foot">
+          <span>
+            <i /> 你的位置
+          </span>
+          <b>
+            {myPosition ? '第 ' + myPosition + ' 名' : '未上榜'} <em>· {rank?.value ?? 0} 分</em>
+          </b>
+        </footer>
+      </section>
+
+      <section className="rank-tips rank-tips--v2">
+        <header>
+          <h4>赛季规则</h4>
+          <span>SEASON 1</span>
+        </header>
+        <ol>
+          <li>
+            <b>01</b>
+            <span>胜利 +25 分，失败 -20 分，最低 0 分。</span>
+          </li>
+          <li>
+            <b>02</b>
+            <span>比赛开始后服务器锁定，普通玩家无法加入。</span>
+          </li>
+          <li>
+            <b>03</b>
+            <span>竞猜仅限赛前，参赛玩家不能下注自己的比赛。</span>
+          </li>
+        </ol>
+      </section>
+    </div>
   );
 }
 
@@ -535,7 +725,7 @@ export default function RankedPage({ user, toast, servers = [] }) {
   const currentMode = MODE_META[mode] || MODE_META['1v1'];
 
   return (
-    <div className="ranked-page">
+    <div className={"ranked-page" + (focusMode ? " is-focus" : "")}>
       {focusMode ? (
         <section className="rank-focus">
           <div className="rank-focus-bar">
@@ -589,10 +779,10 @@ export default function RankedPage({ user, toast, servers = [] }) {
           {showDetail && (
             <div className="ranked-grid rank-focus-extra">
               <div className="ranked-main">
-                <HistoryPanel history={history} onOpen={(row) => setResult({ ...row, fromHistory: true })} />
+                <HistoryPanel history={history} user={user} rank={rank} onOpen={(row) => setResult({ ...row, fromHistory: true })} />
               </div>
               <aside className="ranked-side">
-                <RankSide leaderboard={leaderboard} user={user} />
+                <RankSide leaderboard={leaderboard} user={user} rank={rank} myPosition={profile?.rank} />
               </aside>
             </div>
           )}
@@ -760,11 +950,19 @@ export default function RankedPage({ user, toast, servers = [] }) {
             </div>
           )}
 
-          {state.state !== 'loading' && <HistoryPanel history={history} onOpen={(row) => setResult({ ...row, fromHistory: true })} />}
+          {state.state !== 'loading' && (
+            <HistoryPanel
+              history={history}
+              user={user}
+              rank={rank}
+              onOpen={(row) => setResult({ ...row, fromHistory: true })}
+              onQueue={queue}
+            />
+          )}
         </div>
 
         <aside className="ranked-side">
-          <RankSide leaderboard={leaderboard} user={user} />
+          <RankSide leaderboard={leaderboard} user={user} rank={rank} myPosition={profile?.rank} />
         </aside>
       </div>
 

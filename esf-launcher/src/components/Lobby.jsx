@@ -1742,8 +1742,9 @@ export default function Lobby({
                       </span>
                     </li>
                   </ol>
-                  <button type="button" className="btn btn-block" onClick={() => { playSfx("tab"); setPage("challenges"); }}>
+                  <button type="button" className="btn deck-room-btn" onClick={() => { playSfx("tab"); setPage("challenges"); }}>
                     <Icon name="plus" size={14} /> 开一间房
+                    <Icon name="chevronRight" size={13} />
                   </button>
                 </div>
                 </section>
