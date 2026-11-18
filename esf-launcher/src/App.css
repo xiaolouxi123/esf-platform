@@ -14667,6 +14667,49 @@ select:focus {
   font-weight: 600;
   color: var(--text);
 }
+
+/* 约战赛制 BO1 / BO3 */
+.challenge-bestof {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--dim);
+}
+.challenge-bestof > b {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+.challenge-bestof-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(6, 9, 14, 0.6);
+}
+.challenge-bestof-switch button {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--dim);
+  transition: color 0.15s, background 0.15s;
+}
+.challenge-bestof-switch button:hover {
+  color: var(--text);
+}
+.challenge-bestof-switch button.is-active {
+  color: #1a0d04;
+  background: linear-gradient(180deg, #ffb877, #ff5d1f);
+}
+.challenge-quick-foot {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
 .custom-empty-copy small {
   font-size: 10.5px;
   color: var(--dim);
@@ -14674,4 +14717,28 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* 服务器页 hero 收口：HUD 不再被推荐条压住 */
+.servers-page .servers-hero {
+  height: 202px;
+  max-height: 202px;
+  padding: 13px 22px 12px;
+}
+.servers-page .servers-hero .hero-title {
+  font-size: 36px;
+}
+.servers-page .servers-hero .hud-cell b {
+  font-size: 22px;
+}
+.servers-page .servers-hero .hero-tags {
+  margin-top: 3px;
+}
+.servers-page .servers-hero .hero-content {
+  gap: 2px;
+}
+.servers-page .room-row {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
 

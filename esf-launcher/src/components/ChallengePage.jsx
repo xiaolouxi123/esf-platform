@@ -88,6 +88,7 @@ export default function ChallengePage({
     serverKey: 'fcx-1v1-1',
     victoryType: 'kills',
     victoryLimit: 10,
+    bestOf: 3,
   });
 
   const refresh = useCallback(
@@ -168,6 +169,7 @@ export default function ChallengePage({
     try {
       await work();
       await refresh({ silent: true });
+      window.dispatchEvent(new Event('esf:presence'));
       if (success) toast(success, 'ok');
     } catch (err) {
       toast(err.message, 'error');
@@ -187,6 +189,7 @@ export default function ChallengePage({
           serverKey: form.serverKey || undefined,
           victoryType: form.victoryType,
           victoryLimit: Number(form.victoryLimit) || 10,
+          bestOf: form.bestOf,
         }),
       '约战房间已创建，去邀请玩家吧'
     );
@@ -407,6 +410,7 @@ export default function ChallengePage({
                 </span>
                 <span className="tag">{myRoom.mode}</span>
                 <span className="tag">{myRoom.victoryLabel || '击杀 ' + myRoom.victoryLimit + ' 次'}</span>
+                <span className="tag">{Number(myRoom.bestOf) === 1 ? 'BO1' : 'BO3'}</span>
                 <span className="tag">房间 #{myRoom.displayNo ?? myRoom.id}</span>
                 {myRoom.series && (
                   <span className="tag tag-series">
@@ -740,6 +744,21 @@ export default function ChallengePage({
             </div>
 
             <div className="challenge-quick-foot">
+              <span className="challenge-bestof">
+                <b>赛制</b>
+                <span className="challenge-bestof-switch" role="group" aria-label="赛制">
+                  {[1, 3].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={form.bestOf === value ? 'is-active' : ''}
+                      onClick={() => setForm((prev) => ({ ...prev, bestOf: value }))}
+                    >
+                      BO{value}
+                    </button>
+                  ))}
+                </span>
+              </span>
               <span className="challenge-victory-inline">
                 <Icon name="swords" size={13} />
                 <b>胜利条件</b>

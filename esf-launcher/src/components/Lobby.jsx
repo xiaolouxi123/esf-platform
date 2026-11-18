@@ -1705,7 +1705,7 @@ export default function Lobby({
                       <Icon name="swords" size={13} /> 约战
                     </span>
                     <span className="quick-card-tags">
-                      <i>BO3</i>
+                      <i>BO1 / BO3</i>
                       <i>允许观战</i>
                       <i>不计分</i>
                     </span>

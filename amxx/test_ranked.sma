@@ -162,6 +162,7 @@ new bool:g_challengeSettled = false;
 
 // 三局两胜：每局上报比分，先到 2 胜结算（series）
 new g_challengeRoundNo = 0;
+new g_challengeBestOf = 3;
 new g_challengeWinsA = 0;
 new g_challengeWinsB = 0;
 new g_challengeTotalKills[33];
@@ -651,7 +652,7 @@ public taskChallengeIdentify(taskid) {
 
     new query[1024];
     formatex(query, charsmax(query),
-        "SELECT r.id, p.team, COALESCE(c.victory_type, 'kills'), COALESCE(c.victory_limit, 10), t.user_id, r.time_limit_sec, TIMESTAMPDIFF(SECOND, r.started_at, NOW()), r.mode, r.round_no \
+        "SELECT r.id, p.team, COALESCE(c.victory_type, 'kills'), COALESCE(c.victory_limit, 10), t.user_id, r.time_limit_sec, TIMESTAMPDIFF(SECOND, r.started_at, NOW()), r.mode, r.round_no, r.best_of \
            FROM launch_tokens t \
            JOIN challenge_room_players p ON p.user_id = t.user_id \
            JOIN challenge_rooms r ON r.id = p.room_id \
@@ -687,6 +688,8 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
     SQL_ReadResult(query, 7, mode, charsmax(mode));
     new roundNo = SQL_ReadResult(query, 8);
     if (roundNo > 0) g_challengeRoundNo = roundNo;
+    new bestOf = SQL_ReadResult(query, 9);
+    if (bestOf == 1 || bestOf == 3) g_challengeBestOf = bestOf;
 
     if (g_challengeRoomId != roomId) {
         g_challengeRoomId = roomId;
@@ -950,9 +953,10 @@ public OnChallengeRoundReported(failstate, Handle:query, error[], errnum, data[]
     g_challengeRemaining = 900;
     g_challengeRoundBusy = false;
     client_print(0, print_chat,
-        "[约战] 第 %d 局结束：%s队 %d:%d；大比分 A %d:%d B，进入第 %d 局（先到 2 胜）。",
+        "[约战] 第 %d 局结束：%s队 %d:%d；大比分 A %d:%d B，进入第 %d 局（先到 %d 胜）。",
         g_challengeRoundNo, g_challengeRoundWinner[0] == 'a' ? "A" : "B",
-        g_challengeRoundScoreA, g_challengeRoundScoreB, winsA, winsB, g_challengeRoundNo + 1);
+        g_challengeRoundScoreA, g_challengeRoundScoreB, winsA, winsB, g_challengeRoundNo + 1,
+        g_challengeBestOf <= 1 ? 1 : 2);
     log_amx("[ESF-ROUND] next room=%d next_round=%d wins=%d:%d",
         g_challengeRoomId, g_challengeRoundNo + 1, winsA, winsB);
 }
@@ -968,13 +972,14 @@ beginChallengeFinal(const winner[], winsA, winsB) {
     g_challengeScoreA = winsA;
     g_challengeScoreB = winsB;
     copy(g_challengeVictory, charsmax(g_challengeVictory), "series");
-    g_challengeLimit = 2;
+    new roundTarget = (g_challengeBestOf <= 1) ? 1 : 2;
+    g_challengeLimit = roundTarget;
     g_challengeStatsTries = 0;
     g_challengeSettleTries = 0;
 
     formatex(g_challengeSettleQuery, charsmax(g_challengeSettleQuery),
-        "CALL settle_challenge_match(%d, '%s', %d, %d, 'series', 2)",
-        g_challengeRoomId, g_challengeWinner, g_challengeScoreA, g_challengeScoreB);
+        "CALL settle_challenge_match(%d, '%s', %d, %d, 'series', %d)",
+        g_challengeRoomId, g_challengeWinner, g_challengeScoreA, g_challengeScoreB, roundTarget);
 
     new stats[768];
     new len = 0, count = 0;
@@ -3207,6 +3212,7 @@ resetAll()
     g_challengeStatsQuery[0] = 0;
     g_challengeSettleQuery[0] = 0;
     g_challengeRoundNo = 0;
+    g_challengeBestOf = 3;
     g_challengeWinsA = 0;
     g_challengeWinsB = 0;
     g_challengeRoundBusy = false;

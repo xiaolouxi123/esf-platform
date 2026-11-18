@@ -3,7 +3,7 @@ import Avatar from './Avatar';
 import { DEFAULT_RANKS, rankFor } from '../lib/ranks';
 
 const victoryLabel = (result) => {
-  if (result?.victoryType === 'series') return '三局两胜';
+  if (result?.victoryType === 'series') return Number(result?.bestOf) === 1 ? '一局定胜负' : '三局两胜';
   return result?.victoryType === 'deaths' ? '死亡次数' : '击杀数';
 };
 
@@ -71,6 +71,8 @@ export default function ChallengeResultModal({ result, onClose, onOpenChallenges
   const playersA = (result.players || []).filter((player) => player.team === 'a');
   const playersB = (result.players || []).filter((player) => player.team === 'b');
   const duration = formatDuration(result.startedAt, result.endedAt);
+  const bestOf = Number(result.bestOf) === 1 ? 1 : 3;
+  const seriesTarget = bestOf === 1 ? 1 : 2;
   const chips = [
     result.mode ? result.mode + ' 约战' : null,
     result.map ? '地图 ' + result.map : null,
@@ -113,7 +115,7 @@ export default function ChallengeResultModal({ result, onClose, onOpenChallenges
         </div>
         <div className="crm-rule">
           {result.victoryType === 'series'
-            ? '赛制：三局两胜 · 先到 2 胜'
+            ? `赛制：${bestOf === 1 ? '一局定胜负' : '三局两胜'} · 先到 ${seriesTarget} 胜`
             : `胜利条件：${victoryLabel(result)}达到 ${result.victoryLimit || 10} 次`}
         </div>
 
@@ -146,7 +148,7 @@ export default function ChallengeResultModal({ result, onClose, onOpenChallenges
         </div>
         <p className="challenge-result-note">
           {result.victoryType === 'series'
-            ? '三局两胜战绩已回写平台；本场约战不计排位分，也不会影响天梯徽章。'
+            ? `${bestOf === 1 ? '本局' : '三局两胜'}战绩已回写平台；本场约战不计排位分，也不会影响天梯徽章。`
             : '战绩已回写平台，本场约战不计排位分，也不会影响天梯徽章。'}
         </p>
 

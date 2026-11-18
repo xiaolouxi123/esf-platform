@@ -210,7 +210,7 @@ export default function MemberSidebar({
     };
 
     load();
-    const timer = setInterval(load, 10000);
+    const timer = setInterval(load, 5000);
     const refresh = () => {
       if (document.visibilityState === 'visible') load();
     };

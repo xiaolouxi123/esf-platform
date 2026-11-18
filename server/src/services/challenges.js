@@ -57,6 +57,10 @@ function normalizeMap(map) {
   return value;
 }
 
+function normalizeBestOf(value) {
+  return Number(value) === 1 ? 1 : 3;
+}
+
 function normalizeVictoryType(type) {
   const value = String(type || 'kills');
   if (!VICTORY_TYPES.includes(value)) throw badRequest('胜利条件只能是击杀数或死亡数');
@@ -72,7 +76,7 @@ function normalizeVictoryLimit(limit) {
 }
 
 function victoryLabel(type, limit) {
-  if (type === 'series') return '三局两胜';
+  if (type === 'series') return Number(limit) <= 1 ? '一局定胜负' : '三局两胜';
   return type === 'deaths' ? `死亡 ${limit} 次` : `击杀 ${limit} 人`;
 }
 
@@ -165,7 +169,8 @@ function roomBase(row) {
     server: serverOf(row),
     status: row.status,
     roundNo: Number(row.round_no || 1),
-    maxRounds: 3,
+    bestOf: Number(row.best_of || 3) === 1 ? 1 : 3,
+    maxRounds: Number(row.best_of || 3) === 1 ? 1 : 3,
     maxPlayers: Number(row.max_players),
     victoryType: row.victory_type || 'kills',
     victoryLimit: Number(row.victory_limit || 10),
@@ -503,7 +508,7 @@ async function challengeAccess(userId, serverKey) {
 
 async function resultOf(roomId) {
   const row = await one(
-    `SELECT r.id, r.title, r.mode, r.server_key, r.status, r.map, r.started_at, r.day_seq,
+    `SELECT r.id, r.title, r.mode, r.server_key, r.status, r.map, r.started_at, r.day_seq, r.best_of,
             res.winner, res.score_a, res.score_b, res.victory_type,
             res.victory_limit, res.ended_at,
             s.name AS server_name
@@ -534,6 +539,7 @@ async function resultOf(roomId) {
     mode: row.mode,
     map: row.map || null,
     status: row.status,
+    bestOf: Number(row.best_of || 3) === 1 ? 1 : 3,
     serverKey: row.server_key || null,
     serverName: row.server_name || null,
     winner: row.winner || null,
@@ -596,6 +602,7 @@ async function createRoom(user, fields = {}) {
   }
   const victoryType = normalizeVictoryType(fields.victoryType);
   const victoryLimit = normalizeVictoryLimit(fields.victoryLimit);
+  const bestOf = normalizeBestOf(fields.bestOf);
 
   if (!serverKey) throw badRequest('请选择一台服务器后再开房');
 
@@ -629,9 +636,9 @@ async function createRoom(user, fields = {}) {
       const daySeq = seqRows.length > 0 ? Number(seqRows[0].day_seq) + 1 : 1;
       try {
         const [inserted] = await conn.query(
-          `INSERT INTO challenge_rooms (host_id, day_date, day_seq, title, mode, map, server_key, max_players, time_limit_sec)
-           VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, ?)`,
-          [user.id, daySeq, title, mode, map, serverKey, maxPlayers, CHALLENGE_TIME_LIMIT_SEC]
+          `INSERT INTO challenge_rooms (host_id, day_date, day_seq, title, mode, map, server_key, max_players, best_of, time_limit_sec)
+           VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [user.id, daySeq, title, mode, map, serverKey, maxPlayers, bestOf, CHALLENGE_TIME_LIMIT_SEC]
         );
         result = inserted;
       } catch (err) {
@@ -972,7 +979,8 @@ async function finishRound(roomId, { winner, scoreA, scoreB, userId } = {}) {
     [roomId, roundNo, w, Number(scoreA) || 0, Number(scoreB) || 0]
   );
   await q('UPDATE challenge_rooms SET started_at = NULL, updated_at = NOW() WHERE id = ?', [roomId]);
-  return { roundNo, maxRounds: MAX_ROUNDS, winner: w };
+  const maxRounds = Number(room.best_of || MAX_ROUNDS) === 1 ? 1 : MAX_ROUNDS;
+  return { roundNo, maxRounds, winner: w };
 }
 
 async function rematch(roomId, userId) {
@@ -980,10 +988,11 @@ async function rematch(roomId, userId) {
   if (!room) throw notFound('房间不存在');
   const member = await one('SELECT user_id FROM challenge_room_players WHERE room_id = ? AND user_id = ?', [roomId, userId]);
   if (!member) throw forbidden('只有参赛玩家可以再来一局');
+  const maxRounds = Number(room.best_of || MAX_ROUNDS) === 1 ? 1 : MAX_ROUNDS;
   const next = Number(room.round_no || 1) + 1;
-  if (next > MAX_ROUNDS) throw conflict('本房间已达到 3 局上限');
+  if (next > maxRounds) throw conflict(`本房间已达到 ${maxRounds} 局上限`);
   await q('UPDATE challenge_rooms SET round_no = ?, status = ?, started_at = NOW(), updated_at = NOW() WHERE id = ?', [next, 'live', roomId]);
-  return { roundNo: next, maxRounds: MAX_ROUNDS };
+  return { roundNo: next, maxRounds };
 }
 
 module.exports = {
