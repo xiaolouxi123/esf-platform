@@ -517,14 +517,56 @@ async function placeBet(userId, matchId, team, amount) {
 
 async function cancelMatch(userId) {
   const active = await one(
-    `SELECT p.match_id
+    `SELECT p.match_id, p.team, m.status
        FROM ranked_match_players p
        JOIN ranked_matches m ON m.id = p.match_id
-      WHERE p.user_id = ? AND m.status = 'waiting'
+      WHERE p.user_id = ? AND m.status IN ('waiting', 'live')
       ORDER BY m.id DESC LIMIT 1`,
     [userId]
   );
   if (!active) throw new Error('没有可取消的排位对局');
+
+  // live 中退出：按弃权处理，判对手获胜并立即写回段位，避免客户端的
+  // “对局已找到”状态永远清不掉。等待中的对局仍然整场取消并退竞猜。
+  if (active.status === 'live') {
+    const winner = active.team === 'a' ? 'b' : 'a';
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [[match]] = await conn.query(
+        'SELECT status FROM ranked_matches WHERE id = ? FOR UPDATE',
+        [active.match_id]
+      );
+      if (match && match.status === 'live') {
+        await conn.query(
+          'UPDATE ranked_match_players SET afk = 1 WHERE match_id = ? AND user_id = ?',
+          [active.match_id, userId]
+        );
+        await conn.query('CALL settle_ranked_match(?, ?)', [active.match_id, winner]);
+      }
+      const [players] = await conn.query(
+        'SELECT user_id FROM ranked_match_players WHERE match_id = ?',
+        [active.match_id]
+      );
+      if (players.length > 0) {
+        await conn.query(
+          `DELETE FROM ranked_queue WHERE user_id IN (${players.map(() => '?').join(',')})`,
+          players.map((player) => player.user_id)
+        );
+      }
+      await conn.commit();
+    } catch (err) {
+      try {
+        await conn.rollback();
+      } catch {
+        /* ignore */
+      }
+      throw err;
+    } finally {
+      conn.release();
+    }
+    return getState(userId);
+  }
 
   const conn = await pool.getConnection();
   try {

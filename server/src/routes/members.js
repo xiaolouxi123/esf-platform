@@ -70,12 +70,12 @@ router.get('/members', requireAuth, async (req, res, next) => {
           serverKey: row.server_key || null,
           serverName: row.server_name || null,
           serverMap: row.server_map || null,
-          ranked: row.ranked_queue_mode
+          ranked: row.updated_at && row.ranked_queue_mode
             ? { mode: row.ranked_queue_mode, status: 'queued' }
-            : row.ranked_match_mode
+            : row.updated_at && row.ranked_match_mode
               ? { mode: row.ranked_match_mode, status: row.ranked_match_status }
               : null,
-          challenge: row.challenge_room_id
+          challenge: row.updated_at && row.challenge_room_id
             ? {
                 roomId: Number(row.challenge_room_id),
                 status: row.challenge_status,
@@ -196,12 +196,12 @@ router.get('/members/presence', requireAuth, async (req, res, next) => {
           serverKey: row.server_key || null,
           serverName: row.server_name || null,
           serverMap: row.server_map || null,
-          ranked: row.ranked_queue_mode
+          ranked: row.updated_at && row.ranked_queue_mode
             ? { mode: row.ranked_queue_mode, status: 'queued' }
-            : row.ranked_match_mode
+            : row.updated_at && row.ranked_match_mode
               ? { mode: row.ranked_match_mode, status: row.ranked_match_status }
               : null,
-          challenge: row.challenge_room_id
+          challenge: row.updated_at && row.challenge_room_id
             ? {
                 roomId: Number(row.challenge_room_id),
                 status: row.challenge_status,
@@ -281,7 +281,7 @@ router.get('/members/:id', requireAuth, async (req, res, next) => {
           totalSeconds: Number(row.total_seconds || 0),
           createdAt: row.created_at,
           lastLoginAt: row.last_login_at || null,
-          challenge: row.challenge_room_id
+          challenge: row.updated_at && row.challenge_room_id
             ? {
                 roomId: Number(row.challenge_room_id),
                 status: row.challenge_status,

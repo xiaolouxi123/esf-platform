@@ -98,6 +98,7 @@ $files = @(
   'esf-launcher/scripts',
   'esf-launcher/tests',
   'esf-launcher/src',
+  'amxx',
   'server',
   'deploy/ops-agent',
   'scripts/release.ps1',

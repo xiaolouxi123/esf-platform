@@ -225,6 +225,9 @@ public client_putinserver(id)
     g_challengeName[id][0]=0;
     g_challengeBaseKills[id]=get_user_frags(id);
     g_challengeBaseDeaths[id]=get_user_deaths(id);
+    g_lastActivity[id]=halflife_time();
+    g_afkWarned[id]=false;
+    g_afkMarked[id]=false;
 
     //清空菜单
     show_menu( id, 0, "^n", 1 );
@@ -611,6 +614,9 @@ public OnRankedIdentify(failstate, Handle:query, error[], errnum, data[], dataSi
     g_rankedMatchId = SQL_ReadResult(query, 0);
     g_rankedTeam[id] = (team[0] == 'a') ? 1 : 2;
     g_rankedUserId[id] = SQL_ReadResult(query, 2);
+    g_lastActivity[id] = halflife_time();
+    g_afkWarned[id] = false;
+    g_afkMarked[id] = false;
     platformAssignTeam(id, g_rankedTeam[id]);
     g_rankedKnown++;
     if (g_rankedTeam[id] == 1) g_rankedSeenA++;
@@ -728,6 +734,9 @@ public OnChallengeIdentify(failstate, Handle:query, error[], errnum, data[], dat
     }
 
     g_challengeUserId[id] = userId;
+    g_lastActivity[id] = halflife_time();
+    g_afkWarned[id] = false;
+    g_afkMarked[id] = false;
     g_challengeTeam[id] = (team[0] == 'a') ? 1 : 2;
     platformAssignTeam(id, g_challengeTeam[id]);
     g_challengeKills[id] = 0;
@@ -3115,6 +3124,9 @@ InitilizeBattleStart()
 
         ResetScored(i,0,0);
         StopMusic(i);
+        g_lastActivity[i] = halflife_time();
+        g_afkWarned[i] = false;
+        g_afkMarked[i] = false;
     }
   
     set_task(1.5,"Three",TASK_SERVER);
@@ -3251,6 +3263,9 @@ resetAll()
     for(new i=1;i<=get_maxplayers();i++)
     {
         g_iWarrior[i]=false;
+        g_afkWarned[i]=false;
+        g_afkMarked[i]=false;
+        g_lastActivity[i]=halflife_time();
         // StopMusic(i);
     }
 
@@ -3453,7 +3468,12 @@ public taskAfkTick()
 {
     if (!afkMatchActive())
     {
-        for (new i = 1; i <= get_maxplayers(); i++) g_afkWarned[i] = false;
+        for (new i = 1; i <= get_maxplayers(); i++)
+        {
+            g_afkWarned[i] = false;
+            g_afkMarked[i] = false;
+            g_lastActivity[i] = halflife_time();
+        }
         return;
     }
     new warnSec = get_cvar_num("esf_afk_warn");

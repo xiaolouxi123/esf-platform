@@ -180,14 +180,14 @@
       <article class="slide is-active" data-slide="0">
         <div class="slide-in">
           <div class="slide-copy">
-            <span class="kicker">VERSION <span id="versionCode">0.6.56</span> · DRAGON BALL COMMUNITY</span>
+            <span class="kicker">VERSION <span id="versionCode">0.6.57</span> · DRAGON BALL COMMUNITY</span>
             <h1>龙珠社区<br /><em>重新集结</em></h1>
             <p>一个账号，连接整个龙珠社区。一键连服、天梯排位、金币竞猜、成员频道与服务端插件，都在同一个客户端里完成。</p>
             <div class="slide-actions">
               <a class="btn btn-primary" id="heroDownload" href="#download">下载 Windows 客户端 ↓</a>
               <a class="btn btn-line" href="#features">了解平台</a>
             </div>
-            <div class="slide-meta"><span><b id="healthText">服务检测中</b></span><span>Windows 10 / 11 · 64 位</span><span>最新版本 <b id="versionCode2">0.6.56</b></span></div>
+            <div class="slide-meta"><span><b id="healthText">服务检测中</b></span><span>Windows 10 / 11 · 64 位</span><span>最新版本 <b id="versionCode2">0.6.57</b></span></div>
           </div>
           <div class="slide-visual">
             <div class="slide-frame"><img src="assets/dashboard.png" alt="ESF China 客户端大厅" /></div>
@@ -298,13 +298,13 @@
             <h2>下载 ESF China</h2>
             <p>Windows 10 / 11 · 64 位。安装后在设置中选择包含 hl.exe 的半条命根目录即可开始。</p>
             <div class="download-meta">
-              <span>版本 <code id="downloadVersion">0.6.56</code></span>
+              <span>版本 <code id="downloadVersion">0.6.57</code></span>
               <span>大小 <code id="downloadSize">128 MB</code></span>
               <span>官网 <code>GitHub Pages</code></span>
             </div>
           </div>
           <div class="download-actions">
-            <a class="btn btn-primary" id="downloadButton" href="https://github.com/xiaolouxi123/esf-platform/releases/download/v0.6.56/ESF-Platform-Setup-0.6.56.exe">下载安装包 ↓</a>
+            <a class="btn btn-primary" id="downloadButton" href="https://github.com/xiaolouxi123/esf-platform/releases/download/v0.6.57/ESF-Platform-Setup-0.6.57.exe">下载安装包 ↓</a>
             <a class="btn btn-line" href="https://github.com/xiaolouxi123/esf-platform" target="_blank" rel="noreferrer">源代码 ↗</a>
           </div>
         </div>
@@ -320,6 +320,7 @@
       </div>
       <div class="updates">
         <!-- UPDATES:START -->
+        <article class="update-item"><div class="v"><b>0.6.57</b><span>2026-11-18</span></div><p>0.6.57 修复：快速匹配进场不再误判挂机</p></article>
         <article class="update-item"><div class="v"><b>0.6.56</b><span>2026-11-18</span></div><p>Beta v2：成员状态 800ms 实时刷新</p></article>
         <article class="update-item"><div class="v"><b>0.6.54</b><span>2026-11-17</span></div><p>更新只走差量：已下好的安装包下次启动直接复用，不会再重下 128MB</p></article>
         <article class="update-item"><div class="v"><b>0.6.53</b><span>2026-11-17</span></div><p>修复点「立即重启安装」没反应的问题：就地更新改用 cmd start 分离启动，启动器等更新脚本接管后才退出，装完自动重开</p></article>
@@ -406,7 +407,7 @@
     if(nav.style.display==='flex')Object.assign(nav.style,{position:'absolute',top:'68px',left:'16px',right:'16px',flexDirection:'column',alignItems:'stretch',background:'rgba(10,14,23,.98)',border:'1px solid var(--line)',borderRadius:'12px',padding:'8px',zIndex:60});
   });
 
-  const DEFAULT_VERSION = '0.6.56';
+  const DEFAULT_VERSION = '0.6.57';
   function applyVersion(version, downloadUrl){
     const v=version||DEFAULT_VERSION;
     ['#versionCode','#versionCode2','#downloadVersion'].forEach(id=>{const el=$(id);if(el)el.textContent=v});

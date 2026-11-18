@@ -224,15 +224,16 @@ export default function MemberSidebar({
           prev.map((member) => {
             const next = byId.get(Number(member.id));
             if (!next) return { ...member, online: false, state: 'offline', ranked: null, challenge: null };
+            const online = Boolean(next.online);
             return {
               ...member,
-              online: next.online,
-              state: next.state,
-              serverKey: next.serverKey,
-              serverName: next.serverName,
-              serverMap: next.serverMap,
-              ranked: next.ranked,
-              challenge: next.challenge,
+              online,
+              state: online ? next.state : 'offline',
+              serverKey: online ? next.serverKey : null,
+              serverName: online ? next.serverName : null,
+              serverMap: online ? next.serverMap : null,
+              ranked: online ? next.ranked : null,
+              challenge: online ? next.challenge : null,
               updatedAt: next.updatedAt,
             };
           })

@@ -866,9 +866,10 @@ export default function Lobby({
     if (queueBusy) return;
     playSfx('click');
     setQueueBusy('cancel');
+    const live = rankedMatch?.status === 'live';
     try {
       applyRanked(await window.electronAPI.ranked.cancel(rankedMatched ? rankedMatch.id : undefined));
-      toast(rankedMatched ? '已取消对局' : '已取消匹配', 'ok');
+      toast(live ? '已退出对局，按判负结算' : rankedMatched ? '已取消对局' : '已取消匹配', 'ok');
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -1574,18 +1575,20 @@ export default function Lobby({
                 <section className={`lobby-match${rankedMatched ? ' is-found' : ''}`}>
                   <span className="lobby-match-icon">{rankedQueued ? <span className="spinner" /> : <Icon name="swords" size={16} />}</span>
                   <div className="lobby-match-text">
-                    <b>{rankedMatched ? '对局已找到' : '正在为你找对手'}</b>
+                    <b>{rankedMatched ? (rankedMatch.status === 'live' ? '比赛进行中' : '对局已找到') : '正在为你找对手'}</b>
                     <small>
                       {rankedMatched
-                        ? [
-                            rankedMatch.mode || '1v1',
-                            rankedMatch.server?.name || '排位服',
-                            mySeat?.ready && (rankedMatch.readyCount ?? 0) >= (rankedMatch.playerCount ?? 0)
-                              ? '全员已准备，即将进入'
-                              : mySeat?.ready
-                                ? '已准备，等待对手'
-                                : `${rankedMatch.readyCount ?? 0}/${rankedMatch.playerCount ?? 0} 已准备`,
-                          ].join(' · ')
+                        ? rankedMatch.status === 'live'
+                          ? `${rankedMatch.mode || '1v1'} · ${rankedMatch.server?.name || '排位服'} · 已开赛`
+                          : [
+                              rankedMatch.mode || '1v1',
+                              rankedMatch.server?.name || '排位服',
+                              mySeat?.ready && (rankedMatch.readyCount ?? 0) >= (rankedMatch.playerCount ?? 0)
+                                ? '全员已准备，即将进入'
+                                : mySeat?.ready
+                                  ? '已准备，等待对手'
+                                  : `${rankedMatch.readyCount ?? 0}/${rankedMatch.playerCount ?? 0} 已准备`,
+                            ].join(' · ')
                         : '1v1 · 段位相近优先 · 可随时取消'}
                     </small>
                   </div>
@@ -1607,7 +1610,7 @@ export default function Lobby({
                         </button>
                       )}
                       <button type="button" className="btn btn-ghost btn-sm" onClick={cancelMatch} disabled={queueBusy === 'cancel'}>
-                        取消对局
+                        {rankedMatch.status === 'live' ? '退出对局（判负）' : '取消对局'}
                       </button>
                     </>
                   ) : (

@@ -169,9 +169,9 @@ function MatchBoard({ match, user, busy, onReady, onLaunch, onFinish, onSpectate
             <button type="button" className="btn btn-ghost" onClick={onLaunch} disabled={busy || match.status !== 'live'}>
               <Icon name="play" size={15} /> {match.status === 'live' ? '进入比赛' : '等待开赛'}
             </button>
-            {match.status === 'waiting' && (
+            {['waiting', 'live'].includes(match.status) && (
               <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}>
-                取消对局
+                {match.status === 'live' ? '退出对局（判负）' : '取消对局'}
               </button>
             )}
           </>
@@ -798,7 +798,11 @@ export default function RankedPage({ user, toast, servers = [] }) {
   };
   const cancel = () => run('cancel', () => window.electronAPI.ranked.cancel(), '已取消匹配');
   const leaveMatch = () =>
-    run('cancel', () => window.electronAPI.ranked.cancel(state.match.id), '已取消对局，竞猜金币已退回');
+    run(
+      'cancel',
+      () => window.electronAPI.ranked.cancel(state.match.id),
+      state.match?.status === 'live' ? '已退出对局，按判负结算' : '已取消对局，竞猜金币已退回'
+    );
   const ready = () => run('ready', () => window.electronAPI.ranked.ready(), '已准备，等待其他玩家');
   const spectate = () =>
     run(
