@@ -15172,6 +15172,8 @@ select:focus {
 }
 
 .ranked-page .ranked-hero .rank-progress-bar {
+  width: 100%;
+  max-width: none;
   margin-top: 5px;
 }
 
@@ -16434,3 +16436,132 @@ select:focus {
   }
 }
 
+
+
+/* ===== 0.6.57 排位段位条 V2：星座刻度 ===== */
+.rank-tier-line.tierline-v2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: none;
+  height: 36px;
+  margin-top: 6px;
+  min-width: 0;
+}
+
+.tierline-v2 .tl-v2-rail {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  align-items: center;
+  height: 36px;
+}
+
+.tierline-v2 .tl-v2-rail::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.07));
+}
+
+.tierline-v2 .tl-v2-stop {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-width: 0;
+}
+
+.tierline-v2 .tl-v2-stop i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.2px solid var(--tier-color);
+  background: #0a0e15;
+  opacity: 0.55;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.tierline-v2 .tl-v2-stop.is-passed i {
+  background: var(--tier-color);
+  opacity: 0.7;
+}
+
+.tierline-v2 .tl-v2-stop.is-current i {
+  width: 11px;
+  height: 11px;
+  background: var(--tier-color);
+  border-color: #fff;
+  opacity: 1;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06), 0 0 14px var(--tier-color);
+  animation: rankTierPulse 3.6s ease-in-out infinite;
+}
+
+.tierline-v2 .tl-v2-stop:hover i {
+  transform: scale(1.2);
+}
+
+.tierline-v2 .tl-v2-stop b {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: rgba(190, 203, 226, 0.64);
+  white-space: nowrap;
+}
+
+.tierline-v2 .tl-v2-stop:not(.is-low) b { top: 1px; }
+.tierline-v2 .tl-v2-stop.is-low b { bottom: 1px; }
+.tierline-v2 .tl-v2-stop.is-passed b { color: rgba(222, 231, 244, 0.82); }
+.tierline-v2 .tl-v2-stop.is-current b { color: var(--tier-color); font-weight: 700; }
+
+.tierline-v2 .tl-v2-gap {
+  flex: 0 0 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  font-size: 10px;
+  line-height: 1.25;
+  color: rgba(190, 203, 226, 0.62);
+  white-space: nowrap;
+}
+
+.tierline-v2 .tl-v2-gap em {
+  font-style: normal;
+  color: rgba(214, 224, 240, 0.86);
+}
+
+.tierline-v2 .tl-v2-gap b {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f4f7fb;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes rankTierPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06), 0 0 14px var(--tier-color); }
+  50% { box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.035), 0 0 20px var(--tier-color); }
+}
+
+.app-root.is-static-motion .tierline-v2 .tl-v2-stop.is-current i { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tierline-v2 .tl-v2-stop.is-current i { animation: none; }
+}
+
+@media (max-width: 1180px) {
+  .tierline-v2 .tl-v2-gap { flex-basis: 84px; }
+  .tierline-v2 .tl-v2-stop b { font-size: 9.5px; }
+}

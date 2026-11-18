@@ -24,24 +24,41 @@ function formatFinishedAt(value) {
   return sameDay ? `今天 ${time}` : `${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${time}`;
 }
 
-function TierTrack({ index }) {
+function TierTrack({ rank, hasRank }) {
+  const index = hasRank ? rank.index : -1;
   return (
-    <div className="rank-tier-track" role="list" aria-label={`天梯共 ${RANK_TIERS.length} 段，当前第 ${index + 1} 段`}>
-      {RANK_TIERS.map((tier, i) => {
-        const state = i < index ? ' is-passed' : i === index ? ' is-current' : '';
-        return (
-          <span
-            key={tier.key}
-            role="listitem"
-            className={`rank-step${state}`}
-            style={{ '--tier-color': tier.color }}
-            title={`${tier.name} · ${tier.floor} 分起`}
-          >
-            <i />
-            <b>{tier.short}</b>
-          </span>
-        );
-      })}
+    <div className="rank-tier-line tierline-v2">
+      <div
+        className="tl-v2-rail"
+        role="list"
+        aria-label={hasRank
+          ? `天梯共 ${RANK_TIERS.length} 段，当前第 ${index + 1} 段`
+          : `天梯共 ${RANK_TIERS.length} 段，当前未定级`}
+      >
+        {RANK_TIERS.map((tier, i) => {
+          const state = i < index ? ' is-passed' : i === index ? ' is-current' : '';
+          return (
+            <span
+              key={tier.key}
+              role="listitem"
+              aria-current={i === index ? 'step' : undefined}
+              className={`tl-v2-stop${state}${i % 2 ? ' is-low' : ''}`}
+              style={{ '--tier-color': tier.color }}
+              title={`${tier.name} · ${tier.floor} 分起`}
+            >
+              <b>{tier.short}</b>
+              <i />
+            </span>
+          );
+        })}
+      </div>
+      <span className="tl-v2-gap">
+        {!hasRank
+          ? <><em>未定级</em><b>先打一场</b></>
+          : rank.next
+            ? <><em>距 {rank.next.short}</em><b>{rank.toNext} 分</b></>
+            : <><em>天梯顶点</em><b>最高段位</b></>}
+      </span>
     </div>
   );
 }
@@ -806,12 +823,7 @@ export default function RankedPage({ user, toast, servers = [] }) {
             <span className="tag">1v1 / 2v2</span>
             <span className="tag">{profile?.rank ? `平台第 ${profile.rank}` : '本季未上榜'}</span>
           </div>
-          <div className="rank-tier-line">
-            <TierTrack index={rank.index} />
-            <span>
-              {rank.next ? `距 ${rank.next.name} 还差 ${rank.toNext} 分` : '已达最高段位'}
-            </span>
-          </div>
+          <TierTrack rank={rank} hasRank={hasRank} />
           <div className="rank-progress-bar">
             <i style={{ width: `${rank.percent}%`, background: rank.color }} />
           </div>
