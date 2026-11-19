@@ -14864,9 +14864,18 @@ select:focus {
   color: #a8d8ee;
   background: rgba(90, 180, 230, 0.12);
 }
+.lobby-room.is-match {
+  border-color: rgba(255, 143, 64, 0.26);
+  background: linear-gradient(180deg, rgba(43, 28, 18, 0.82), rgba(13, 18, 27, 0.9));
+}
 .lobby-room.is-match .lobby-room-kind {
-  color: #ffc08c;
-  background: rgba(255, 132, 58, 0.16);
+  color: #1d0e03;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  background: linear-gradient(180deg, #ffd08a, #ff7a24 58%, #ff5d1f);
+  box-shadow:
+    0 0 0 1px rgba(255, 194, 139, 0.42),
+    0 4px 14px rgba(255, 93, 31, 0.28);
 }
 .lobby-room header b {
   flex: 1 1 auto;
@@ -16883,3 +16892,14 @@ select:focus {
 }
 
 
+
+/* 擂台状态标签：观战/排队信息 */
+.lobby-room-meta .is-arena {
+  color: #ffc48b;
+  background: rgba(255, 138, 31, 0.12);
+  border: 1px solid rgba(255, 138, 31, 0.22);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-style: normal;
+}

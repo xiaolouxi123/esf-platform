@@ -10,6 +10,7 @@ export default function LobbyRooms({
   favorites,
   onToggleFavorite,
   onJoin,
+  onSpectate,
   currentUserId = null,
   onOpenRanked,
   onOpenChallenge,
@@ -21,6 +22,7 @@ export default function LobbyRooms({
       {servers.map((server) => {
         const ranked = server.ranked || null;
         const challenge = server.challenge || null;
+        const arena = server.arena || null;
         const key = server.serverKey;
         const favorite = favorites ? favorites.has(key) : false;
         const busy = busyKey === key;
@@ -29,8 +31,12 @@ export default function LobbyRooms({
           : [];
         const rankedParticipant = rankedPlayers.some((player) => Number(player.id) === Number(currentUserId));
         const challengeParticipant = Boolean(challenge?.participant);
+        const arenaLive = arena?.phase === 'live';
+        const arenaLocked = Boolean(arenaLive && !arena.participant && arena.joinMode === 'locked');
         const locked = Boolean(
-          (ranked && !rankedParticipant) || (challenge && !challengeParticipant)
+          (ranked && !rankedParticipant) ||
+            (challenge && !challengeParticipant) ||
+            arenaLocked
         );
 
         let action = '加入';
@@ -48,6 +54,19 @@ export default function LobbyRooms({
           action = '进入比赛';
         } else if (challenge) {
           action = '进入约战';
+        } else if (arena && arena.participant) {
+          action = '进入比赛';
+        } else if (arenaLive && arena.joinMode === 'spectate') {
+          action = `观战 ${arena.spectatorCount}/${arena.spectatorLimit}`;
+          onAction = () => onSpectate && onSpectate(server);
+        } else if (arenaLive && arena.joinMode === 'queue') {
+          action = `排队 ${arena.queueLength}/${arena.queueLimit}`;
+        } else if (arenaLocked) {
+          action = '已锁服';
+          onAction = null;
+        } else if (arena?.phase === 'waiting') {
+          action = '等待开赛';
+          onAction = null;
         }
 
         return (
@@ -77,6 +96,12 @@ export default function LobbyRooms({
               {challenge && (
                 <em className="is-challenge">
                   约战 {challenge.mode} · BO{Number(challenge.bestOf) === 1 ? 1 : 3}
+                </em>
+              )}
+              {arena && arena.phase !== 'idle' && (
+                <em className="is-arena">
+                  擂台 {arena.phase === 'live' ? '进行中' : '等待开赛'} · 观战 {arena.spectatorCount}/
+                  {arena.spectatorLimit} · 排队 {arena.queueLength}/{arena.queueLimit}
                 </em>
               )}
             </p>

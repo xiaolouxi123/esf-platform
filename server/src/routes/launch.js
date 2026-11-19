@@ -16,7 +16,7 @@ const schema = z.object({
 router.post('/launch-token', requireAuth, async (req, res, next) => {
   try {
     const { serverKey, purpose } = schema.parse(req.body);
-    const result = await issueLaunchToken(req.user.id, serverKey, { purpose });
+    const result = await issueLaunchToken(req.user.id, serverKey, { purpose, ip: req.ip });
     res.json({ ok: true, data: result });
   } catch (err) {
     next(err);

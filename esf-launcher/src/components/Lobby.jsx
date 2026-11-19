@@ -1788,6 +1788,7 @@ export default function Lobby({
                       .sort((a, b) => Number(Boolean(b.isMatch)) - Number(Boolean(a.isMatch)))
                       .slice(0, 4)}
                     onJoin={joinServer}
+                    onSpectate={spectateServer}
                     busyKey={joinBusyKey}
                     favorites={favServers}
                     onToggleFavorite={toggleServerFav}

@@ -17,10 +17,11 @@ const env = require('../env');
 const { notFound, badRequest, ApiError } = require('../lib/errors');
 const { canEnterServer } = require('./ranked');
 const { challengeAccess } = require('./challenges');
+const { ensureTicket, maybeCreateArenaMatch, getArenaState } = require('./arena');
 
 async function requireServer(serverKey) {
   const server = await one(
-    'SELECT id, server_key, name, ip, port, enabled, mode FROM servers WHERE server_key = ? LIMIT 1',
+    'SELECT id, server_key, name, ip, port, enabled, mode, is_match FROM servers WHERE server_key = ? LIMIT 1',
     [serverKey]
   );
   if (!server) throw notFound('服务器不存在');
@@ -30,19 +31,34 @@ async function requireServer(serverKey) {
 
 async function issueLaunchToken(userId, serverKey, options = {}) {
   const server = await requireServer(serverKey);
-  const purpose = options.purpose === 'spectate' ? 'spectate' : 'join';
+  let purpose = options.purpose === 'spectate' ? 'spectate' : 'join';
   const challenge = await challengeAccess(userId, serverKey);
+  const arena = Number(server.is_match) ? await getArenaState(userId, serverKey) : null;
+  const arenaBusy = Boolean(arena && arena.phase !== 'idle');
+  if (arenaBusy && !arena.participant && arena.joinMode === 'spectate') purpose = 'spectate';
 
   if (purpose === 'spectate') {
-    if (!challenge.active) throw badRequest('这台服务器当前没有进行中的约战');
-    if (challenge.participant) throw badRequest('参赛玩家不能以观战身份进入');
-    await q(
-      'INSERT IGNORE INTO challenge_spectators (room_id, user_id) VALUES (?, ?)',
-      [challenge.room.id, userId]
-    );
+    if (challenge.active) {
+      if (challenge.participant) throw badRequest('参赛玩家不能以观战身份进入');
+      await q(
+        'INSERT IGNORE INTO challenge_spectators (room_id, user_id) VALUES (?, ?)',
+        [challenge.room.id, userId]
+      );
+    } else if (arenaBusy) {
+      if (arena.participant) throw badRequest('参赛玩家不能以观战身份进入');
+      if (arena.joinMode === 'locked') {
+        throw new ApiError(409, 'ARENA_LOCKED', '观战席与排队都已满，等这一场结束再来');
+      }
+    } else {
+      throw badRequest('这台服务器当前没有进行中的比赛或约战');
+    }
   } else if (challenge.active) {
     if (!challenge.participant) {
       throw new ApiError(409, 'CHALLENGE_LOCKED', '该服务器正在进行约战，只有参赛玩家或观战者可以进入');
+    }
+  } else if (arenaBusy && !arena.participant) {
+    if (arena.joinMode === 'locked') {
+      throw new ApiError(409, 'ARENA_LOCKED', '观战席与排队都已满，等这一场结束再来');
     }
   } else {
     const access = await canEnterServer(userId, serverKey);
@@ -67,6 +83,10 @@ async function issueLaunchToken(userId, serverKey, options = {}) {
   );
 
   if (reusable) {
+    if (Number(server.is_match)) {
+      await ensureTicket(userId, serverKey, reusable.token, purpose, options.ip || null);
+      await maybeCreateArenaMatch(serverKey);
+    }
     return { token: reusable.token, expiresAt: reusable.expires_at, serverKey, reused: true, purpose };
   }
 
@@ -77,6 +97,11 @@ async function issueLaunchToken(userId, serverKey, options = {}) {
   );
 
   const created = await one('SELECT expires_at FROM launch_tokens WHERE token = ? LIMIT 1', [token]);
+
+  if (Number(server.is_match)) {
+    await ensureTicket(userId, serverKey, token, purpose, options.ip || null);
+    await maybeCreateArenaMatch(serverKey);
+  }
 
   // 顺手清理一天前的记录，表不会无限膨胀
   await q('DELETE FROM launch_tokens WHERE created_at < (NOW() - INTERVAL 1 DAY)').catch(() => {});

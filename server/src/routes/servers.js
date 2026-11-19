@@ -7,6 +7,7 @@ const { q, one } = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { badRequest, notFound } = require('../lib/errors');
 const { activeMatchesByServer } = require('../services/ranked');
+const { getArenaState } = require('../services/arena');
 const {
   activeChallengesByServer,
   challengeAccess,
@@ -27,7 +28,7 @@ function withTimeout(promise, ms) {
 router.get('/servers', requireAuth, async (req, res, next) => {
   try {
     const rows = await q(
-      `SELECT s.server_key, s.name AS display_name, s.mode, s.is_match, s.ip, s.port,
+      `SELECT s.server_key, s.name AS display_name, s.mode, s.is_match, s.is_challenge, s.ip, s.port,
               COALESCE(st.online, 0)      AS online,
               COALESCE(st.players, 0)     AS players,
               COALESCE(st.max_players, 0) AS max_players,
@@ -60,6 +61,7 @@ router.get('/servers', requireAuth, async (req, res, next) => {
             spectatorAllowed: Boolean(Number(row.online)) && spectators < SPECTATOR_LIMIT,
           };
         }
+        const arena = Number(row.is_match) ? await getArenaState(req.user.id, row.server_key) : null;
         return {
           serverKey: row.server_key,
           name: row.display_name || row.live_name,
@@ -67,6 +69,7 @@ router.get('/servers', requireAuth, async (req, res, next) => {
           liveName: row.live_name || null,
           mode: row.mode || '混战',
           isMatch: Boolean(Number(row.is_match)),
+          isChallenge: Boolean(Number(row.is_challenge)),
           ip: row.ip,
           port: Number(row.port),
           online: Boolean(Number(row.online)),
@@ -77,6 +80,7 @@ router.get('/servers', requireAuth, async (req, res, next) => {
           updatedAt: row.updated_at,
           ranked,
           challenge: challengeInfo,
+          arena,
           locked: Boolean(ranked || challenge),
           lockType: ranked ? 'ranked' : challenge ? 'challenge' : null,
           canJoin: !ranked && !challenge,

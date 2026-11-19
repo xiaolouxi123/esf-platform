@@ -86,7 +86,7 @@ export default function ChallengePage({
     mode: '1v1',
     title: '',
     map: '',
-    serverKey: 'fcx-1v1-1',
+    serverKey: '',
     victoryType: 'kills',
     victoryLimit: 10,
     bestOf: 3,
@@ -187,7 +187,7 @@ export default function ChallengePage({
           mode: form.mode,
           title: form.title.trim() || undefined,
           map: form.map.trim() || undefined,
-          serverKey: form.serverKey || undefined,
+          serverKey: selectedServerKey || undefined,
           victoryType: form.victoryType,
           victoryLimit: Number(form.victoryLimit) || 10,
           bestOf: form.bestOf,
@@ -263,10 +263,14 @@ export default function ChallengePage({
   const challengeServers = useMemo(
     () =>
       servers
-        .filter((server) => server.isMatch)
+        .filter((server) => server.isChallenge)
         .sort((a, b) => Number(b.online) - Number(a.online) || Number(a.ping) - Number(b.ping)),
     [servers]
   );
+
+  const selectedServerKey = challengeServers.some((server) => server.serverKey === form.serverKey)
+    ? form.serverKey
+    : challengeServers[0]?.serverKey || '';
 
   const createRef = useRef(null);
   const openRooms = state.rooms.length;
@@ -717,7 +721,7 @@ export default function ChallengePage({
               <label className="challenge-field">
                 <span>比赛服务器</span>
                 <select
-                  value={form.serverKey}
+                  value={selectedServerKey}
                   onChange={(event) => setForm((prev) => ({ ...prev, serverKey: event.target.value }))}
                   required
                 >
@@ -739,7 +743,7 @@ export default function ChallengePage({
                 type="button"
                 className="btn btn-primary challenge-create-btn"
                 onClick={createRoom}
-                disabled={Boolean(busy) || !form.serverKey}
+                disabled={Boolean(busy) || !selectedServerKey}
               >
                 {busy === 'create' ? <span className="spinner" /> : <Icon name="plus" size={15} />}
                 创建约战房间

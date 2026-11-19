@@ -126,6 +126,9 @@ export default function ServerRoomList({
         const busy = busyKey === key;
         const ranked = server.ranked || null;
         const challenge = server.challenge || null;
+        const arena = server.arena || null;
+        const arenaLive = arena?.phase === 'live';
+        const arenaLocked = Boolean(arenaLive && !arena.participant && arena.joinMode !== 'spectate');
         const rankedPlayers = ranked
           ? ranked.players || [...(ranked.teams?.a || []), ...(ranked.teams?.b || [])]
           : [];
@@ -134,7 +137,7 @@ export default function ServerRoomList({
         );
         const challengeParticipant = Boolean(challenge?.participant);
         const lockedForMe = Boolean(
-          (ranked && !rankedParticipant) || (challenge && !challengeParticipant)
+          (ranked && !rankedParticipant) || (challenge && !challengeParticipant) || arenaLocked
         );
         const roomTone = tone === 'offline' ? 'offline' : challenge ? 'muted' : tone;
 
@@ -177,6 +180,11 @@ export default function ServerRoomList({
                   {challenge && (
                     <span className="room-challenge-tag">
                       约战 {challenge.mode} · BO{Number(challenge.bestOf) === 1 ? 1 : 3}
+                    </span>
+                  )}
+                  {arena && arena.phase !== 'idle' && (
+                    <span className="room-ranked-tag">
+                      擂台 {arena.phase === 'live' ? '进行中' : '等待开赛'} · 观战 {arena.spectatorCount}/{arena.spectatorLimit}
                     </span>
                   )}
                 </b>
@@ -227,6 +235,10 @@ export default function ServerRoomList({
                       onOpenChallenge?.();
                       return;
                     }
+                    if (arenaLive && !arena.participant) {
+                      if (arena.joinMode === 'spectate') onSpectate?.(server);
+                      return;
+                    }
                     onJoin && onJoin(server);
                   })}
                 >
@@ -236,6 +248,10 @@ export default function ServerRoomList({
                     rankedParticipant ? '进入比赛' : '查看排位'
                   ) : challenge ? (
                     challengeParticipant ? '进入约战' : '查看约战'
+                  ) : arena && arena.participant ? (
+                    '进入比赛'
+                  ) : arenaLive ? (
+                    arena.joinMode === 'spectate' ? '观战' : '已满'
                   ) : server.online ? (
                     '加入'
                   ) : (

@@ -43,6 +43,7 @@
 #define TASK_CHALLENGE_SPECTATE 4940
 #define TASK_AFK_TICK 4960
 #define TASK_MATCH_END_COUNT 4961
+#define TASK_RANKED_RETRY 4962
 #define TASK_CHALLENGE_ROUND 4980
 // 约战「再来一局」：投票倒计时 / 关闭菜单 / 下一局 3-2-1
 #define TASK_REMATCH_TICK 4970
@@ -114,6 +115,7 @@ new Handle:g_sqlTuple;
 // 排位平台库（独立于登录库）
 new Handle:g_rankedTuple = Empty_Handle;
 new g_rankedMatchId = 0;
+new bool:g_arenaMatch = false;
 new g_rankedKnown = 0;
 new g_rankedSeenA = 0;
 new g_rankedSeenB = 0;
@@ -129,6 +131,9 @@ new g_challengeRoomId = 0;
 new g_challengeKnown = 0;
 new g_challengeTeam[33];
 new g_challengeRetry[33];
+// 擂台：直接进服时第二人可能晚到，周期重试未识别的排位票据（最多约 2 分钟）
+new g_rankedRetry[33];
+#define RANKED_RETRY_LIMIT 40
 new g_challengeUserId[33];
 new g_challengeBaseKills[33];
 new g_challengeBaseDeaths[33];
@@ -258,6 +263,9 @@ public client_putinserver(id)
     set_task(2.0, "taskRankedIdentify", TASK_RANKED + id);
     set_task(6.0, "taskRankedIdentify", TASK_RANKED + id);
     set_task(12.0, "taskRankedIdentify", TASK_RANKED + id);
+    // 擂台第二人可能在 12 秒后才进服（平台先建票、后建房），低频重试直到识别或超时。
+    g_rankedRetry[id] = 0;
+    set_task(20.0, "taskRankedRetry", TASK_RANKED_RETRY + id, _, _, "b");
 
     set_task(2.2, "taskChallengeIdentify", TASK_CHALLENGE + id);
     set_task(6.2, "taskChallengeIdentify", TASK_CHALLENGE + id);
@@ -489,6 +497,21 @@ public OnRankedPing(failstate, Handle:query, error[], errnum, data[], dataSize) 
     SQL_FreeHandle(query);
 }
 
+public taskRankedRetry(taskid)
+{
+    new id = taskid - TASK_RANKED_RETRY;
+    if (!is_user_connected(id)
+        || g_rankedTeam[id] != 0
+        || g_rankedRetry[id] >= RANKED_RETRY_LIMIT)
+    {
+        remove_task(taskid);
+        return;
+    }
+
+    g_rankedRetry[id]++;
+    taskRankedIdentify(TASK_RANKED + id);
+}
+
 public taskRankedIdentify(taskid) {
     new id = taskid - TASK_RANKED;
     if (!is_user_connected(id) || g_rankedTuple == Empty_Handle) {
@@ -506,7 +529,7 @@ public taskRankedIdentify(taskid) {
 
     new query[640];
     formatex(query, charsmax(query),
-        "SELECT m.id, p.team, t.user_id \
+        "SELECT m.id, p.team, t.user_id, m.match_type \
            FROM launch_tokens t \
            JOIN ranked_match_players p ON p.user_id = t.user_id \
            JOIN ranked_matches m ON m.id = p.match_id \
@@ -611,13 +634,17 @@ public OnRankedIdentify(failstate, Handle:query, error[], errnum, data[], dataSi
 
     new team[2];
     SQL_ReadResult(query, 1, team, 1);
+    new matchType[12];
+    SQL_ReadResult(query, 3, matchType, charsmax(matchType));
     g_rankedMatchId = SQL_ReadResult(query, 0);
+    g_arenaMatch = equal(matchType, "arena");
     g_rankedTeam[id] = (team[0] == 'a') ? 1 : 2;
     g_rankedUserId[id] = SQL_ReadResult(query, 2);
     g_lastActivity[id] = halflife_time();
     g_afkWarned[id] = false;
     g_afkMarked[id] = false;
     platformAssignTeam(id, g_rankedTeam[id]);
+    remove_task(TASK_RANKED_RETRY + id);
     g_rankedKnown++;
     if (g_rankedTeam[id] == 1) g_rankedSeenA++;
     else g_rankedSeenB++;
@@ -3201,12 +3228,14 @@ resetAll()
 
     new bool:wasBattle = g_iBattle;
     new bool:wasChallenge = g_challengeActive;
+    new bool:wasArena = g_arenaMatch;
 
     GoodIndex=0;
     EvilIndex=0;
     BattleFlag=0;
     g_autoTeamSize=0;
     g_rankedMatchId=0;
+    g_arenaMatch=false;
     g_rankedKnown=0;
     g_rankedSeenA=0;
     g_rankedSeenB=0;
@@ -3270,6 +3299,8 @@ resetAll()
         remove_task(TASK_TEAM_ASSIGN + i);
         remove_task(TASK_TEAM_VERIFY + i);
         remove_task(TASK_CHALLENGE_SPECTATE + i);
+        remove_task(TASK_RANKED_RETRY + i);
+        g_rankedRetry[i] = 0;
     }
     remove_task(TASK_TEAM_START_DEFER);
 
@@ -3288,9 +3319,13 @@ resetAll()
     client_print(0,print_chat,"比赛结束!");
 
     // 约战结束必须回平台（含开赛前 quorum 弃权）；排位仍尊重 battle_quit_enable 开关。
-    if((wasBattle || wasChallenge) && (get_pcvar_num(g_pcQuitEnable) || wasChallenge))
+    if(!wasArena && (wasBattle || wasChallenge) && (get_pcvar_num(g_pcQuitEnable) || wasChallenge))
     {
         set_task(get_pcvar_float(g_pcQuitDelay), "taskQuitToPlatform", TASK_QUIT);
+    }
+    else if(wasArena)
+    {
+        client_print(0, print_chat, "[擂台] 本场结束，按 Esc 可回大厅；下一场重新进服即可。");
     }
 }
 

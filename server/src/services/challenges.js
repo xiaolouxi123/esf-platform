@@ -17,7 +17,6 @@ const MODE_SLOTS = { '1v1': 1, '2v2': 2 };
 const MODES = Object.keys(MODE_SLOTS);
 const VICTORY_TYPES = ['kills', 'deaths'];
 const VICTORY_LIMITS = [3, 5, 10];
-const CHALLENGE_SERVER_KEY = 'fcx-1v1-1';
 const CHALLENGE_TIME_LIMIT_SEC = 900;
 const CHALLENGE_TIME_GRACE_SEC = 180;
 const SPECTATOR_LIMIT = 4;
@@ -597,7 +596,7 @@ async function createRoom(user, fields = {}) {
   const maxPlayers = MODE_SLOTS[mode] * 2;
   const title = normalizeTitle(fields.title, `${user.game_name || user.username} 的约战`);
   const map = normalizeMap(fields.map);
-  const serverKey = String(fields.serverKey || '').trim() || CHALLENGE_SERVER_KEY;
+  const serverKey = String(fields.serverKey || '').trim();
   const victoryType = normalizeVictoryType(fields.victoryType);
   const victoryLimit = normalizeVictoryLimit(fields.victoryLimit);
   const bestOf = normalizeBestOf(fields.bestOf);
@@ -606,11 +605,11 @@ async function createRoom(user, fields = {}) {
 
   if (serverKey) {
     const server = await one(
-      'SELECT server_key, is_match FROM servers WHERE server_key = ? AND enabled = 1 LIMIT 1',
+      'SELECT server_key, is_challenge FROM servers WHERE server_key = ? AND enabled = 1 LIMIT 1',
       [serverKey]
     );
     if (!server) throw badRequest('指定的服务器不存在或已停用');
-    if (!Number(server.is_match)) throw badRequest('这台服务器不是比赛服，不能开约战');
+    if (!Number(server.is_challenge)) throw badRequest('这台服务器不是约战服，不能开约战');
   }
 
   await expireStaleRooms();
