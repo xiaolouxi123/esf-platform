@@ -64,8 +64,9 @@ export default function InfoPopover({ title, label = '说明', text = '', childr
         ref={triggerRef}
         type="button"
         className={`info-pop-trigger${text ? ' has-text' : ''}${className ? ` ${className}` : ''}`}
-        aria-label={label}
+        aria-label={text || label}
         aria-expanded={open}
+        aria-haspopup="dialog"
         aria-controls={open ? id : undefined}
         onClick={() => (open ? hide() : show())}
       >

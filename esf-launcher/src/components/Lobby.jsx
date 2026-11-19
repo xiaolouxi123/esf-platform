@@ -852,14 +852,15 @@ export default function Lobby({
       toast(platformState.maintenanceText || '平台维护中，请稍后再试', 'error');
       return;
     }
-    if (!(await ensureGameDir())) return;
-    if (!onlineServers.some((server) => server.isMatch)) {
-      toast('当前没有在线的比赛服，先去服务器板块看看', 'error');
-      setPage('servers');
-      return;
-    }
-    setQueueBusy('queue');
+    setQueueBusy('prep');
     try {
+      if (!(await ensureGameDir())) return;
+      if (!onlineServers.some((server) => server.isMatch)) {
+        toast('当前没有在线的比赛服，先去服务器板块看看', 'error');
+        setPage('servers');
+        return;
+      }
+      setQueueBusy('queue');
       const arenaLive = onlineServers.some((server) => server.isMatch && server.arena?.phase === 'live');
       applyRanked(await window.electronAPI.ranked.queue('1v1'));
       toast(
@@ -1575,10 +1576,10 @@ export default function Lobby({
               type="button"
               className="btn btn-primary btn-lg hero-cta"
               onClick={quickMatch}
-              disabled={queueBusy === 'queue'}
+              disabled={Boolean(queueBusy)}
               >
-              {queueBusy === 'queue' ? <span className="spinner" /> : <Icon name="swords" size={16} />}
-              快速匹配
+              {queueBusy === 'queue' || queueBusy === 'prep' ? <span className="spinner" /> : <Icon name="swords" size={16} />}
+              {queueBusy === 'prep' ? '正在准备…' : '快速匹配'}
               </button>
               )}
               </div>
