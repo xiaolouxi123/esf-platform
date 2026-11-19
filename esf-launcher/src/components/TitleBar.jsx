@@ -73,8 +73,8 @@ export default function TitleBar({
             <span className="tb-chip" title="金币">
               <b>{Number(coins || 0).toLocaleString('zh-CN')}</b> 金币
             </span>
-            <span className="tb-chip" title="在线玩家">
-              <i /> {online} 在线
+            <span className="tb-chip" title="在线房间">
+              <i /> {online} 间房
             </span>
           </div>
         )}

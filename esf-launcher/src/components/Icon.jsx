@@ -111,6 +111,14 @@ const paths = {
     </>
   ),
   chevronRight: <path d="m9.5 6 6 6-6 6" />,
+  chevronUp: <path d="m6 14.5 6-6 6 6" />,
+  more: (
+    <>
+      <circle cx="5.4" cy="12" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="18.6" cy="12" r="1.1" fill="currentColor" stroke="none" />
+    </>
+  ),
   chevronLeft: <path d="m14.5 6-6 6 6 6" />,
   copy: (
     <>
