@@ -44,6 +44,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $root
 $launcher = Join-Path $root 'esf-launcher'
+$perf = [System.Diagnostics.Stopwatch]::StartNew()
+function Mark($label) { Write-Host ("[perf] {0,7:N1}s {1}" -f $perf.Elapsed.TotalSeconds, $label) }
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must be like 0.4.15" }
 
@@ -70,6 +72,7 @@ if ($LASTEXITCODE -ne 0) { Pop-Location; throw "build-server-bundle.cjs failed" 
 
 node "..\scripts\check-versions.cjs"
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "version consistency check failed" }
+Mark "version sync + server bundle + checks"
 
 # ---------------------------------------------------------------- 2. checks
 Step "lint + tests + build"
@@ -81,6 +84,7 @@ if ($LASTEXITCODE -ne 0) { Pop-Location; throw "tests failed" }
 
 npm.cmd run build
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw "build failed" }
+Mark "lint + tests + vite build"
 Pop-Location
 
 # ---------------------------------------------------------------- 3. commit
@@ -132,6 +136,7 @@ if ($tagExists.Count -eq 0) {
 git push origin main
 git push origin "v$Version"
 if ($LASTEXITCODE -ne 0) { throw "push failed" }
+Mark "commit + tag + push"
 
 # ---------------------------------------------------------------- 4. assets
 $out = "C:\esf-release\$Version"
@@ -151,9 +156,10 @@ if (-not $SkipWait) {
     } catch {
       Write-Host "waiting: $($_.Exception.Message)"
     }
-    Start-Sleep -Seconds 15
+    Start-Sleep -Seconds 8
   }
 }
+Mark "wait for GitHub release assets"
 
 Step "download + verify assets"
 $base = "https://github.com/xiaolouxi123/esf-platform/releases/download/v$Version"
@@ -257,6 +263,7 @@ $expected = ([regex]::Match($yml, 'sha512:\s*(\S+)')).Groups[1].Value
 $actual = [Convert]::ToBase64String([System.Security.Cryptography.SHA512]::Create().ComputeHash([System.IO.File]::ReadAllBytes($exe)))
 if ($expected -ne $actual) { throw "sha512 mismatch" }
 Write-Host "sha512 match, size $((Get-Item $exe).Length)"
+Mark "download + verify installer"
 
 if ($SkipDeploy) {
   Write-Host "`nrelease assets ready at $out (deploy skipped)" -ForegroundColor Green
@@ -376,4 +383,5 @@ foreach ($hostUrl in @('http://119.29.82.217:3000', 'http://119.91.99.176:3000')
   Write-Host "$hostUrl latest=$($cfg.data.latestVersion)"
 }
 
+Mark "deploy + verify"
 Write-Host "`nDONE v$Version" -ForegroundColor Green
