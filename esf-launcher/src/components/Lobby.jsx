@@ -14,10 +14,11 @@ import PluginsPage from './PluginsPage';
 import ChallengeResultModal from './ChallengeResultModal';
 import ReleasesModal from './ReleasesModal';
 import LobbyRooms from './LobbyRooms';
+import InfoPopover from './InfoPopover';
 import { MAP_CATEGORIES, mapCatalog, mapMeta } from '../lib/maps';
 import { DEFAULT_RANKS, normalizeRanks } from '../lib/ranks';
 import { readRankedCache, writeRankedCache } from '../lib/rankedCache';
-import { RANK_TIERS, rankOf } from '../lib/rankLadder';
+import { rankOf } from '../lib/rankLadder';
 import RankMedal from './RankMedal';
 import RankTip from './RankTip';
 import DragonHeroBackdrop from './DragonHeroBackdrop';
@@ -851,10 +852,24 @@ export default function Lobby({
       toast(platformState.maintenanceText || '平台维护中，请稍后再试', 'error');
       return;
     }
+    if (!(await ensureGameDir())) return;
+    if (!onlineServers.some((server) => server.isMatch)) {
+      toast('当前没有在线的比赛服，先去服务器板块看看', 'error');
+      setPage('servers');
+      return;
+    }
     setQueueBusy('queue');
     try {
+      const arenaLive = onlineServers.some((server) => server.isMatch && server.arena?.phase === 'live');
       applyRanked(await window.electronAPI.ranked.queue('1v1'));
-      toast('已加入 1v1 排位匹配', 'ok');
+      toast(
+        arenaLive
+          ? '擂台正在进行，已加入排队；空出后会自动开下一场'
+          : onlinePlayers === 0
+            ? '当前没人在打，已进入排队；有人进服会自动开局'
+            : '已加入 1v1 排位匹配',
+        'ok'
+      );
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -1459,7 +1474,7 @@ export default function Lobby({
               <em className={`eyebrow-status${hasGameDir ? '' : ' is-off'}`}>
               {hasGameDir ? '已就绪' : '未就绪'}
               </em>
-              <span className="eyebrow-note">平台身份校验</span>
+              <span className="eyebrow-note">进服自动认身份</span>
               </span>
               
               <h1 className="hero-title">
@@ -1467,7 +1482,7 @@ export default function Lobby({
               <br />
               变成一段<em>旅程</em>
               </h1>
-              <p className="hero-sub">账号、服务器、连服凭证全部打通。从平台启动，游戏里自动认身份。</p>
+              <p className="hero-sub">账号、房间、连服凭证一次打通；从平台进服，游戏里自动认身份。</p>
               
               <div className="hero-tags">
               <span className="tag tag--code">{selectedMap || '未选择'}</span>
@@ -1558,7 +1573,7 @@ export default function Lobby({
               ) : (
               <button
               type="button"
-              className="btn btn-primary btn-lg hero-cta hero-cta--quick"
+              className="btn btn-primary btn-lg hero-cta"
               onClick={quickMatch}
               disabled={queueBusy === 'queue'}
               >
@@ -1638,9 +1653,19 @@ export default function Lobby({
                     <span className="quick-card-title">
                       <Icon name="trophy" size={13} /> 天梯排位
                     </span>
-                    <button type="button" className="link" onClick={() => { playSfx("tab"); setPage("ranked"); }}>
-                      详情 <Icon name="chevronRight" size={12} />
-                    </button>
+                    <span className="quick-card-head-actions">
+                      <InfoPopover title="段位怎么算" label="段位规则">
+                        <p>按胜负动态加减分：赢加输减，对手越强，赢得越多。</p>
+                        <ul className="info-list">
+                          <li>前 10 场是定级赛，首场后显示真实段位</li>
+                          <li>1v1 与 2v2 共用同一条天梯分</li>
+                          <li>结算只认服务器上报，客户端不能改分</li>
+                        </ul>
+                      </InfoPopover>
+                      <button type="button" className="link" onClick={() => { playSfx("tab"); setPage("ranked"); }}>
+                        详情 <Icon name="chevronRight" size={12} />
+                      </button>
+                    </span>
                   </div>
                   <div className="deck-rank">
                     <RankTip index={myRank.index} stars={myRank.stars} rating={myRank.value}>
@@ -1670,17 +1695,6 @@ export default function Lobby({
                       <div className="deck-bar">
                         <i style={{ width: myRank.percent + '%', background: myRank.color }} />
                       </div>
-                      <div className="deck-ladder">
-                        {RANK_TIERS.map((tier, i) => (
-                          <i
-                            key={tier.key}
-                            className={i <= myRank.index ? 'is-on' : ''}
-                            style={i <= myRank.index ? { background: tier.color } : undefined}
-                            title={tier.name}
-                          />
-                        ))}
-                        <small>天梯 {RANK_TIERS.length} 段 · 当前第 {myRank.index + 1} 段</small>
-                      </div>
                       <div className="deck-rank-foot">
                         <small className="deck-rank-next">
                           {myRank.next
@@ -1706,9 +1720,7 @@ export default function Lobby({
                     </div>
                   </div>
                   <div className="deck-actions">
-                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => { playSfx("tab"); setPage("ranked"); }}>排行榜</button>
-                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => { playSfx("tab"); setPage("ranked"); }}>我的战绩</button>
-                    <span className="deck-actions-hint">每场胜负都会改写这段徽章</span>
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => { playSfx("tab"); setPage("ranked"); }}>战绩与排行</button>
                   </div>
                 </div>
 
@@ -1719,34 +1731,20 @@ export default function Lobby({
                     </span>
                     <span className="quick-card-tags">
                       <i>BO1 / BO3</i>
-                      <i>允许观战</i>
                       <i>不计分</i>
                     </span>
                   </div>
-                  <p className="deck-copy">约熟人开一场：地图、人数、BO1 / BO3 都由你定。</p>
-                  <ol className="deck-steps">
-                    <li>
-                      <b>01</b>
-                      <span>
-                        选好赛制
-                        <small>BO1 / BO3、地图与人数</small>
-                      </span>
-                    </li>
-                    <li>
-                      <b>02</b>
-                      <span>
-                        把链接发到群里
-                        <small>房号与密码自动带上，点开就进</small>
-                      </span>
-                    </li>
-                    <li>
-                      <b>03</b>
-                      <span>
-                        人齐就开打
-                        <small>全员准备 3 秒进服，不计分</small>
-                      </span>
-                    </li>
-                  </ol>
+                  <p className="deck-copy">约熟人开一场，地图、人数、赛制都由你定。</p>
+                  <div className="deck-challenge-row">
+                    <InfoPopover text="怎么约战" title="约战三步" label="怎么约战">
+                      <ol className="info-steps">
+                        <li><b>01</b><span>选赛制、地图与人数</span></li>
+                        <li><b>02</b><span>把房间链接发到群里，房号自动带上</span></li>
+                        <li><b>03</b><span>全员准备 3 秒进服，不计分</span></li>
+                      </ol>
+                    </InfoPopover>
+                    <span>发群就能进，不用报房号。</span>
+                  </div>
                   <button type="button" className="btn deck-room-btn" onClick={() => { playSfx("tab"); setPage("challenges"); }}>
                     去开房
                     <Icon name="chevronRight" size={13} />
@@ -1758,17 +1756,16 @@ export default function Lobby({
               <section className="section">
                 <div className="section-head">
                   <h2>
-                    <button
-                      type="button"
-                      className="section-title-link"
-                      title="打开服务器板块"
-                      onClick={() => { playSfx("tab"); setPage("servers"); }}
-                    >
-                      在线房间 <span className="pill">{onlineServers.length}</span>
-                    </button>
+                    在线房间 <span className="pill">{onlineServers.length}</span>
+                    <InfoPopover title="三种房间" label="房间标签说明" className="section-help">
+                      <p><b>比赛服</b> 天梯与擂台的唯一入口，开赛时锁服。</p>
+                      <p><b>约战服</b> 自定义房间，BO1 / BO3，不计分。</p>
+                      <p><b>公开服</b> 所有人可进，不参与排位与约战。</p>
+                    </InfoPopover>
                   </h2>
 
                   <div className="section-head-actions">
+                    {onlineServers.length > 4 && <span className="rooms-more">还有 {onlineServers.length - 4} 间</span>}
                     <button
                       type="button"
                       className="icon-btn"
@@ -1846,11 +1843,6 @@ export default function Lobby({
                     </p>
                   </div>
 
-                  <p className="feed-hint">
-                    <em>提示</em> 点房间行可展开实时玩家（A2S）
-                    <i>·</i>
-                    <em>功能</em> 频道与在线状态每 20 秒心跳
-                  </p>
 
                   <div className="feed-assets">
                     <div className="feed-assets-head">

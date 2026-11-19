@@ -74,16 +74,19 @@ export default function LobbyRooms({
 
         return (
           <article
+            key={key}
             className={`lobby-room is-${kind}${server.online ? '' : ' is-offline'}`}
           >
             <header>
               <span className="lobby-room-kind">{kindLabel}</span>
-              <b>{server.name}</b>
+              <b title={server.name}>{server.name}</b>
               {onToggleFavorite && (
                 <button
                   type="button"
                   className={`icon-btn icon-btn--xs${favorite ? ' is-on' : ''}`}
                   title={favorite ? '取消收藏' : '收藏房间'}
+                  aria-label={favorite ? '取消收藏房间' : '收藏房间'}
+                  aria-pressed={favorite}
                   onClick={() => onToggleFavorite(key)}
                 >
                   <Icon name={favorite ? 'starFill' : 'star'} size={13} />
@@ -122,6 +125,15 @@ export default function LobbyRooms({
                 type="button"
                 className={`btn btn-sm lobby-join lobby-join--${kind}${locked ? ' is-locked' : ''}`}
                 disabled={!server.online || busy || !onAction}
+                title={
+                  !server.online
+                    ? '服务器当前离线'
+                    : busy
+                      ? '正在进入…'
+                      : !onAction
+                        ? '当前不可加入，稍后再试'
+                        : action
+                }
                 onClick={onAction || undefined}
               >
                 {busy ? <span className="spinner" /> : action}
