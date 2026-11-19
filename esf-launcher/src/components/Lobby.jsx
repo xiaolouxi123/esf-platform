@@ -1792,7 +1792,10 @@ export default function Lobby({
                 ) : (
                   <LobbyRooms
                     servers={[...onlineServers]
-                      .sort((a, b) => (Number(Boolean(b.isMatch)) * 2 + Number(Boolean(b.isChallenge))) - (Number(Boolean(a.isMatch)) * 2 + Number(Boolean(a.isChallenge))))
+                      .sort((a, b) => {
+                        const weight = (s) => (s.isMatch ? 3 : (!s.isChallenge ? 2 : 1));
+                        return weight(b) - weight(a);
+                      })
                       .slice(0, 4)}
                     onJoin={joinServer}
                     onSpectate={spectateServer}

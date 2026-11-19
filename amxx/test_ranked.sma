@@ -2595,7 +2595,7 @@ public CommandArenaQueue(id)
     new query[420], data[1];
     data[0] = id;
     formatex(query, charsmax(query),
-        "UPDATE arena_tickets SET state='queued', ready=0 WHERE token='%s' AND server_key='%s' AND state IN ('spectating','queued','waiting','in_server','matched')",
+        "UPDATE arena_tickets SET state='queued', ready=1 WHERE token='%s' AND server_key='%s' AND state IN ('spectating','queued','waiting','in_server','matched')",
         token, serverKey);
     SQL_ThreadQuery(g_rankedTuple, "OnArenaQueueUpdated", query, data, 1);
     client_print(id, print_chat, "[擂台] 正在登记排队，比赛结束后按顺序上场。");
@@ -3442,7 +3442,14 @@ resetAll()
     }
     else if(wasArena)
     {
-        client_print(0, print_chat, "[擂台] 本场结束，按 Esc 可回大厅；下一场重新进服即可。");
+        // 擂台不断线：给仍在服务器里的玩家重新挂上识别任务，平台下一次建房后自动进场。
+        for(new i = 1; i <= get_maxplayers(); i++)
+        {
+            if(!is_user_connected(i) || Is_Bot(i)) continue;
+            g_rankedRetry[i] = 0;
+            set_task(20.0, "taskRankedRetry", TASK_RANKED_RETRY + i, _, _, "b");
+        }
+        client_print(0, print_chat, "[擂台] 本场结束，输入 /q 排队下一场；按 Esc 可回大厅。");
     }
 }
 
