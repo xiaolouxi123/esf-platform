@@ -17875,3 +17875,21 @@ select:focus {
   height: 62%;
   display: block;
 }
+
+/* 0.6.58 offline compact: never truncate the player name first */
+.member-row--v2.is-compact .member-row-top {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.member-row--v2.is-compact .member-row-name {
+  flex: 0 0 auto;
+  max-width: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.member-row--v2.is-compact .member-row-role-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 46%;
+}
