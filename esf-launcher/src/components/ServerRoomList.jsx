@@ -1,5 +1,14 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import Icon from './Icon';
+
+const KIND_LABEL = { match: '比赛服', challenge: '约战服', public: '公开服' };
+const KIND_GROUP = { match: '比赛服', challenge: '约战服', public: '公开服' };
+const KIND_NOTE = {
+  match: '天梯 / 约战专用，开赛时整台锁定',
+  challenge: '自定义约战专用，开赛时整台锁定',
+  public: '所有人可进，不参与排位与约战',
+};
+const kindOf = (server) => (server.isMatch ? 'match' : server.isChallenge ? 'challenge' : 'public');
 import Avatar from './Avatar';
 import { formatClock, pingTone } from '../lib/format';
 
@@ -117,8 +126,8 @@ export default function ServerRoomList({
 
       {servers.map((server, index) => {
         const key = server.serverKey;
-        const showGroup =
-          showGroups && (index === 0 || Boolean(server.isMatch) !== Boolean(servers[index - 1].isMatch));
+        const kind = kindOf(server);
+        const showGroup = showGroups && (index === 0 || kind !== kindOf(servers[index - 1]));
         const open = openKey === key;
         const tone = severityOf(server);
         const detail = details[key] || {};
@@ -144,14 +153,14 @@ export default function ServerRoomList({
         return (
           <Fragment key={key}>
             {showGroup && (
-              <div className={`room-group room-group--${server.isMatch ? 'match' : 'public'}`}>
-                <span className="room-group-label">{server.isMatch ? '比赛服' : '公开服'}</span>
-                <small>{server.isMatch ? '天梯 / 约战专用，开赛时整台锁定' : '所有人可进，不参与排位与约战'}</small>
-                <em>{servers.filter((item) => Boolean(item.isMatch) === Boolean(server.isMatch)).length} 台</em>
+              <div className={`room-group room-group--${kind}`}>
+                <span className="room-group-label">{KIND_GROUP[kind]}</span>
+                <small>{KIND_NOTE[kind]}</small>
+                <em>{servers.filter((item) => kindOf(item) === kind).length} 台</em>
               </div>
             )}
             <div
-              className={`room room--${roomTone}${server.isMatch ? ' room--match' : ' room--public'}${open ? ' is-open' : ''}${ranked ? ' room--ranked' : ''}${challenge ? ' room--challenge' : ''}${challenge && !challengeParticipant ? ' room--challenge-locked' : ''}`}
+              className={`room room--${roomTone} room--${kind}${open ? ' is-open' : ''}${ranked ? ' room--ranked' : ''}${challenge ? ' room--challenge' : ''}${challenge && !challengeParticipant ? ' room--challenge-locked' : ''}`}
             >
             <div
               className="room-row"
@@ -172,8 +181,8 @@ export default function ServerRoomList({
               <span className="room-title">
                 <b>
                   {server.name}
-                  <span className={`room-kind${server.isMatch ? ' is-match' : ' is-public'}`}>
-                    {server.isMatch ? '比赛服' : '公开服'}
+                  <span className={`room-kind is-${kind}`}>
+                    {KIND_LABEL[kind]}
                   </span>
                   <span className="room-mode-tag">{server.mode || '混战'}</span>
                   {ranked && <span className="room-ranked-tag">排位 {ranked.mode} · 比赛中</span>}

@@ -195,7 +195,8 @@ export default function ServerHall({
     const text = `${server.name} ${server.map || ''} ${server.ip}`.toLowerCase();
     return text.includes(keyword.trim().toLowerCase());
   });
-  visible.sort((a, b) => Number(Boolean(b.isMatch)) - Number(Boolean(a.isMatch)));
+  const rankOf = (server) => (server.isMatch ? 2 : server.isChallenge ? 1 : 0);
+  visible.sort((a, b) => rankOf(b) - rankOf(a));
 
   const filters = [
     { key: 'all', label: '全部' },

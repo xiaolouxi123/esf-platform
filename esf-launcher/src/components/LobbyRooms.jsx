@@ -23,6 +23,8 @@ export default function LobbyRooms({
         const ranked = server.ranked || null;
         const challenge = server.challenge || null;
         const arena = server.arena || null;
+        const kind = server.isMatch ? 'match' : server.isChallenge ? 'challenge' : 'public';
+        const kindLabel = kind === 'match' ? '比赛服' : kind === 'challenge' ? '约战服' : '公开服';
         const key = server.serverKey;
         const favorite = favorites ? favorites.has(key) : false;
         const busy = busyKey === key;
@@ -32,7 +34,7 @@ export default function LobbyRooms({
         const rankedParticipant = rankedPlayers.some((player) => Number(player.id) === Number(currentUserId));
         const challengeParticipant = Boolean(challenge?.participant);
         const arenaLive = arena?.phase === 'live';
-        const arenaLocked = Boolean(arenaLive && !arena.participant && arena.joinMode === 'locked');
+        const arenaLocked = Boolean(arenaLive && !arena.participant && arena.joinMode !== 'spectate');
         const locked = Boolean(
           (ranked && !rankedParticipant) ||
             (challenge && !challengeParticipant) ||
@@ -60,21 +62,22 @@ export default function LobbyRooms({
           action = `观战 ${arena.spectatorCount}/${arena.spectatorLimit}`;
           onAction = () => onSpectate && onSpectate(server);
         } else if (arenaLive && arena.joinMode === 'queue') {
-          action = `排队 ${arena.queueLength}/${arena.queueLimit}`;
+          action = '满员等待';
+          onAction = null;
         } else if (arenaLocked) {
           action = '已锁服';
           onAction = null;
-        } else if (arena?.phase === 'waiting') {
+        } else if (arena?.phase === 'waiting' && arena.participant) {
           action = '等待开赛';
           onAction = null;
         }
 
         return (
           <article
-            className={`lobby-room${server.isMatch ? ' is-match' : ' is-public'}${server.online ? '' : ' is-offline'}`}
+            className={`lobby-room is-${kind}${server.online ? '' : ' is-offline'}`}
           >
             <header>
-              <span className="lobby-room-kind">{server.isMatch ? '比赛服' : '公开服'}</span>
+              <span className="lobby-room-kind">{kindLabel}</span>
               <b>{server.name}</b>
               {onToggleFavorite && (
                 <button

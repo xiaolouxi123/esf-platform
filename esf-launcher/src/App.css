@@ -14877,6 +14877,37 @@ select:focus {
     0 0 0 1px rgba(255, 194, 139, 0.42),
     0 4px 14px rgba(255, 93, 31, 0.28);
 }
+
+.room-group--challenge .room-group-label {
+  color: #d6c7ff;
+  background: rgba(139, 92, 246, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.36);
+}
+.room-kind.is-challenge {
+  color: #d6c7ff;
+  background: rgba(139, 92, 246, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.32);
+}
+.room--challenge .room-row {
+  box-shadow: inset 2px 0 0 rgba(139, 92, 246, 0.55);
+}
+.lobby-room.is-challenge::before {
+  background: linear-gradient(180deg, #d8c9ff, #7c3aed);
+}
+.lobby-room.is-challenge {
+  border-color: rgba(139, 92, 246, 0.3);
+  background: linear-gradient(180deg, rgba(31, 25, 51, 0.84), rgba(12, 18, 28, 0.9));
+}
+.lobby-room.is-challenge .lobby-room-kind {
+  color: #140a26;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  background: linear-gradient(180deg, #eee6ff, #a78bfa 58%, #7c3aed);
+  box-shadow:
+    0 0 0 1px rgba(221, 210, 255, 0.4),
+    0 4px 14px rgba(124, 58, 237, 0.26);
+}
+
 .lobby-room header b {
   flex: 1 1 auto;
   min-width: 0;
