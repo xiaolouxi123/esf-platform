@@ -9,6 +9,13 @@ const KIND_NOTE = {
   public: '所有人可进，不参与排位与约战',
 };
 const kindOf = (server) => (server.isMatch ? 'match' : server.isChallenge ? 'challenge' : 'public');
+const flagOf = (server) => {
+  const name = server.name || '';
+  if (/^2\.1/.test(name)) return 'EVM';
+  const tag = /\[ESF-([A-Z0-9]+)\]/i.exec(name);
+  if (tag) return tag[1].toUpperCase();
+  return String(server.serverKey || '').split('-')[0].toUpperCase();
+};
 import Avatar from './Avatar';
 import { formatClock, pingTone } from '../lib/format';
 
@@ -175,7 +182,7 @@ export default function ServerRoomList({
               }}
             >
               <span className={`room-flag room-flag--${tone}`}>
-                {String(key).split('-')[0].toUpperCase()}
+                {flagOf(server)}
               </span>
 
               <span className="room-title">
@@ -226,7 +233,7 @@ export default function ServerRoomList({
 
                 <button
                   type="button"
-                  className={`btn btn-sm ${lockedForMe ? 'btn-ghost' : server.online ? 'btn-primary' : 'btn-ghost'}`}
+                  className={`btn btn-sm room-join room-join--${kind}${lockedForMe ? ' is-locked' : server.online ? ' is-active' : ' is-offline'}`}
                   disabled={!server.online || busy || (lockedForMe && !ranked && !challenge)}
                   title={
                     ranked && !rankedParticipant

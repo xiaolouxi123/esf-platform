@@ -23,7 +23,7 @@
 
 #define PLUGIN  "ESF Platform Auth"
 #define VERSION "1.2.0"
-#define BUILD "0.61"
+#define BUILD "0.63"
 #define AUTHOR  "ESF Platform"
 
 #define TASK_VERIFY 1000

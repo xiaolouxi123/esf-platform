@@ -16934,3 +16934,86 @@ select:focus {
   font-size: 10px;
   font-style: normal;
 }
+
+/* ---- 0.6.58 房间标签/按钮配色收口 ---- */
+.lobby-room-kind,
+.room-kind,
+.room-group-label {
+  border: 0;
+  box-shadow: none;
+}
+.lobby-room.is-match .lobby-room-kind,
+.room-kind.is-match,
+.room-group--match .room-group-label {
+  color: #2a0508;
+  background: linear-gradient(180deg, #ffc2c7, #ff5d6c 58%, #e11d2e);
+}
+.lobby-room.is-challenge .lobby-room-kind,
+.room-kind.is-challenge,
+.room-group--challenge .room-group-label {
+  color: #160a2c;
+  background: linear-gradient(180deg, #eadfff, #a78bfa 58%, #7c3aed);
+}
+.room--match .room-flag,
+.room--challenge .room-flag {
+  color: var(--muted);
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.04);
+}
+.section-title-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.section-title-link:hover {
+  color: #ffd8b0;
+}
+.btn.btn-primary.hero-cta--quick {
+  color: #041420;
+  background: linear-gradient(135deg, #e3f9ff 0%, #8ee6ff 42%, #35b6f2 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 10px 26px rgba(53, 182, 242, 0.32);
+}
+.btn.btn-primary.hero-cta--quick:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 14px 32px rgba(53, 182, 242, 0.4);
+}
+.lobby-join,
+.room-join {
+  border: 1px solid transparent;
+  font-weight: 700;
+}
+.lobby-join--match,
+.room-join--match {
+  color: #2a0508;
+  background: linear-gradient(135deg, #ffb4bb, #ff5d6c 58%, #e11d2e);
+  box-shadow: 0 6px 16px rgba(225, 29, 46, 0.22);
+}
+.lobby-join--challenge,
+.room-join--challenge {
+  color: #160a2c;
+  background: linear-gradient(135deg, #ded0ff, #a78bfa 58%, #7c3aed);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.22);
+}
+.lobby-join--public,
+.room-join--public {
+  color: #041a2a;
+  background: linear-gradient(135deg, #d7f6ff, #7ddcff 58%, #2fa9e8);
+  box-shadow: 0 6px 16px rgba(47, 169, 232, 0.2);
+}
+.lobby-join.is-locked,
+.room-join.is-locked,
+.room-join.is-offline {
+  color: #cfd3e2;
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}

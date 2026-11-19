@@ -1558,7 +1558,7 @@ export default function Lobby({
               ) : (
               <button
               type="button"
-              className="btn btn-primary btn-lg hero-cta"
+              className="btn btn-primary btn-lg hero-cta hero-cta--quick"
               onClick={quickMatch}
               disabled={queueBusy === 'queue'}
               >
@@ -1758,7 +1758,14 @@ export default function Lobby({
               <section className="section">
                 <div className="section-head">
                   <h2>
-                    在线房间 <span className="pill">{onlineServers.length}</span>
+                    <button
+                      type="button"
+                      className="section-title-link"
+                      title="打开服务器板块"
+                      onClick={() => { playSfx("tab"); setPage("servers"); }}
+                    >
+                      在线房间 <span className="pill">{onlineServers.length}</span>
+                    </button>
                   </h2>
 
                   <div className="section-head-actions">
@@ -1785,7 +1792,7 @@ export default function Lobby({
                 ) : (
                   <LobbyRooms
                     servers={[...onlineServers]
-                      .sort((a, b) => Number(Boolean(b.isMatch)) - Number(Boolean(a.isMatch)))
+                      .sort((a, b) => (Number(Boolean(b.isMatch)) * 2 + Number(Boolean(b.isChallenge))) - (Number(Boolean(a.isMatch)) * 2 + Number(Boolean(a.isChallenge))))
                       .slice(0, 4)}
                     onJoin={joinServer}
                     onSpectate={spectateServer}

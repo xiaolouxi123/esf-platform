@@ -120,7 +120,7 @@ export default function LobbyRooms({
               <span className="lobby-room-spacer" />
               <button
                 type="button"
-                className={`btn btn-sm ${locked ? 'btn-ghost' : 'btn-primary'}`}
+                className={`btn btn-sm lobby-join lobby-join--${kind}${locked ? ' is-locked' : ''}`}
                 disabled={!server.online || busy || !onAction}
                 onClick={onAction || undefined}
               >

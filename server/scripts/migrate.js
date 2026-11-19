@@ -426,6 +426,7 @@ async function main() {
          server_key VARCHAR(32) NOT NULL,
          purpose ENUM('join','spectate','queue') NOT NULL DEFAULT 'join',
          state ENUM('waiting','in_server','queued','matched','spectating','closed') NOT NULL DEFAULT 'waiting',
+         ready TINYINT(1) NOT NULL DEFAULT 0,
          match_id BIGINT UNSIGNED NULL,
          ip VARCHAR(45) NULL,
          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -435,6 +436,7 @@ async function main() {
          KEY idx_arena_ticket_user (user_id, state)
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
     );
+    await ensureColumn(conn, dbName, 'arena_tickets', 'ready', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER state');
     await conn.query(
       `CREATE TABLE IF NOT EXISTS ranked_flags (
          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

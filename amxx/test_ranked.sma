@@ -2572,6 +2572,123 @@ public CommandNextMatch(id)
     return PLUGIN_HANDLED;
 }
 
+// 擂台排队：比赛中或观战中的玩家可以登记下一场
+public CommandArenaQueue(id)
+{
+    if(!is_user_connected(id) || Is_Bot(id)) return PLUGIN_HANDLED;
+
+    if(g_rankedTeam[id] > 0)
+    {
+        client_print(id, print_chat, "[擂台] 比赛进行中，结束后平台会自动安排下一场。");
+        return PLUGIN_HANDLED;
+    }
+
+    new token[64], serverKey[48];
+    get_user_info(id, "_platform_token", token, charsmax(token));
+    get_pcvar_string(g_pcRankedServerKey, serverKey, charsmax(serverKey));
+    if(token[0] == 0 || serverKey[0] == 0)
+    {
+        client_print(id, print_chat, "[擂台] 还没有完成平台身份校验，请从平台重新进入服务器。");
+        return PLUGIN_HANDLED;
+    }
+
+    new query[420], data[1];
+    data[0] = id;
+    formatex(query, charsmax(query),
+        "UPDATE arena_tickets SET state='queued', ready=0 WHERE token='%s' AND server_key='%s' AND state IN ('spectating','queued','waiting','in_server','matched')",
+        token, serverKey);
+    SQL_ThreadQuery(g_rankedTuple, "OnArenaQueueUpdated", query, data, 1);
+    client_print(id, print_chat, "[擂台] 正在登记排队，比赛结束后按顺序上场。");
+    return PLUGIN_HANDLED;
+}
+
+public OnArenaQueueUpdated(failstate, handle, error[], errnum, data[], size)
+{
+    new id = data[0];
+    if(failstate != TQUERY_SUCCESS)
+    {
+        if(is_user_connected(id)) client_print(id, print_chat, "[擂台] 排队登记失败，请稍后再试。");
+        return PLUGIN_HANDLED;
+    }
+    if(is_user_connected(id))
+    {
+        if(SQL_AffectedRows(handle) == 0) client_print(id, print_chat, "[擂台] 你已经在排队名单里了。");
+        else client_print(id, print_chat, "[擂台] 已加入排队，等待当前比赛结束。");
+    }
+    return PLUGIN_HANDLED;
+}
+
+// 擂台准备：排队玩家确认已准备好，平台按 ready 顺序补位
+public CommandArenaReady(id)
+{
+    if(!is_user_connected(id) || Is_Bot(id)) return PLUGIN_HANDLED;
+    if(g_rankedTeam[id] > 0)
+    {
+        client_print(id, print_chat, "[擂台] 你正在比赛，不需要再准备。");
+        return PLUGIN_HANDLED;
+    }
+
+    new token[64], serverKey[48];
+    get_user_info(id, "_platform_token", token, charsmax(token));
+    get_pcvar_string(g_pcRankedServerKey, serverKey, charsmax(serverKey));
+    if(token[0] == 0 || serverKey[0] == 0)
+    {
+        client_print(id, print_chat, "[擂台] 还没有完成平台身份校验，请从平台重新进入服务器。");
+        return PLUGIN_HANDLED;
+    }
+
+    new query[420], data[1];
+    data[0] = id;
+    formatex(query, charsmax(query),
+        "UPDATE arena_tickets SET ready=1, state='queued' WHERE token='%s' AND server_key='%s' AND state IN ('queued','spectating','matched')",
+        token, serverKey);
+    SQL_ThreadQuery(g_rankedTuple, "OnArenaReadyUpdated", query, data, 1);
+    client_print(id, print_chat, "[擂台] 已确认准备，排到你时平台会提示进场。");
+    return PLUGIN_HANDLED;
+}
+
+public OnArenaReadyUpdated(failstate, handle, error[], errnum, data[], size)
+{
+    new id = data[0];
+    if(failstate != TQUERY_SUCCESS && is_user_connected(id))
+        client_print(id, print_chat, "[擂台] 准备状态提交失败，请稍后再试。");
+    return PLUGIN_HANDLED;
+}
+
+// 擂台离开：观战/排队玩家回大厅，参赛者比赛中不能直接离开
+public CommandArenaLeave(id)
+{
+    if(!is_user_connected(id) || Is_Bot(id)) return PLUGIN_HANDLED;
+
+    if(g_rankedTeam[id] > 0)
+    {
+        client_print(id, print_chat, "[擂台] 比赛进行中不能离开，按 Esc 退出会被判负结算。");
+        return PLUGIN_HANDLED;
+    }
+
+    new token[64], serverKey[48];
+    get_user_info(id, "_platform_token", token, charsmax(token));
+    get_pcvar_string(g_pcRankedServerKey, serverKey, charsmax(serverKey));
+    if(token[0] != 0 && serverKey[0] != 0)
+    {
+        new query[380], data[1];
+        data[0] = id;
+        formatex(query, charsmax(query),
+            "UPDATE arena_tickets SET state='closed' WHERE token='%s' AND server_key='%s' ",
+            token, serverKey);
+        SQL_ThreadQuery(g_rankedTuple, "OnArenaLeaveUpdated", query, data, 1);
+    }
+
+    client_print(id, print_chat, "[擂台] 正在返回大厅，随时可以再从平台进入。");
+    client_cmd(id, "disconnect");
+    return PLUGIN_HANDLED;
+}
+
+public OnArenaLeaveUpdated(failstate, handle, error[], errnum, data[], size)
+{
+    return PLUGIN_HANDLED;
+}
+
 //处理玩家投降函数
 public ezSpectate(id)
 {
@@ -3663,6 +3780,9 @@ public plugin_init()
     //register_clcmd("say","hook_say");
     register_clcmd("say ez","ezSpectate");
     register_clcmd("say /next","CommandNextMatch");
+    register_clcmd("say /leave","CommandArenaLeave");
+    register_clcmd("say /q","CommandArenaQueue");
+    register_clcmd("say /ready","CommandArenaReady");
     //勾住say命令，防止玩家在比赛中使用say命令
     register_clcmd("say","onPlayerHookSay");
 
