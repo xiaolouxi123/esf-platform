@@ -15,7 +15,7 @@ const ROLE_COLOR = {
   user: '#94A0B8',
 };
 const ROLE_ORDER = ['owner', 'admin', 'ops', 'creator', 'user'];
-const CARD_WIDTH = 300;
+const CARD_WIDTH = 360;
 
 const activityWeight = (member) => {
   if (!member.online) return 9;
@@ -151,7 +151,7 @@ export default function MemberSidebar({
     const fallback = document.querySelector('.rail--members')?.getBoundingClientRect();
     const anchorLeft = rect?.left ?? fallback?.left ?? window.innerWidth - 340;
     const anchorTop = rect?.top ?? 90;
-    const cardHeight = Math.min(440, window.innerHeight - 110);
+    const cardHeight = Math.min(470, window.innerHeight - 110);
     setProfileAnchor({
       left: Math.max(12, anchorLeft - CARD_WIDTH - 14),
       top: Math.max(58, Math.min(anchorTop - 8, window.innerHeight - cardHeight - 20)),
@@ -477,7 +477,11 @@ export default function MemberSidebar({
   const onlineMembers = members.filter((member) => member.online);
   const offlineMembers = members.filter((member) => !member.online);
   const onlineGroups = byRole(onlineMembers);
-  const offlineGroups = byRole(offlineMembers);
+  const offlineList = [...offlineMembers].sort((a, b) => {
+    const roleDiff = (ROLE_RANK[b.role] ?? 0) - (ROLE_RANK[a.role] ?? 0);
+    if (roleDiff !== 0) return roleDiff;
+    return String(a.gameName || '').localeCompare(String(b.gameName || ''));
+  });
   const onlineCount = onlineMembers.length;
   const offlineCount = offlineMembers.length;
   const searching = Boolean(needle);
@@ -495,6 +499,7 @@ export default function MemberSidebar({
   });
   const offlineExpanded = offlineOpen;
   const selfTitle = titleById.get(Number(user?.titleId));
+  const selfMeta = metaOf(selfMember || user || {});
 
   if (collapsed) {
     return (
@@ -574,7 +579,10 @@ export default function MemberSidebar({
   const renderRow = (member, { scope, compact = false } = {}) => {
     const isSelf = Number(member.id) === Number(user?.id);
     const active = Number(profile?.id) === Number(member.id);
-    const dotClass = !member.online
+    const online = Boolean(member.online);
+    const meta = metaOf(member);
+    const rank = rankOf(member);
+    const dotClass = !online
       ? ' is-offline'
       : member.challenge
         ? ' is-challenge'
@@ -610,11 +618,48 @@ export default function MemberSidebar({
           <span className={`member-presence-dot${dotClass}`} title={member.online ? '在线' : '离线'} />
         </span>
         <span className="member-row-meta">
-          <span className="member-row-name">
-            {member.gameName}
-            {isSelf ? <em>我</em> : null}
+          <span className="member-row-top">
+            <span
+              className="member-row-name"
+              style={online ? { color: meta.color } : undefined}
+            >
+              {member.gameName}
+              {isSelf ? <em>我</em> : null}
+            </span>
+            {compact ? (
+              member.role !== 'user' ? (
+                <span className="member-row-role-text" style={{ color: meta.color }}>
+                  {roleLabel(member.role)}
+                </span>
+              ) : null
+            ) : (
+              <span className="member-row-activity">{activityOf(member)}</span>
+            )}
           </span>
-          {compact ? null : <span className="member-row-activity">{activityOf(member)}</span>}
+          {compact ? null : (
+            <span className="member-row-sub">
+              <span
+                className="member-role-chip"
+                style={{
+                  color: meta.color,
+                  borderColor: `${meta.color}55`,
+                  background: `${meta.color}14`,
+                }}
+              >
+                {meta.label}
+              </span>
+              <span
+                className="member-rank-chip"
+                style={{
+                  color: rank.color,
+                  borderColor: `${rank.color}44`,
+                  background: `${rank.color}12`,
+                }}
+              >
+                {rank.name}
+              </span>
+            </span>
+          )}
         </span>
         {staff ? (
           <button
@@ -712,7 +757,7 @@ export default function MemberSidebar({
               </button>
             )}
           </div>
-          <small style={{ color: selfTitle?.color }}>
+          <small style={{ color: selfMeta.color }}>
             {selfTitle ? selfTitle.name : roleLabel(user?.role)}
             {stats ? ` · ${stats.sessions} 场` : ''} · 金币 {coins}
           </small>
@@ -826,7 +871,7 @@ export default function MemberSidebar({
                 <span>离线</span>
                 <em>{offlineCount}</em>
               </button>
-              {offlineExpanded && offlineGroups.map((group) => renderGroup(group, 'offline'))}
+              {offlineExpanded && offlineList.map((member) => renderRow(member, { scope: 'offline', compact: true }))}
             </section>
           </>
         )}
