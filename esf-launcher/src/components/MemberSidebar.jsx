@@ -486,7 +486,6 @@ export default function MemberSidebar({
   const offlineCount = offlineMembers.length;
   const searching = Boolean(needle);
   const searchOffline = filtered.some((member) => !member.online);
-  const onlySelfOnline = onlineCount === 1 && Number(onlineMembers[0]?.id) === Number(user?.id);
   const searchResults = [...filtered].sort((a, b) => {
     if (Boolean(a.online) !== Boolean(b.online)) return a.online ? -1 : 1;
     const roleDiff = (ROLE_RANK[b.role] ?? 0) - (ROLE_RANK[a.role] ?? 0);
@@ -633,33 +632,26 @@ export default function MemberSidebar({
                 </span>
               ) : null
             ) : (
-              <span className="member-row-activity">{activityOf(member)}</span>
+              <>
+                <span className="member-row-role" style={{ color: meta.color }}>
+                  {meta.label}
+                </span>
+                {rank.level > 0 ? (
+                  <span
+                    className="member-rank-chip"
+                    style={{
+                      color: rank.color,
+                      borderColor: `${rank.color}44`,
+                      background: `${rank.color}12`,
+                    }}
+                  >
+                    {rank.name}
+                  </span>
+                ) : null}
+                <span className="member-row-activity">{activityOf(member)}</span>
+              </>
             )}
           </span>
-          {compact ? null : (
-            <span className="member-row-sub">
-              <span
-                className="member-role-chip"
-                style={{
-                  color: meta.color,
-                  borderColor: `${meta.color}55`,
-                  background: `${meta.color}14`,
-                }}
-              >
-                {meta.label}
-              </span>
-              <span
-                className="member-rank-chip"
-                style={{
-                  color: rank.color,
-                  borderColor: `${rank.color}44`,
-                  background: `${rank.color}12`,
-                }}
-              >
-                {rank.name}
-              </span>
-            </span>
-          )}
         </span>
         {staff ? (
           <button
@@ -832,33 +824,24 @@ export default function MemberSidebar({
           </>
         ) : (
           <>
-            {onlySelfOnline ? (
-              <div className="member-lonely member-lonely--solo">
-                <div>
-                  <b>现在只有你在</b>
-                  <span>开房后把链接发到群里，等他们上线。</span>
-                </div>
+            <section className="member-segment" aria-label={`在线成员 ${onlineCount} 位`}>
+              <div className="member-segment-head">
+                <span>在线</span>
+                <em>{onlineCount}</em>
               </div>
-            ) : (
-              <section className="member-segment" aria-label={`在线成员 ${onlineCount} 位`}>
-                <div className="member-segment-head">
-                  <span>在线</span>
-                  <em>{onlineCount}</em>
-                </div>
-                {onlineCount === 0 ? (
-                  <div className="member-lonely">
-                    <div>
-                      <b>现在没人在线</b>
-                      <span>离线成员在下方；开房后把链接发到群里，等他们上线。</span>
-                    </div>
+              {onlineCount === 0 ? (
+                <div className="member-lonely">
+                  <div>
+                    <b>现在没人在线</b>
+                    <span>离线成员在下方；开房后把链接发到群里，等他们上线。</span>
                   </div>
-                ) : onlineGroups.length > 1 ? (
-                  onlineGroups.map((group) => renderGroup(group, 'online'))
-                ) : (
-                  onlineGroups[0]?.members.map((member) => renderRow(member, { scope: 'online' }))
-                )}
-              </section>
-            )}
+                </div>
+              ) : onlineGroups.length > 1 ? (
+                onlineGroups.map((group) => renderGroup(group, 'online'))
+              ) : (
+                onlineGroups[0]?.members.map((member) => renderRow(member, { scope: 'online' }))
+              )}
+            </section>
 
             <section className="member-segment member-segment--offline" aria-label={`离线成员 ${offlineCount} 位`}>
               <button

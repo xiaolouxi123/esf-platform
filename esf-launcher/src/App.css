@@ -17788,10 +17788,15 @@ select:focus {
   font-size: 12.5px;
 }
 .member-row-activity {
+  flex: 1 1 auto;
+  min-width: 0;
   margin-left: auto;
-  max-width: 58%;
+  max-width: 52%;
   font-size: 10px;
   text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .member-row-sub {
   display: flex;
@@ -17818,7 +17823,8 @@ select:focus {
 .member-role-chip { font-weight: 600; }
 .member-rank-chip { opacity: 0.92; }
 .member-row-role-text {
-  margin-left: auto;
+  flex: none;
+  margin-left: 2px;
   max-width: 45%;
   font-size: 10px;
   white-space: nowrap;
@@ -17837,4 +17843,35 @@ select:focus {
 }
 @media (max-height: 780px) {
   .member-row--v2 { min-height: 46px; }
+}
+
+/* 0.6.58 member inline identity + default silhouette avatar */
+.member-row-name {
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.member-row-role {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.member-row-top .member-rank-chip {
+  flex: none;
+}
+.member-row-activity {
+  max-width: 52%;
+}
+.avatar--silhouette {
+  background: linear-gradient(145deg, #3b4250, #242a35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(206, 216, 232, 0.6);
+}
+.avatar--silhouette svg {
+  width: 62%;
+  height: 62%;
+  display: block;
 }
