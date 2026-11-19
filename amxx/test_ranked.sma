@@ -1440,6 +1440,7 @@ public OnRankedSettled(failstate, Handle:query, error[], errnum, data[], dataSiz
         writePendingResult();
     } else {
         log_amx("[Ranked] result written");
+        arenaAutoQueueWinner();
     }
     SQL_FreeHandle(query);
 
@@ -2572,6 +2573,40 @@ public CommandNextMatch(id)
     return PLUGIN_HANDLED;
 }
 
+// 擂台赛后自动排队：胜者直接进入 ready 队列，平台下一场建房时优先选他
+arenaAutoQueueWinner()
+{
+    if(!g_arenaMatch || g_pendingWinner[0] == 0) return;
+
+    new winnerTeam = equal(g_pendingWinner, "a") ? 1 : 2;
+    new token[64], serverKey[48];
+    get_pcvar_string(g_pcRankedServerKey, serverKey, charsmax(serverKey));
+    if(serverKey[0] == 0) return;
+
+    for(new i = 1; i <= get_maxplayers(); i++)
+    {
+        if(!is_user_connected(i) || Is_Bot(i) || g_rankedTeam[i] != winnerTeam) continue;
+        token[0] = 0;
+        get_user_info(i, "_platform_token", token, charsmax(token));
+        if(token[0] == 0) continue;
+
+        new query[420], data[1];
+        data[0] = i;
+        formatex(query, charsmax(query),
+            "UPDATE arena_tickets SET state='queued', ready=1 WHERE token='%s' AND server_key='%s'",
+            token, serverKey);
+        SQL_ThreadQuery(g_rankedTuple, "OnArenaAutoQueued", query, data, 1);
+    }
+
+    client_print(0, print_chat, "[擂台] 胜者已自动排入下一场，新对手进服即可开打；败者可输入 /q 继续挑战。");
+}
+
+public OnArenaAutoQueued(failstate, handle, error[], errnum, data[], size)
+{
+    if(failstate != TQUERY_SUCCESS) log_amx("[Arena] auto queue failed: %s", error);
+    return PLUGIN_HANDLED;
+}
+
 // 擂台排队：比赛中或观战中的玩家可以登记下一场
 public CommandArenaQueue(id)
 {
@@ -3449,7 +3484,7 @@ resetAll()
             g_rankedRetry[i] = 0;
             set_task(20.0, "taskRankedRetry", TASK_RANKED_RETRY + i, _, _, "b");
         }
-        client_print(0, print_chat, "[擂台] 本场结束，输入 /q 排队下一场；按 Esc 可回大厅。");
+        client_print(0, print_chat, "[擂台] 本场结束；胜者已自动排队，败者输入 /q 继续挑战，Esc 可回大厅。");
     }
 }
 
