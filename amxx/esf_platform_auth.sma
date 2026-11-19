@@ -23,7 +23,7 @@
 
 #define PLUGIN  "ESF Platform Auth"
 #define VERSION "1.2.0"
-#define BUILD "0.58"
+#define BUILD "0.59"
 #define AUTHOR  "ESF Platform"
 
 #define TASK_VERIFY 1000
@@ -347,6 +347,7 @@ public OnTokenChecked(failstate, Handle:query, error[], errnum, data[], dataSize
     // 否则接近上限时会触发 "Info string length exceeded"。
     if (equal(purpose, "spectate")) {
         set_user_info(id, "_platform_spectator", "1");
+        client_print(id, print_chat, "[平台] 观战中：输入 /next 可提前回大厅准备下一场。");
     }
 
     // 进服自动使用平台游戏昵称；平台已限制同名，避免游戏内出现重名玩家。
