@@ -809,9 +809,18 @@ export default function RankedPage({ user, toast, servers = [] }) {
       'spectate',
       async () => {
         const match = await window.electronAPI.ranked.spectate(state.match.id);
+        // 观战必须真的把游戏拉起来；之前只登记观战，玩家仍停留在大厅。
+        const server = match?.server;
+        if (server?.serverKey) {
+          await window.electronAPI.launch.spectate({
+            serverKey: server.serverKey,
+            ip: server.ip,
+            port: server.port,
+          });
+        }
         return { ...state, match };
       },
-      '已加入观战'
+      '已加入观战；游戏内输入 /next 可提前回大厅准备下一场'
     );
   const finish = (winner) =>
     run(

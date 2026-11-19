@@ -2529,6 +2529,22 @@ public playerSpawn(id)
     //PlaySound(id, "battleplug/error.wav");
 }
 
+// 观战者主动返回平台：不等待比赛结束，随时可以回大厅准备下一场。
+public CommandNextMatch(id)
+{
+    if(!is_user_connected(id) || Is_Bot(id)) return PLUGIN_HANDLED;
+
+    if(!isPlatformSpectator(id))
+    {
+        client_print(id, print_chat, "[平台] 只有观战者可以用 /next 返回大厅。");
+        return PLUGIN_HANDLED;
+    }
+
+    client_print(id, print_chat, "[平台] 正在返回大厅，可以准备下一场了。");
+    client_cmd(id, "disconnect");
+    return PLUGIN_HANDLED;
+}
+
 //处理玩家投降函数
 public ezSpectate(id)
 {
@@ -3280,12 +3296,25 @@ resetAll()
 
 public taskQuitToPlatform()
 {
+    new kicked = 0;
+    new kept = 0;
     for(new i = 1; i <= get_maxplayers(); i++)
     {
-        if(is_user_connected(i) && !Is_Bot(i))
-            client_cmd(i, "disconnect");
+        if(!is_user_connected(i) || Is_Bot(i)) continue;
+
+        // 观战者不是参赛者：比赛结束后留在服务器，自己决定何时按 Esc 回平台。
+        // 这样观战不会被强制踢出，也能在赛后马上准备下一场。
+        if(isPlatformSpectator(i))
+        {
+            kept++;
+            client_print(i, print_chat, "[平台] 比赛结束，观战可继续；按 Esc 退出游戏即可回平台准备下一场。");
+            continue;
+        }
+
+        client_cmd(i, "disconnect");
+        kicked++;
     }
-    log_amx("[Ranked] disconnect game after match end");
+    log_amx("[Ranked] disconnect game after match end (players=%d spectators_kept=%d)", kicked, kept);
 }
 
 autoPlayerStart()
@@ -3598,6 +3627,7 @@ public plugin_init()
     register_clcmd("turbo","CheckSwitch")
     //register_clcmd("say","hook_say");
     register_clcmd("say ez","ezSpectate");
+    register_clcmd("say /next","CommandNextMatch");
     //勾住say命令，防止玩家在比赛中使用say命令
     register_clcmd("say","onPlayerHookSay");
 
