@@ -32,6 +32,7 @@ const COVER_DIR = path.join(UPLOAD_ROOT, 'covers');
 
 /** kind → 允许的落地扩展名 */
 const KIND_EXT = {
+  map: ['.bsp'],
   model: ['.mdl'],
   sound: ['.wav', '.mp3'],
   sprite: ['.spr'],
@@ -39,6 +40,7 @@ const KIND_EXT = {
 };
 
 const MIME = {
+  '.bsp': 'application/octet-stream',
   '.mdl': 'application/octet-stream',
   '.wav': 'audio/wav',
   '.mp3': 'audio/mpeg',
@@ -64,6 +66,10 @@ function assertSafeTarget(kind, targetPath) {
     throw badRequest('targetPath 不能包含 ..');
   }
   if (value.length > 255) throw badRequest('targetPath 过长');
+
+  if (kind === 'map' && !value.startsWith('maps/')) {
+    throw badRequest('地图必须放在 maps/ 下，例如 maps/ape_forestshadow.bsp');
+  }
 
   const allowed = KIND_EXT[kind] || [];
   if (!allowed.includes(extOf(value))) {
@@ -115,7 +121,7 @@ const upload = multer({
     const kind = String((req.body && req.body.kind) || '').toLowerCase();
     const allowed = KIND_EXT[kind];
     if (!allowed) {
-      const err = badRequest('kind 必须是 model / sound / sprite / other，并且要在 file 之前传');
+      const err = badRequest('kind 必须是 map / model / sound / sprite / other，并且要在 file 之前传');
       err.status = 400;
       return cb(err);
     }
@@ -167,7 +173,7 @@ const SELECT_WITH_AUTHOR = `SELECT a.*, u.username AS author_name
   FROM assets a LEFT JOIN users u ON u.id = a.author_id`;
 
 const createSchema = z.object({
-  kind: z.enum(['model', 'sound', 'sprite', 'other']),
+  kind: z.enum(['map', 'model', 'sound', 'sprite', 'other']),
   name: z.string().trim().min(1).max(64),
   slug: z
     .string()
@@ -179,7 +185,7 @@ const createSchema = z.object({
     .trim()
     .regex(/^\d+(\.\d+){0,3}$/, 'version 形如 1.0.0')
     .optional(),
-  targetPath: z.string().trim().min(1).max(255),
+  targetPath: z.string().trim().max(255).optional(),
   description: z.string().trim().max(500).optional(),
 });
 
@@ -209,7 +215,16 @@ router.post(
       if (cover && cover.size > COVER_MAX_BYTES) throw badRequest('封面不能超过 8MB');
 
       const body = createSchema.parse(req.body);
-      const targetPath = assertSafeTarget(body.kind, body.targetPath);
+      let targetInput = String(body.targetPath || '').replace(/\\/g, '/').trim();
+      if (body.kind === 'map') {
+        if (!targetInput) {
+          const base = path.basename(file.originalname).replace(/[\\/:*?"<>|]/g, '_').slice(-120);
+          targetInput = `maps/${base}`;
+        } else if (!targetInput.includes('/')) {
+          targetInput = `maps/${targetInput}`;
+        }
+      }
+      const targetPath = assertSafeTarget(body.kind, targetInput);
       const version = body.version || '1.0.0';
       const slug = body.slug || slugify(body.name);
       const sha256 = await sha256File(file.path);
@@ -272,7 +287,7 @@ router.post(
 router.get('/assets', async (req, res, next) => {
   try {
     const kind = req.query.kind ? String(req.query.kind) : '';
-    if (kind && !KIND_EXT[kind]) throw badRequest('kind 只能是 model / sound / sprite / other');
+    if (kind && !KIND_EXT[kind]) throw badRequest('kind 只能是 map / model / sound / sprite / other');
 
     const keyword = String(req.query.q || '').trim();
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));

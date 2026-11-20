@@ -1892,6 +1892,7 @@ handle('shell:open-game-dir', async () => {
 
 // ---- 资源库 ----
 const ASSET_KIND_EXT = {
+  map: ['bsp'],
   model: ['mdl'],
   sound: ['wav', 'mp3'],
   sprite: ['spr'],
@@ -1942,9 +1943,9 @@ handle('assets:upload', async ({ kind, name, version, targetPath, description, c
   if (!extensions) throw new Error('资源类型不合法');
 
   const picked = await dialog.showOpenDialog({
-    title: '选择要上传的资源文件',
+    title: kind === 'map' ? '选择要上传的地图（.bsp）' : '选择要上传的资源文件',
     properties: ['openFile'],
-    filters: [{ name: kind, extensions }],
+    filters: [{ name: kind === 'map' ? '地图 .bsp' : kind, extensions }],
   });
   if (picked.canceled || picked.filePaths.length === 0) {
     throw new api.ApiError('已取消选择', 'CANCELED');

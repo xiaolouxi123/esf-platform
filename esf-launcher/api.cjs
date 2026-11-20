@@ -201,7 +201,7 @@ async function uploadAsset(settings, token, fields, fileBuffer, fileName, cover)
     form.append('kind', fields.kind);
     form.append('name', fields.name);
     if (fields.version) form.append('version', fields.version);
-    form.append('targetPath', fields.targetPath);
+    if (fields.targetPath) form.append('targetPath', fields.targetPath);
     if (fields.description) form.append('description', fields.description);
     form.append('file', new Blob([fileBuffer]), fileName);
     if (cover && cover.buffer) {

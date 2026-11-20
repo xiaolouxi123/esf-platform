@@ -7,6 +7,7 @@ import { formatBytes, formatNumber, formatRelative } from '../lib/format';
 
 const KIND_FILTERS = [
   { value: '', label: '全部' },
+  { value: 'map', label: '地图' },
   { value: 'model', label: '模型' },
   { value: 'sound', label: '声音' },
   { value: 'sprite', label: '特效' },
@@ -14,6 +15,12 @@ const KIND_FILTERS = [
 ];
 
 const KIND_META = {
+  map: {
+    label: '地图',
+    icon: 'map',
+    accept: '只收 .bsp（≤64MB）',
+    hint: '路径可留空，自动保存为 maps/<文件名>.bsp',
+  },
   model: {
     label: '模型',
     icon: 'user',
@@ -51,7 +58,10 @@ const assetTime = (asset) => {
   return Number.isFinite(value) ? value : 0;
 };
 
-const assetPathPlaceholder = (kind) => KIND_META[kind]?.hint || KIND_META.model.hint;
+const assetPathPlaceholder = (kind) =>
+  kind === 'map'
+    ? 'maps/ape_forestshadow.bsp（可留空）'
+    : KIND_META[kind]?.hint || KIND_META.model.hint;
 
 export default function AssetLibrary({ toast, settings, onOpenSettings }) {
   const [kind, setKind] = useState('');
@@ -155,7 +165,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings }) {
   }, [visible, sort]);
 
   const counts = useMemo(() => {
-    const acc = { model: 0, sound: 0, sprite: 0, other: 0 };
+    const acc = { map: 0, model: 0, sound: 0, sprite: 0, other: 0 };
     assets.forEach((asset) => {
       if (acc[asset.kind] === undefined) acc.other += 1;
       else acc[asset.kind] += 1;
@@ -215,7 +225,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings }) {
   const submit = async () => {
     if (uploading) return;
     if (!form.name.trim()) return toast('请填写资源名称', 'error');
-    if (!form.targetPath.trim()) return toast('请填写落地路径', 'error');
+    if (!form.targetPath.trim() && form.kind !== 'map') return toast('请填写落地路径', 'error');
 
     setUploading(true);
     try {
@@ -223,7 +233,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings }) {
         kind: form.kind,
         name: form.name.trim(),
         version: form.version.trim() || '1.0.0',
-        targetPath: form.targetPath.trim(),
+        targetPath: form.targetPath.trim() || undefined,
         description: form.description.trim() || undefined,
         coverBase64: cover?.base64,
         coverName: cover?.name,
@@ -295,6 +305,10 @@ export default function AssetLibrary({ toast, settings, onOpenSettings }) {
             <div className="hud-cell hud-cell--assets">
               <span>已上架</span>
               <b>{formatNumber(assets.length)}</b>
+            </div>
+            <div className="hud-cell hud-cell--map">
+              <span>地图</span>
+              <b>{formatNumber(counts.map)}</b>
             </div>
             <div className="hud-cell hud-cell--model">
               <span>模型</span>
@@ -407,7 +421,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings }) {
                 <p>
                   {hasFilter
                     ? '换个关键词或类型试试，也可以清除筛选看全部资源。'
-                    : '上传第一份模型、声音或特效，审核通过后其他玩家就能直接安装。'}
+                    : '上传第一份地图、模型、声音或特效，审核通过后其他玩家就能直接安装。'}
                 </p>
                 {hasFilter ? (
                   <button
@@ -562,7 +576,9 @@ export default function AssetLibrary({ toast, settings, onOpenSettings }) {
                       : '先设置游戏目录'}
                 </button>
                 <p className="asset-install-note">
-                  安装前会把原文件备份到平台目录；同一资源重复安装会覆盖上一次。
+                  {activeAsset.kind === 'map'
+                    ? '地图会安装到模组目录的 maps/，进游戏换图即可；安装前会备份同名 .bsp。'
+                    : '安装前会把原文件备份到平台目录；同一资源重复安装会覆盖上一次。'}
                 </p>
               </>
             ) : (
@@ -631,6 +647,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings }) {
                         value={form.kind}
                         onChange={(event) => setForm((prev) => ({ ...prev, kind: event.target.value }))}
                       >
+                        <option value="map">地图</option>
                         <option value="model">模型</option>
                         <option value="sound">声音</option>
                         <option value="sprite">特效</option>
@@ -645,7 +662,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings }) {
                       <input
                         type="text"
                         value={form.name}
-                        placeholder="悟空新模型"
+                        placeholder={form.kind === 'map' ? '例如：猿影森林' : '悟空新模型'}
                         onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
                       />
                     </div>
@@ -685,7 +702,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings }) {
                       <input
                         type="text"
                         value={form.description}
-                        placeholder="替换默认模型 / 音效说明"
+                        placeholder={form.kind === 'map' ? '地图人数、模式与注意事项' : '替换默认模型 / 音效说明'}
                         onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
                       />
                     </div>
@@ -717,7 +734,11 @@ export default function AssetLibrary({ toast, settings, onOpenSettings }) {
                 </div>
 
                 <footer className="asset-upload-foot">
-                  <span>下一步会弹出文件选择框，单文件上限 64MB。</span>
+                  <span>
+                    {form.kind === 'map'
+                      ? '下一步选择 .bsp；路径留空会自动用文件名，安装后进游戏换图即可。'
+                      : '下一步会弹出文件选择框，单文件上限 64MB。'}
+                  </span>
                   <div className="admin-actions">
                     <button type="button" className="btn btn-ghost" onClick={closeUpload} disabled={uploading}>
                       取消

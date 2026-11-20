@@ -17982,6 +17982,10 @@ select:focus {
   font-size: 19px;
 }
 
+.assets-v2 .assets-hero .hud-cell--map b {
+  color: #8ff0c2;
+}
+
 .assets-v2 .assets-hero .hud-cell--author b {
   color: #d8c7ff;
 }
@@ -18216,6 +18220,13 @@ select:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.asset-thumb--map,
+.asset-kind--map,
+.asset-cover--map {
+  --asset-accent: #7ee2b8;
+  --asset-bg: rgba(45, 212, 160, 0.12);
 }
 
 .asset-thumb--model,
