@@ -524,13 +524,32 @@ function ipc(channel, payload) {
     assert.equal(list.data.assets[0].id, 7);
   });
 
-  const install = await ipc('assets:install', { id: 7 });
   const installedPath = path.join(modDir, 'sound', 'test', 'beep.wav');
+  fs.mkdirSync(path.dirname(installedPath), { recursive: true });
+  fs.writeFileSync(installedPath, 'ORIGINAL BYTES');
+
+  const install = await ipc('assets:install', { id: 7 });
   check('安装资源：写文件并校验 sha256', () => {
     assert.equal(install.ok, true, JSON.stringify(install));
     assert.equal(install.data.targetPath, 'sound/test/beep.wav');
     assert.ok(fs.existsSync(installedPath), '文件应写入模组目录');
     assert.equal(fs.readFileSync(installedPath, 'utf8'), 'FAKE ASSET BYTES');
+  });
+
+  const receipts = await ipc('assets:receipts');
+  check('安装回执：已安装且可恢复', () => {
+    assert.equal(receipts.ok, true, JSON.stringify(receipts));
+    const receipt = receipts.data.receipts.find((row) => row.id === 7);
+    assert.ok(receipt, '应有 id=7 的安装回执');
+    assert.equal(receipt.exists, true);
+    assert.equal(receipt.backedUp, true);
+    assert.equal(receipt.backupAvailable, true);
+  });
+
+  const restore = await ipc('assets:restore', { id: 7 });
+  check('恢复安装前原文件', () => {
+    assert.equal(restore.ok, true, JSON.stringify(restore));
+    assert.equal(fs.readFileSync(installedPath, 'utf8'), 'ORIGINAL BYTES');
   });
 
   const evil = await ipc('assets:install', { id: 8 });

@@ -119,7 +119,7 @@
 ## 验证记录
 
 - `npm.cmd run lint`：通过。
-- `npm.cmd test`：3 个文件全过（challenge 6、core 28、main 39）。
+- `npm.cmd test`：3 个文件全过（challenge 6、core 28、main 41；新增安装回执/恢复断言）。
 - `npm.cmd run build`：通过；CSS 297.25 kB、JS 542.72 kB（>500 kB 警告仍在）。
 - 线上 API：`https://119.29.82.217/api/assets?limit=1` → total 1，stats counts model 1、downloads 11、author 1。
 - 截图：
