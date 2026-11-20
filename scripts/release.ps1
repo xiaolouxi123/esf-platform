@@ -45,7 +45,13 @@ $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $root
 $launcher = Join-Path $root 'esf-launcher'
 $perf = [System.Diagnostics.Stopwatch]::StartNew()
-function Mark($label) { Write-Host ("[perf] {0,7:N1}s {1}" -f $perf.Elapsed.TotalSeconds, $label) }
+$lastPerf = 0.0
+function Mark($label) {
+  $now = $perf.Elapsed.TotalSeconds
+  $delta = $now - $script:lastPerf
+  $script:lastPerf = $now
+  Write-Host ("[perf] {0,6:N1}s (+{1,5:N1}s) {2}" -f $now, $delta, $label)
+}
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must be like 0.4.15" }
 
@@ -133,8 +139,7 @@ if ($tagExists.Count -eq 0) {
 } else {
   Write-Host "tag v$Version already exists, skip"
 }
-git push origin main
-git push origin "v$Version"
+git push --atomic origin main "v$Version"
 if ($LASTEXITCODE -ne 0) { throw "push failed" }
 Mark "commit + tag + push"
 

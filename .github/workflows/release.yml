@@ -23,6 +23,14 @@ jobs:
           cache: npm
           cache-dependency-path: esf-launcher/package-lock.json
 
+      - name: Cache Electron downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('esf-launcher/package-lock.json') }}
+
       - name: Set version from tag
         working-directory: esf-launcher
         shell: pwsh
