@@ -1180,7 +1180,7 @@ export default function Lobby({
           </div>
         </aside>
 
-        <main className={`center${activePage === 'lobby' ? ' center--lobby' : ''}`}>
+        <main className={`center${activePage === 'lobby' ? ' center--lobby' : ''}${activePage === 'assets' ? ' center--assets' : ''}`}>
           {activePage === 'ranked' ? (
             <RankedPage user={user} toast={toast} servers={servers} />
           ) : activePage === 'challenges' ? (
@@ -1226,7 +1226,7 @@ export default function Lobby({
               onOpenChallenge={() => setPage('challenges')}
             />
           ) : activePage === 'assets' ? (
-            <AssetLibrary toast={toast} settings={settings} />
+            <AssetLibrary toast={toast} settings={settings} onOpenSettings={() => setSettingsOpen(true)} />
           ) : activePage === 'admin' ? (
             <AdminPanel
               user={user}
