@@ -2685,7 +2685,7 @@ select:focus {
   }
 
   .workspace--wide {
-    grid-template-columns: 214px minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr) 288px;
   }
 
   .quick-grid {
@@ -4058,7 +4058,7 @@ select:focus {
 
 @media (max-width: 1180px) {
   .workspace { grid-template-columns: 64px minmax(0, 1fr) 320px; gap: 10px; padding: 10px; }
-  .workspace--wide { grid-template-columns: 64px minmax(0, 1fr); }
+  .workspace--wide { grid-template-columns: 64px minmax(0, 1fr) 280px; }
   .game-tile { width: 44px; height: 44px; }
   .game-tile img { width: 30px; height: 30px; }
 }
@@ -17916,11 +17916,11 @@ select:focus {
 /* ---- hero：只保留标题、四个数据和两个动作 ---- */
 .assets-v2 .assets-hero {
   flex: 0 0 auto;
-  height: 172px;
+  height: 158px;
   min-height: 0;
   max-height: none;
-  gap: 7px;
-  padding: 11px 20px 10px;
+  gap: 6px;
+  padding: 10px 20px 9px;
 }
 
 .assets-v2 .assets-hero .hero-content {
@@ -17940,7 +17940,7 @@ select:focus {
 
 .assets-v2 .assets-hero .hero-title {
   margin: 1px 0 0;
-  font-size: 32px;
+  font-size: 30px;
   line-height: 1.04;
 }
 
@@ -17963,11 +17963,11 @@ select:focus {
 }
 
 .assets-v2 .assets-hero .hud {
-  gap: 6px;
+  gap: 8px;
 }
 
 .assets-v2 .assets-hero .hud-cell {
-  min-width: 0;
+  min-width: 74px;
   padding: 4px 10px 5px;
   border-radius: 8px;
 }
@@ -17982,12 +17982,13 @@ select:focus {
   font-size: 19px;
 }
 
-.assets-v2 .assets-hero .hud-cell--map b {
-  color: #8ff0c2;
+.assets-v2 .assets-hero .hud-cell--author b {
+  color: var(--text);
 }
 
-.assets-v2 .assets-hero .hud-cell--author b {
-  color: #d8c7ff;
+.assets-v2 .assets-hero .hud-cell--time b {
+  font-size: 13.5px;
+  color: var(--muted);
 }
 
 .assets-v2 .assets-hero .hero-actions {
@@ -18014,13 +18015,44 @@ select:focus {
   flex: 1 1 260px;
   min-width: 170px;
   height: 36px;
+  padding: 0 10px;
   border-radius: 9px;
   border: 1px solid var(--line);
   background: rgba(9, 12, 18, 0.66);
+  cursor: text;
+}
+
+.assets-v2 .assets-search:focus-within {
+  border-color: rgba(255, 138, 31, 0.42);
+  box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.1);
 }
 
 .assets-v2 .assets-search input {
+  flex: 1 1 auto;
+  height: 100%;
+  min-width: 0;
+  padding: 0;
   font-size: 11.5px;
+}
+
+.asset-search-clear {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.asset-search-clear:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .asset-seg {
@@ -18051,7 +18083,7 @@ select:focus {
 
 .asset-seg-btn em {
   font-style: normal;
-  font-size: 9.5px;
+  font-size: 10px;
   color: inherit;
   opacity: 0.62;
 }
@@ -18072,8 +18104,11 @@ select:focus {
 }
 
 .asset-seg-btn:focus-visible,
-.asset-sort select:focus-visible,
+.select-menu-trigger:focus-visible,
 .asset-row-main:focus-visible,
+.asset-row-install:focus-visible,
+.asset-load-more:focus-visible,
+.asset-restore:focus-visible,
 .asset-side-setting:focus-visible {
   outline: 2px solid rgba(255, 170, 90, 0.7);
   outline-offset: 2px;
@@ -18093,21 +18128,130 @@ select:focus {
   font-size: 10.5px;
 }
 
-.asset-sort select {
-  max-width: 92px;
+.asset-sort .select-menu {
+  min-width: 74px;
+}
+
+.asset-sort .select-menu-trigger {
+  height: 30px;
+}
+
+.select-menu {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.select-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  min-width: 0;
   border: 0;
   background: transparent;
   color: var(--text);
-  font-size: 11px;
-  outline: none;
+  font: inherit;
   cursor: pointer;
+}
+
+.select-menu-trigger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.select-menu-trigger svg {
+  flex: none;
+  color: var(--dim);
+  transition: transform 140ms ease;
+}
+
+.select-menu-trigger[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.select-menu-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select-menu-trigger--sort {
+  justify-content: flex-start;
+  width: 76px;
+  font-size: 11px;
+}
+
+.select-menu-trigger--field {
+  width: 100%;
+  height: 30px;
+  padding: 0;
+  font-size: 11.5px;
+}
+
+.select-menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 40;
+  min-width: 100%;
+  padding: 4px;
+  border: 1px solid rgba(255, 138, 31, 0.22);
+  border-radius: 9px;
+  background: #121722;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  outline: none;
+  animation: selectMenuIn 120ms ease-out;
+}
+
+.select-menu-list--right {
+  right: 0;
+}
+
+.select-menu-list--left {
+  left: 0;
+}
+
+.select-menu-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.select-menu-option.is-active {
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text);
+}
+
+.select-menu-option.is-selected {
+  color: #ffd5ae;
+}
+
+.select-menu-option svg {
+  color: #ffb877;
+}
+
+@keyframes selectMenuIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
 }
 
 /* ---- 主体：资源列表 + 选中详情 ---- */
 .assets-body--v2 {
   display: grid;
   flex: 1 1 auto;
-  grid-template-columns: minmax(0, 1fr) 292px;
+  grid-template-columns: minmax(0, 1fr) 268px;
   gap: 10px;
   min-height: 0;
   align-items: stretch;
@@ -18170,6 +18314,8 @@ select:focus {
   padding: 4px 8px;
   border: 1px solid transparent;
   border-radius: 9px;
+  content-visibility: auto;
+  contain-intrinsic-size: 57px;
   transition: background 120ms ease, border-color 120ms ease;
 }
 
@@ -18182,8 +18328,13 @@ select:focus {
 }
 
 .asset-row.is-active {
-  border-color: rgba(255, 138, 31, 0.23);
-  background: rgba(255, 138, 31, 0.065);
+  border-color: transparent;
+  background: rgba(255, 138, 31, 0.045);
+  box-shadow: inset 2px 0 0 #ff9b45;
+}
+
+.asset-row.is-active .asset-title-line b {
+  color: #fff4e8;
 }
 
 .asset-row-main {
@@ -18288,6 +18439,23 @@ select:focus {
   font-style: normal;
 }
 
+.asset-state {
+  flex: none;
+  padding: 1px 5px;
+  border: 1px solid rgba(143, 240, 194, 0.18);
+  border-radius: 4px;
+  color: #9fe9c5;
+  background: rgba(45, 212, 160, 0.08);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.asset-state--update {
+  color: #ffc08a;
+  border-color: rgba(255, 138, 31, 0.24);
+  background: rgba(255, 138, 31, 0.1);
+}
+
 .asset-path-line {
   display: flex;
   align-items: center;
@@ -18298,9 +18466,10 @@ select:focus {
 .asset-kind {
   flex: none;
   padding: 1px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 4px;
-  color: var(--asset-accent, #c4cede);
-  background: var(--asset-bg, rgba(255, 255, 255, 0.05));
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.045);
   font-size: 10px;
   line-height: 1.45;
 }
@@ -18348,10 +18517,21 @@ select:focus {
 }
 
 .asset-row-ops .btn {
-  min-width: 78px;
-  height: 29px;
+  min-width: 76px;
+  height: 30px;
   justify-content: center;
   font-size: 11px;
+}
+
+.asset-row-install {
+  border-color: transparent;
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.asset-row:hover .asset-row-install,
+.asset-row-install:focus-visible {
+  opacity: 1;
 }
 
 .asset-list-foot {
@@ -18360,7 +18540,7 @@ select:focus {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  height: 30px;
+  height: 32px;
   padding: 0 12px;
   border-top: 1px solid var(--line);
   color: var(--dim);
@@ -18375,6 +18555,22 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.asset-list-foot-right {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.asset-load-more {
+  height: 24px;
+  padding: 0 7px;
+  border-color: transparent;
+  color: var(--muted);
+  font-size: 10.5px;
 }
 
 /* ---- 列表加载 / 空态 ---- */
@@ -18501,9 +18697,10 @@ select:focus {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--dim);
-  font-size: 9px;
-  letter-spacing: 0.14em;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .asset-cover {
@@ -18550,8 +18747,35 @@ select:focus {
 .asset-side-title em {
   flex: none;
   color: var(--dim);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-style: normal;
+}
+
+.asset-installed-banner {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  padding: 5px 7px;
+  border: 1px solid rgba(143, 240, 194, 0.16);
+  border-radius: 6px;
+  color: #9fe9c5;
+  background: rgba(45, 212, 160, 0.06);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.asset-installed-banner.is-update {
+  color: #ffc08a;
+  border-color: rgba(255, 138, 31, 0.22);
+  background: rgba(255, 138, 31, 0.07);
+}
+
+.asset-installed-banner span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .asset-side-desc {
@@ -18583,7 +18807,7 @@ select:focus {
 
 .asset-meta dt {
   color: var(--dim);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .asset-meta dd {
@@ -18594,7 +18818,7 @@ select:focus {
   margin: 0;
   overflow: hidden;
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -18603,7 +18827,7 @@ select:focus {
   min-width: 0;
   overflow: hidden;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 9.5px;
+  font-size: 10px;
   text-overflow: ellipsis;
 }
 
@@ -18615,10 +18839,34 @@ select:focus {
 }
 
 .asset-install-note {
-  margin-top: 5px;
+  margin-top: 6px;
   color: var(--dim);
-  font-size: 9.5px;
+  font-size: 10.5px;
   line-height: 1.55;
+}
+
+.asset-restore {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: #ffc48c;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.asset-restore:hover {
+  color: #ffe0bd;
+  text-decoration: underline;
+}
+
+.asset-restore:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .asset-side-empty {
@@ -18667,15 +18915,15 @@ select:focus {
 
 .asset-side-foot > span {
   color: var(--dim);
-  font-size: 9px;
-  letter-spacing: 0.1em;
+  font-size: 10px;
+  letter-spacing: 0.06em;
 }
 
 .asset-side-foot code {
   overflow: hidden;
   color: var(--muted);
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 9.5px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -18686,11 +18934,11 @@ select:focus {
   align-self: flex-start;
   gap: 4px;
   margin-top: 1px;
-  padding: 0;
+  padding: 4px 0;
   border: 0;
   background: transparent;
   color: #ffc48c;
-  font-size: 10px;
+  font-size: 10.5px;
   cursor: pointer;
 }
 
@@ -18737,15 +18985,6 @@ select:focus {
   border-bottom: 1px solid var(--line);
 }
 
-.asset-upload-kicker {
-  display: block;
-  margin-bottom: 4px;
-  color: #ffb877;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-}
-
 .asset-upload-head h2 {
   margin: 0;
   color: var(--text);
@@ -18769,6 +19008,7 @@ select:focus {
 
 .asset-upload-grid .field {
   gap: 4px;
+  margin-bottom: 0;
 }
 
 .asset-upload-grid .field-label {
@@ -18781,6 +19021,19 @@ select:focus {
   border-radius: 8px;
 }
 
+.field-input--select {
+  padding: 0 10px;
+}
+
+.field-input--select .select-menu {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.field-input--select .select-menu-list {
+  min-width: 140px;
+}
+
 .asset-upload-grid .field-input input,
 .asset-upload-grid .field-input select {
   font-size: 11.5px;
@@ -18788,7 +19041,7 @@ select:focus {
 
 .asset-upload-grid .field-hint {
   color: var(--dim);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .asset-upload-span {
@@ -18842,7 +19095,7 @@ select:focus {
   border-top: 1px solid var(--line);
   background: rgba(6, 9, 14, 0.5);
   color: var(--dim);
-  font-size: 9.5px;
+  font-size: 10.5px;
 }
 
 .asset-upload-foot .admin-actions {
@@ -18871,7 +19124,7 @@ select:focus {
   }
 
   .assets-body--v2 {
-    grid-template-columns: minmax(0, 1fr) 280px;
+    grid-template-columns: minmax(0, 1fr) 260px;
   }
 
   .asset-list-head,

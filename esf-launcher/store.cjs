@@ -225,6 +225,48 @@ function customServersPath() {
   return path.join(baseDir(), 'custom-servers.json');
 }
 
+// ================= 资源安装回执 =================
+
+function assetReceiptsPath() {
+  return path.join(baseDir(), 'asset-receipts.json');
+}
+
+function normalizeAssetReceipt(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const id = Number(raw.id);
+  const targetPath = String(raw.targetPath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!Number.isFinite(id) || id <= 0 || !targetPath) return null;
+  return {
+    id,
+    slug: String(raw.slug || '').trim().slice(0, 80),
+    name: String(raw.name || '').trim().slice(0, 80),
+    version: String(raw.version || '').trim().slice(0, 24),
+    targetPath: targetPath.slice(0, 512),
+    bytes: Math.max(0, Number(raw.bytes) || 0),
+    backedUp: raw.backedUp === true,
+    installedAt: String(raw.installedAt || new Date().toISOString()),
+  };
+}
+
+function loadAssetReceipts() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(assetReceiptsPath(), 'utf8'));
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeAssetReceipt).filter(Boolean).slice(0, 200);
+  } catch {
+    return [];
+  }
+}
+
+function saveAssetReceipt(receipt) {
+  const cleaned = normalizeAssetReceipt(receipt);
+  if (!cleaned) return null;
+  const list = loadAssetReceipts().filter((item) => item.id !== cleaned.id);
+  const next = [cleaned, ...list].slice(0, 200);
+  fs.writeFileSync(assetReceiptsPath(), JSON.stringify(next, null, 2), 'utf8');
+  return cleaned;
+}
+
 function normalizeCustomServer(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const address = String(raw.address || '').trim();
@@ -273,8 +315,11 @@ module.exports = {
   clearSession,
   loadCustomServers,
   saveCustomServers,
+  loadAssetReceipts,
+  saveAssetReceipt,
   baseDir,
   settingsPath,
   sessionPath,
   customServersPath,
+  assetReceiptsPath,
 };

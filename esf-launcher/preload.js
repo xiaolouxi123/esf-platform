@@ -158,6 +158,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     upload: (fields) => call('assets:upload', fields),
     pickCover: () => call('assets:pick-cover'),
     install: (id) => call('assets:install', { id }),
+    receipts: () => call('assets:receipts'),
+    restore: (id) => call('assets:restore', { id }),
   },
 
   admin: {

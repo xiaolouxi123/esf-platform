@@ -1896,10 +1896,12 @@ const ASSET_KIND_EXT = {
   model: ['mdl'],
   sound: ['wav', 'mp3'],
   sprite: ['spr'],
-  other: ['zip', 'tga', 'bmp'],
+  other: ['tga', 'bmp'],
 };
 
-handle('assets:list', async ({ kind, q } = {}) => api.assets(getSettings(), { kind, q }));
+handle('assets:list', async ({ kind, q, limit, offset } = {}) =>
+  api.assets(getSettings(), { kind, q, limit, offset })
+);
 
 const COVER_MIME = {
   '.png': 'image/png',
@@ -2009,8 +2011,61 @@ handle('assets:install', async ({ id }) => {
   fs.mkdirSync(path.dirname(absolute), { recursive: true });
   fs.writeFileSync(absolute, buffer);
 
+  // 本地回执：让资源库能回答「我装过什么、是否有新版本、能不能恢复」。
+  try {
+    store.saveAssetReceipt({
+      id: asset.id,
+      slug: asset.slug,
+      name: asset.name,
+      version: asset.version,
+      targetPath: relative,
+      bytes: buffer.length,
+      backedUp,
+      installedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    log(`⚠️ 资源安装回执写入失败: ${err.message}`);
+  }
+
   log(`📥 资源已安装: ${relative}（${buffer.length} bytes${backedUp ? '，已备份原文件' : ''}）`);
   return { targetPath: relative, bytes: buffer.length, backedUp };
+});
+
+handle('assets:receipts', async () => {
+  const modDir = getSettings().esfModDir;
+  const receipts = store.loadAssetReceipts().map((receipt) => {
+    let exists = false;
+    let backupAvailable = false;
+    if (modDir) {
+      try {
+        const resolved = core.resolveInstallPath(modDir, receipt.targetPath);
+        exists = fs.existsSync(resolved.absolute);
+        backupAvailable = fs.existsSync(path.join(modDir, '.esf-backup', resolved.relative));
+      } catch {
+        /* 路径失效时保留回执，但标记为不存在 */
+      }
+    }
+    return { ...receipt, exists, backupAvailable };
+  });
+  return { receipts, modDir };
+});
+
+handle('assets:restore', async ({ id } = {}) => {
+  checkGameDir();
+  const receipt = store.loadAssetReceipts().find((item) => Number(item.id) === Number(id));
+  if (!receipt) throw new Error('没有这个资源的安装记录');
+
+  const modDir = getSettings().esfModDir;
+  const { relative, absolute } = core.resolveInstallPath(modDir, receipt.targetPath);
+  const backup = path.join(modDir, '.esf-backup', relative);
+  if (!fs.existsSync(backup)) {
+    throw new Error('没有找到原文件备份（安装前该文件可能不存在），无法恢复');
+  }
+
+  fs.mkdirSync(path.dirname(absolute), { recursive: true });
+  fs.copyFileSync(backup, absolute);
+  log(`↩️ 资源已恢复原文件: ${relative}`);
+  return { targetPath: relative };
 });
 
 // ---- 管理台 ----

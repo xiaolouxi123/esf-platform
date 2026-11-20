@@ -36,7 +36,7 @@ const KIND_EXT = {
   model: ['.mdl'],
   sound: ['.wav', '.mp3'],
   sprite: ['.spr'],
-  other: ['.zip', '.tga', '.bmp'],
+  other: ['.tga', '.bmp'],
 };
 
 const MIME = {
@@ -311,9 +311,34 @@ router.get('/assets', async (req, res, next) => {
     );
     const total = await one(`SELECT COUNT(*) AS c FROM assets a WHERE ${where.join(' AND ')}`, params);
 
+    // 全库统计：HUD 用稳定的全量数字，不随筛选/分页变化。
+    const statRows = await q(
+      "SELECT a.kind, COUNT(*) AS c, COALESCE(SUM(a.downloads), 0) AS downloads FROM assets a WHERE a.status = 'approved' GROUP BY a.kind"
+    );
+    const authorTotal = await one(
+      "SELECT COUNT(DISTINCT author_id) AS c FROM assets WHERE status = 'approved' AND author_id IS NOT NULL"
+    );
+    const counts = { map: 0, model: 0, sound: 0, sprite: 0, other: 0 };
+    let totalDownloads = 0;
+    for (const row of statRows) {
+      const key = counts[row.kind] === undefined ? 'other' : row.kind;
+      counts[key] += Number(row.c);
+      totalDownloads += Number(row.downloads);
+    }
+
     res.json({
       ok: true,
-      data: { assets: rows.map(publicAsset), total: Number(total.c), limit, offset },
+      data: {
+        assets: rows.map(publicAsset),
+        total: Number(total.c),
+        limit,
+        offset,
+        stats: {
+          counts,
+          totalDownloads,
+          authorCount: Number(authorTotal.c),
+        },
+      },
     });
   } catch (err) {
     next(err);
