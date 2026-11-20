@@ -104,6 +104,7 @@ $files = @(
   'esf-launcher/preload.js',
   'esf-launcher/store.cjs',
   'esf-launcher/launcher-core.cjs',
+  'esf-launcher/archive.cjs',
   'esf-launcher/build',
   'esf-launcher/scripts',
   'esf-launcher/tests',

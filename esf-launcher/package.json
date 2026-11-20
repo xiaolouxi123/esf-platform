@@ -52,6 +52,7 @@
       "api.cjs",
       "store.cjs",
       "launcher-core.cjs",
+      "archive.cjs",
       "dist/**/*",
       "build/icon.ico",
       "package.json",
@@ -108,5 +109,5 @@
       "shortcutName": "ESF 平台"
     }
   },
-  "version": "0.6.59"
+  "version": "0.6.60"
 }

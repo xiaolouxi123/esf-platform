@@ -2,6 +2,12 @@
 
 所有重要变更记录在这里。格式参考 Keep a Changelog。
 
+## [0.6.60] - 2026-11-21
+
+### Fixed
+- 0.6.59 安装包漏打包 `archive.cjs`，启动器启动即崩溃；已把 `archive.cjs` 加入 electron-builder 打包清单并重新发版。
+- 发布脚本的文件清单补上 `archive.cjs`，避免后续版本再次漏包。
+
 ## [0.6.59] - 2026-11-21
 
 ### Added
