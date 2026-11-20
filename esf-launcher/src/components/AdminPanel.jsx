@@ -63,7 +63,7 @@ export default function AdminPanel({
   onLogout,
 }) {
   const staff = isStaff(user?.role);
-  const canAssign = isAdminRole(user?.role);
+  const canAssign = isAdminRole(user?.role);
   const canSeeAudit = isAdminRole(user?.role);
   const owner = isOwner(user?.role);
   const titleById = new Map(titles.map((item) => [Number(item.id), item]));
@@ -72,6 +72,10 @@ export default function AdminPanel({
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
   const [pendingAssets, setPendingAssets] = useState([]);
+  const [pendingVersions, setPendingVersions] = useState([]);
+  const [assetReports, setAssetReports] = useState([]);
+  const [adminCollections, setAdminCollections] = useState([]);
+  const [assetTab, setAssetTab] = useState('assets');
   const [keyword, setKeyword] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -113,7 +117,7 @@ export default function AdminPanel({
     if (!staff) return;
     setLoading(true);
     try {
-      const [summary, list, pending] = await Promise.all([
+      const [summary, list, pending, versions, reports, collections] = await Promise.all([
         window.electronAPI.admin.overview(),
         window.electronAPI.admin.users({
           q: keyword.trim() || undefined,
@@ -121,11 +125,17 @@ export default function AdminPanel({
           limit: 30,
         }),
         window.electronAPI.admin.assets('pending'),
+        window.electronAPI.admin.assetVersions('pending').catch(() => ({ versions: [] })),
+        window.electronAPI.admin.assetReports('open').catch(() => ({ reports: [] })),
+        window.electronAPI.admin.collections().catch(() => ({ collections: [] })),
       ]);
       setOverview(summary);
       setUsers(list.users || []);
       setTotal(list.total || 0);
       setPendingAssets(pending.assets || []);
+      setPendingVersions(versions.versions || []);
+      setAssetReports(reports.reports || []);
+      setAdminCollections(collections.collections || []);
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -408,6 +418,67 @@ export default function AdminPanel({
 
   const review = (asset, status) =>
     act(asset.id, () => window.electronAPI.admin.setAssetStatus(asset.id, status), status === 'approved' ? '已通过' : '已驳回');
+
+  const reviewVersion = (version, status) =>
+    act(
+      'v' + version.assetId + version.version,
+      () => window.electronAPI.assets.setVersionStatus(version.assetId, version.version, status),
+      status === 'approved' ? '新版本已上架' : '新版本已驳回'
+    );
+
+  const resolveReport = (report, status) =>
+    act(report.id, () => window.electronAPI.admin.resolveReport(report.id, status), '举报已处理');
+
+  const createCollection = async () => {
+    const title = window.prompt('合集名称，例如：经典地图精选');
+    if (!title) return;
+    const slug = window.prompt('合集标识（英文小写，用于链接）', title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+    if (!slug) return;
+    try {
+      await window.electronAPI.admin.createCollection({ title, slug, description: '' });
+      toast('合集已创建', 'ok');
+      await refresh();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+
+  const addCollectionItem = async (collection) => {
+    const raw = window.prompt('输入要加入合集的作品 ID');
+    const assetId = Number(raw);
+    if (!assetId) return;
+    try {
+      await window.electronAPI.admin.addCollectionItem(collection.id, assetId, 0);
+      toast('已加入合集', 'ok');
+      await refresh();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+
+  const removeCollection = async (collection) => {
+    if (!window.confirm('删除合集「' + collection.title + '」？作品本身不会被删除。')) return;
+    try {
+      await window.electronAPI.admin.deleteCollection(collection.id);
+      toast('合集已删除', 'ok');
+      await refresh();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+
+  const featureAsset = async () => {
+    const raw = window.prompt('输入要推荐 / 取消推荐的作品 ID');
+    const assetId = Number(raw);
+    if (!assetId) return;
+    try {
+      await window.electronAPI.assets.setFeatured(assetId, true);
+      toast('已加入精选', 'ok');
+      await refresh();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
 
   const copyDiagnostics = async () => {
     const text = [
@@ -978,47 +1049,172 @@ export default function AdminPanel({
       <section className="admin-section" data-key="assets" data-open={openSection === 'assets'}>
         <div className="admin-section-head">
           <h3>
-            <Icon name="spark" size={15} /> 资源审核
-            <span className="pill">{pendingAssets.length}</span>
+            <Icon name="spark" size={15} /> 资源管理
+            <span className="pill">{pendingAssets.length + pendingVersions.length + assetReports.length}</span>
           </h3>
         </div>
 
-        {pendingAssets.length === 0 ? (
-          <p className="admin-muted">没有待审资源。作者上传后会出现在这里。</p>
-        ) : (
-          <div className="review-list">
-            {pendingAssets.map((asset) => (
-              <article key={asset.id} className="review-item">
-                <div>
-                  <b>{asset.name}</b>
-                  <span className="tag">{asset.kind}</span>
-                  <span className="tag">v{asset.version}</span>
-                  <small>
-                    {asset.authorName || '未知作者'} · {formatBytes(asset.fileSize)} · {asset.targetPath}
-                  </small>
-                </div>
-                <div className="admin-actions">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    disabled={busyId === asset.id}
-                    onClick={() => review(asset, 'approved')}
-                  >
-                    <Icon name="check" size={13} /> 通过
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-danger-ghost"
-                    disabled={busyId === asset.id}
-                    onClick={() => review(asset, 'rejected')}
-                  >
-                    <Icon name="close" size={13} /> 驳回
-                  </button>
-                </div>
-              </article>
-            ))}
+        <div className="admin-asset-tabs" role="tablist" aria-label="资源管理分区">
+          {[
+            { value: 'assets', label: '待审资源', count: pendingAssets.length },
+            { value: 'versions', label: '待审版本', count: pendingVersions.length },
+            { value: 'reports', label: '举报', count: assetReports.length },
+            { value: 'collections', label: '合集与推荐', count: adminCollections.length },
+          ].map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              role="tab"
+              aria-selected={assetTab === item.value}
+              className={'admin-asset-tab' + (assetTab === item.value ? ' is-active' : '')}
+              onClick={() => setAssetTab(item.value)}
+            >
+              {item.label}
+              <em>{item.count}</em>
+            </button>
+          ))}
+        </div>
+
+        {assetTab === 'assets' ? (
+          pendingAssets.length === 0 ? (
+            <p className="admin-muted">没有待审资源。作者上传后会出现在这里。</p>
+          ) : (
+            <div className="review-list">
+              {pendingAssets.map((asset) => (
+                <article key={asset.id} className="review-item">
+                  <div>
+                    <b>{asset.name}</b>
+                    <span className="tag">{asset.kind}</span>
+                    <span className="tag">v{asset.version}</span>
+                    <span className="tag">{asset.fileCount || 1} 文件</span>
+                    <small>
+                      {asset.authorName || '未知作者'} · {formatBytes(asset.fileSize)} · {asset.targetPath}
+                    </small>
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      disabled={busyId === asset.id}
+                      onClick={() => review(asset, 'approved')}
+                    >
+                      <Icon name="check" size={13} /> 通过
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-danger-ghost"
+                      disabled={busyId === asset.id}
+                      onClick={() => review(asset, 'rejected')}
+                    >
+                      <Icon name="close" size={13} /> 驳回
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )
+        ) : null}
+
+        {assetTab === 'versions' ? (
+          pendingVersions.length === 0 ? (
+            <p className="admin-muted">没有待审版本。</p>
+          ) : (
+            <div className="review-list">
+              {pendingVersions.map((version) => (
+                <article key={version.id} className="review-item">
+                  <div>
+                    <b>{version.assetName}</b>
+                    <span className="tag">{version.kind}</span>
+                    <span className="tag">v{version.version}</span>
+                    <small>
+                      {version.authorName || '作者'} · {version.fileCount} 文件 · {formatBytes(version.totalSize)}
+                      {version.changelog ? ' · ' + version.changelog : ''}
+                    </small>
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      disabled={busyId === 'v' + version.assetId + version.version}
+                      onClick={() => reviewVersion(version, 'approved')}
+                    >
+                      通过并切换
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-danger-ghost"
+                      disabled={busyId === 'v' + version.assetId + version.version}
+                      onClick={() => reviewVersion(version, 'rejected')}
+                    >
+                      驳回
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )
+        ) : null}
+
+        {assetTab === 'reports' ? (
+          assetReports.length === 0 ? (
+            <p className="admin-muted">没有待处理举报。</p>
+          ) : (
+            <div className="review-list">
+              {assetReports.map((report) => (
+                <article key={report.id} className="review-item">
+                  <div>
+                    <b>{report.assetName || '资源 #' + report.assetId}</b>
+                    <small>{report.userName || '玩家'} · {formatRelative(report.createdAt)}</small>
+                    <p>{report.reason}</p>
+                  </div>
+                  <div className="admin-actions">
+                    <button type="button" className="btn btn-sm btn-primary" onClick={() => resolveReport(report, 'resolved')}>
+                      已处理
+                    </button>
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => resolveReport(report, 'dismissed')}>
+                      忽略
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )
+        ) : null}
+
+        {assetTab === 'collections' ? (
+          <div className="admin-collection-list">
+            <div className="admin-actions">
+              <button type="button" className="btn btn-sm btn-primary" onClick={createCollection}>
+                <Icon name="plus" size={13} /> 新建合集
+              </button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={featureAsset}>
+                设为精选
+              </button>
+            </div>
+            {adminCollections.length === 0 ? (
+              <p className="admin-muted">还没有合集。建一个「经典地图精选」试试。</p>
+            ) : (
+              adminCollections.map((collection) => (
+                <article key={collection.id} className="review-item">
+                  <div>
+                    <b>{collection.title}</b>
+                    <span className="tag">{collection.slug}</span>
+                    <span className="tag">{collection.count} 个作品</span>
+                    <small>{collection.description || '没有说明'}</small>
+                  </div>
+                  <div className="admin-actions">
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => addCollectionItem(collection)}>
+                      加作品
+                    </button>
+                    <button type="button" className="btn btn-sm btn-danger-ghost" onClick={() => removeCollection(collection)}>
+                      删除
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
-        )}
+        ) : null}
       </section>
 
       {canSeeAudit && (

@@ -10,7 +10,7 @@
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test tests/challenge-flow.test.cjs tests/core.test.cjs tests/main.test.cjs",
+    "test": "node --test tests/archive.test.cjs tests/challenge-flow.test.cjs tests/core.test.cjs tests/main.test.cjs",
     "preview": "vite preview",
     "dist": "npm run build && electron-builder --win nsis",
     "dist:dir": "npm run build && electron-builder --win --dir",
@@ -108,5 +108,5 @@
       "shortcutName": "ESF 平台"
     }
   },
-  "version": "0.6.58"
+  "version": "0.6.59"
 }

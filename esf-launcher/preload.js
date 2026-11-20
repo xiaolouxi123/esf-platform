@@ -155,11 +155,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   assets: {
     list: (params) => call('assets:list', params),
+    detail: (id) => call('assets:detail', { id }),
     upload: (fields) => call('assets:upload', fields),
     pickCover: () => call('assets:pick-cover'),
     install: (id) => call('assets:install', { id }),
+    uninstall: (id) => call('assets:uninstall', { id }),
     receipts: () => call('assets:receipts'),
     restore: (id) => call('assets:restore', { id }),
+    tags: () => call('assets:tags'),
+    collections: () => call('assets:collections'),
+    collection: (slug) => call('assets:collection', { slug }),
+    mine: () => call('assets:mine'),
+    author: (id) => call('assets:author', { id }),
+    rate: (id, stars) => call('assets:rate', { id, stars }),
+    comments: (id, params) => call('assets:comments', { id, params }),
+    comment: (id, body) => call('assets:comment', { id, body }),
+    deleteComment: (id, commentId) => call('assets:delete-comment', { id, commentId }),
+    report: (id, reason) => call('assets:report', { id, reason }),
+    update: (id, patch) => call('assets:update', { id, patch }),
+    remove: (id) => call('assets:remove', { id }),
+    setFeatured: (id, featured) => call('assets:set-featured', { id, featured }),
+    setVersionStatus: (id, version, status, note) =>
+      call('assets:set-version-status', { id, version, status, note }),
+    onUploadProgress: (callback) => {
+      const listener = (_event, payload) => callback(payload);
+      ipcRenderer.on('assets:upload-progress', listener);
+      return () => ipcRenderer.removeListener('assets:upload-progress', listener);
+    },
   },
 
   admin: {
@@ -176,6 +198,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     inviteDisable: (code) => call('admin:invite-disable', { code }),
     assets: (status) => call('admin:assets', { status }),
     setAssetStatus: (id, status) => call('admin:asset-status', { id, status }),
+    assetVersions: (status) => call('admin:asset-versions', { status }),
+    assetReports: (status) => call('admin:asset-reports', { status }),
+    resolveReport: (id, status) => call('admin:resolve-report', { id, status }),
+    collections: () => call('admin:collections'),
+    createCollection: (body) => call('admin:collection-create', body),
+    updateCollection: (id, patch) => call('admin:collection-update', { id, patch }),
+    deleteCollection: (id) => call('admin:collection-delete', { id }),
+    addCollectionItem: (id, assetId, sort) => call('admin:collection-add', { id, assetId, sort }),
+    removeCollectionItem: (id, assetId) => call('admin:collection-remove', { id, assetId }),
     audit: (params) => call('admin:audit', params),
     transferOwner: (userId) => call('admin:transfer-owner', { userId }),
     platform: () => call('admin:platform'),

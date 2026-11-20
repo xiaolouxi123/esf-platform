@@ -74,7 +74,15 @@ async function main() {
       .sort();
 
     for (const file of files) {
-      const sql = fs.readFileSync(path.join(SQL_DIR, file), 'utf8');
+      let sql = fs.readFileSync(path.join(SQL_DIR, file), 'utf8');
+      // DELIMITER 是 mysql 客户端的指令，驱动不接受；存储过程本身可以用分号。
+      if (/^\s*DELIMITER\b/im.test(sql)) {
+        sql = sql
+          .split(/\r?\n/)
+          .filter((line) => !/^\s*DELIMITER\b/i.test(line))
+          .map((line) => line.replace(/\$\$\s*$/, ''))
+          .join('\n');
+      }
       await conn.query(sql);
       log(`已执行 ${file}`);
     }
@@ -124,6 +132,37 @@ async function main() {
     ];
     for (const [column, definition] of coverColumns) {
       await ensureColumn(conn, env.db.name, 'assets', column, definition);
+    }
+
+    // 资源库 v2：整包、标签、兼容版本、评分、审核备注、合集推荐
+    const assetColumns = [
+      ['compat', "ENUM('all','fcx','evm') NOT NULL DEFAULT 'all' COMMENT '适用整合包' AFTER version"],
+      ['tags', "VARCHAR(255) NOT NULL DEFAULT '' COMMENT '逗号分隔标签' AFTER description"],
+      ['featured', 'TINYINT(1) NOT NULL DEFAULT 0 COMMENT "首页推荐" AFTER tags'],
+      ['file_count', 'INT UNSIGNED NOT NULL DEFAULT 1 COMMENT "当前版本文件数" AFTER file_size'],
+      ['rating_sum', 'INT UNSIGNED NOT NULL DEFAULT 0 COMMENT "评分总和" AFTER downloads'],
+      ['rating_count', 'INT UNSIGNED NOT NULL DEFAULT 0 COMMENT "评分人数" AFTER rating_sum'],
+      ['comment_count', 'INT UNSIGNED NOT NULL DEFAULT 0 COMMENT "评论数" AFTER rating_count'],
+      ['review_note', 'VARCHAR(255) NULL COMMENT "审核备注/驳回原因" AFTER status'],
+      ['reviewed_by', 'BIGINT UNSIGNED NULL AFTER review_note'],
+      ['reviewed_at', 'DATETIME NULL AFTER reviewed_by'],
+    ];
+    for (const [column, definition] of assetColumns) {
+      await ensureColumn(conn, env.db.name, 'assets', column, definition);
+    }
+    await conn.query(
+      "UPDATE assets SET file_count = 1 WHERE file_count = 0 AND stored_name IS NOT NULL AND stored_name <> ''"
+    );
+
+    // 版本审核状态（新版本可以由作者提交，管理员通过后才切换当前版本）
+    const versionColumns = [
+      ['status', "ENUM('pending','approved','rejected') NOT NULL DEFAULT 'approved' AFTER file_count"],
+      ['review_note', 'VARCHAR(255) NULL AFTER status'],
+      ['reviewed_by', 'BIGINT UNSIGNED NULL AFTER review_note'],
+      ['reviewed_at', 'DATETIME NULL AFTER reviewed_by'],
+    ];
+    for (const [column, definition] of versionColumns) {
+      await ensureColumn(conn, env.db.name, 'asset_versions', column, definition);
     }
 
     // 服务器模式（用于大厅分类）
@@ -254,21 +293,21 @@ async function main() {
     await ensureColumn(conn, env.db.name, 'challenge_rooms', 'round_no', 'INT UNSIGNED NOT NULL DEFAULT 1');
     await ensureColumn(conn, env.db.name, 'challenge_rooms', 'best_of', 'TINYINT UNSIGNED NOT NULL DEFAULT 3');
 
-    // 0.6.56 比赛服池：天梯与约战只从 is_match=1 的服务器里挑
-    await ensureColumn(conn, env.db.name, 'servers', 'is_match', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER mode');
-    await ensureColumn(
+    // 0.6.56 比赛服池：只在列首次创建时写入种子，之后由管理台决定，避免迁移覆盖配置
+    const addedIsMatch = await ensureColumn(conn, env.db.name, 'servers', 'is_match', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER mode');
+    const addedIsChallenge = await ensureColumn(
       conn,
       env.db.name,
       'servers',
       'is_challenge',
       'TINYINT(1) NOT NULL DEFAULT 0 AFTER is_match'
     );
-    await conn.query(
-      "UPDATE servers SET is_match = IF(server_key = 'fcx-1v1-1', 1, 0)"
-    );
-    await conn.query(
-      "UPDATE servers SET is_challenge = IF(server_key IN ('fcx-1v1-3', 'fcx-1v1-4'), 1, 0)"
-    );
+    if (addedIsMatch) {
+      await conn.query("UPDATE servers SET is_match = IF(server_key = 'fcx-1v1-1', 1, 0)");
+    }
+    if (addedIsChallenge) {
+      await conn.query("UPDATE servers SET is_challenge = IF(server_key IN ('fcx-1v1-3', 'fcx-1v1-4'), 1, 0)");
+    }
 
     // 0.5.23 约战限时：默认 15 分钟一局
     await ensureColumn(
@@ -436,7 +475,7 @@ async function main() {
          KEY idx_arena_ticket_user (user_id, state)
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
     );
-    await ensureColumn(conn, dbName, 'arena_tickets', 'ready', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER state');
+    await ensureColumn(conn, env.db.name, 'arena_tickets', 'ready', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER state');
     await conn.query(
       `CREATE TABLE IF NOT EXISTS ranked_flags (
          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -274,10 +274,10 @@ test('fail-open paths record verify_timeout=1 (AC-R6-4)', () => {
   );
 });
 
-test('both plugins report build 0.54', () => {
-  // 0.54 = 含本地 listen server 开房放行；auth VERSION 1.2.0 / lock VERSION 1.3.0
-  assert.match(source, /#define BUILD "0\.54"/, 'auth 构建号必须是 0.54');
-  assert.match(lockSource, /#define BUILD "0\.54"/, 'lock 构建号必须是 0.54');
+test('both plugins report build 0.65', () => {
+  // 0.65 = 约战自动排队/擂台闭环；auth VERSION 1.2.0 / lock VERSION 1.3.0
+  assert.match(source, /#define BUILD "0\.65"/, 'auth 构建号必须是 0.65');
+  assert.match(lockSource, /#define BUILD "0\.65"/, 'lock 构建号必须是 0.65');
   assert.match(source, /#define VERSION "1\.2\.0"/, 'auth 版本必须是 1.2.0');
   assert.match(lockSource, /#define VERSION "1\.3\.0"/, 'lock 版本必须是 1.3.0');
 });

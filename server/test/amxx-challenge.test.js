@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -109,7 +109,7 @@ test('challenge completion forces a return to the platform', () => {
   assert.match(source, /new bool:wasChallenge = g_challengeActive/);
   assert.match(
     source,
-    /if\(\(wasBattle \|\| wasChallenge\) && \(get_pcvar_num\(g_pcQuitEnable\) \|\| wasChallenge\)\)/,
+    /if\(!wasArena && \(wasBattle \|\| wasChallenge\) && \(get_pcvar_num\(g_pcQuitEnable\) \|\| wasChallenge\)\)/,
     '约战结束不能因为 battle_quit_enable=0 就卡在游戏里',
   );
 });
@@ -128,8 +128,8 @@ test('forfeit settlement keeps disconnected participants and scores (AC-R8-6/7)'
     '断线玩家的击杀/死亡不能因为掉线而被丢弃',
   );
 
-  const settleFn = source.match(/beginChallengeSettlement\(const winner\[\], scoreA, scoreB\) \{([\s\S]*?)\n\}/);
-  assert.ok(settleFn, '未找到 beginChallengeSettlement');
+  const settleFn = source.match(/beginChallengeFinal\(const winner\[\], winsA, winsB\) \{([\s\S]*?)\n\}/);
+  assert.ok(settleFn, '未找到 beginChallengeFinal');
   assert.match(
     settleFn[1],
     /g_challengeTeam\[i\] == 0 \|\| g_challengeUserId\[i\] == 0/,

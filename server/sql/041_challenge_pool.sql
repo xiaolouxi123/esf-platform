@@ -1,5 +1,3 @@
 -- 041: 约战专用服务器池。天梯池只保留 114 单挑1；约战池改为 217 的两台 2.1。
-ALTER TABLE servers
-  ADD COLUMN is_challenge TINYINT(1) NOT NULL DEFAULT 0 AFTER is_match;
-
-UPDATE servers SET is_challenge = IF(server_key IN ('fcx-1v1-3', 'fcx-1v1-4'), 1, 0);
+-- is_challenge 列由 scripts/migrate.js 的 ensureColumn 补（本文件会被反复执行）
+-- 首次建列时的种子值由 scripts/migrate.js 写入；这里不再覆盖管理台配置。

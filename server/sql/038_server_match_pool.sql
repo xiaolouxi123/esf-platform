@@ -1,6 +1,3 @@
 -- 038: 标记比赛服（天梯 / 约战池），与公开服区分
-ALTER TABLE servers
-  ADD COLUMN is_match TINYINT(1) NOT NULL DEFAULT 0 AFTER mode;
-
--- 只有 114 的 [ESF-FCX]单挑房[1] 进天梯/约战池，其余全部按公开服处理。
-UPDATE servers SET is_match = IF(server_key = 'fcx-1v1-1', 1, 0);
+-- is_match 列由 scripts/migrate.js 的 ensureColumn 补（本文件会被反复执行）
+-- 首次建列时的种子值由 scripts/migrate.js 写入；这里不再覆盖管理台配置。

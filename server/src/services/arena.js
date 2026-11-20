@@ -52,11 +52,12 @@ async function maybeCreateArenaMatch(serverKey) {
     }
 
     const [tickets] = await conn.query(
-      `SELECT id, user_id FROM arena_tickets
-        WHERE server_key = ? AND purpose = 'join'
-          AND (state IN ('waiting','in_server') OR (state = 'queued' AND ready = 1))
-          AND created_at > (NOW() - INTERVAL 5 MINUTE)
-        ORDER BY (state = 'queued') ASC, id ASC LIMIT 2 FOR UPDATE`,
+      `SELECT t.id, t.user_id FROM arena_tickets t
+        JOIN users u ON u.id = t.user_id
+        WHERE t.server_key = ? AND t.purpose = 'join'
+          AND (t.state IN ('waiting','in_server') OR (t.state = 'queued' AND t.ready = 1))
+          AND t.created_at > (NOW() - INTERVAL 5 MINUTE)
+        ORDER BY (t.state = 'queued') ASC, t.id ASC LIMIT 2 FOR UPDATE`,
       [serverKey]
     );
     if (tickets.length < 2) {

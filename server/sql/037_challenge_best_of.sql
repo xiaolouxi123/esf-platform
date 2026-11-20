@@ -1,9 +1,7 @@
 -- 037: 约战支持 BO1 / BO3
 -- best_of = 1 一局定胜负；best_of = 3 三局两胜（先到 2 胜）
 
-ALTER TABLE challenge_rooms
-  ADD COLUMN best_of TINYINT UNSIGNED NOT NULL DEFAULT 3 AFTER max_players;
-
+-- best_of 列由 scripts/migrate.js 的 ensureColumn 补（本文件会被反复执行）
 DROP PROCEDURE IF EXISTS report_challenge_round;
 
 CREATE PROCEDURE report_challenge_round(

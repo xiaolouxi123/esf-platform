@@ -49,8 +49,8 @@ before(async () => {
   }
 
   const srv = await q(
-    `INSERT INTO servers (server_key, name, ip, port, enabled, mode)
-     VALUES (?, '测试排位服', '127.0.0.1', 27098, 1, '单挑')`,
+    `INSERT INTO servers (server_key, name, ip, port, enabled, mode, is_match)
+     VALUES (?, '测试排位服', '127.0.0.1', 27098, 1, '单挑', 1)`,
     [serverKey]
   );
   await q(
@@ -99,7 +99,9 @@ test('四人快速匹配生成 2v2 对局并锁定服务器', async () => {
     token: tokens[4],
     body: { serverKey },
   });
-  assert.equal(denied.status, 400);
+  // 比赛服对非参赛者锁定加入，但允许转成观战 token
+  assert.equal(denied.status, 200);
+  assert.equal(denied.body.data.purpose, 'spectate');
 
   const allowed = await api('POST', '/api/launch-token', {
     token: tokens[0],

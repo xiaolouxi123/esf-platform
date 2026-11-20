@@ -1,3 +1,2 @@
 -- 043: arena queue ready flag
-ALTER TABLE arena_tickets
-  ADD COLUMN ready TINYINT(1) NOT NULL DEFAULT 0 AFTER state;
+-- ready 列由 scripts/migrate.js 的 ensureColumn 补（本文件会被反复执行）

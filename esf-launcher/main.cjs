@@ -14,11 +14,13 @@ if (IS_TEST_PROFILE) {
 }
 
 const fs = require('fs');
+const fsp = require('fs/promises');
 const zlib = require('zlib');
 const crypto = require('crypto');
 const { spawn, spawnSync } = require('child_process');
 
 const core = require('./launcher-core.cjs');
+const archive = require('./archive.cjs');
 const store = require('./store.cjs');
 const api = require('./api.cjs');
 const { autoUpdater } = require('electron-updater');
@@ -1899,8 +1901,79 @@ const ASSET_KIND_EXT = {
   other: ['tga', 'bmp'],
 };
 
-handle('assets:list', async ({ kind, q, limit, offset } = {}) =>
-  api.assets(getSettings(), { kind, q, limit, offset })
+const ASSET_PACKAGE_MAX_FILES = 200;
+const ASSET_PACKAGE_MAX_BYTES = 256 * 1024 * 1024;
+const ASSET_FILE_MAX_BYTES = 64 * 1024 * 1024;
+
+function assetKindOf(name) {
+  const ext = path.extname(String(name || '')).toLowerCase();
+  for (const [kind, list] of Object.entries(ASSET_KIND_EXT)) {
+    if (list.includes(ext.replace('.', ''))) return kind;
+  }
+  return 'other';
+}
+
+function sendAssetProgress(payload) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send('assets:upload-progress', payload);
+}
+
+async function collectPackageFiles(mode, kind) {
+  const picked = await dialog.showOpenDialog({
+    title: mode === 'folder' ? '选择资源文件夹（模型 / 地图 / 音效整包）' : '选择资源压缩包（.zip）',
+    properties: mode === 'folder' ? ['openDirectory'] : ['openFile'],
+    filters: mode === 'folder' ? undefined : [{ name: 'ZIP 压缩包', extensions: ['zip'] }],
+  });
+  if (picked.canceled || picked.filePaths.length === 0) {
+    throw new api.ApiError('已取消选择', 'CANCELED');
+  }
+
+  const source = picked.filePaths[0];
+  let root = source;
+  let tempDir = '';
+  if (mode === 'zip') {
+    tempDir = path.join(app.getPath('temp'), 'esf-asset-' + Date.now().toString(36));
+    await archive.extractZip(source, tempDir, {
+      limits: {
+        maxFiles: ASSET_PACKAGE_MAX_FILES,
+        maxFileBytes: ASSET_FILE_MAX_BYTES,
+        maxTotalBytes: ASSET_PACKAGE_MAX_BYTES,
+      },
+    });
+    root = tempDir;
+  }
+
+  try {
+    const entries = await archive.collectDirectory(root);
+    if (!entries.length) throw new Error('这个文件夹里没有可上传的文件');
+    if (entries.length > ASSET_PACKAGE_MAX_FILES) {
+      throw new Error('一次最多 ' + ASSET_PACKAGE_MAX_FILES + ' 个文件');
+    }
+    let total = 0;
+    for (const entry of entries) {
+      if (entry.size > ASSET_FILE_MAX_BYTES) throw new Error('单个文件不能超过 64MB: ' + entry.path);
+      total += entry.size;
+    }
+    if (total > ASSET_PACKAGE_MAX_BYTES) throw new Error('整包不能超过 256MB');
+
+    const files = [];
+    for (const entry of entries) {
+      files.push({
+        path: entry.path,
+        size: entry.size,
+        name: path.basename(entry.path),
+        buffer: await fsp.readFile(entry.absolute),
+      });
+    }
+    return { files, total, source, tempDir };
+  } catch (err) {
+    if (tempDir) await fsp.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    throw err;
+  }
+}
+
+handle('assets:list', async ({ kind, q, tag, compat, sort, author, collection, featured, limit, offset } = {}) =>
+  api.assets(getSettings(), { kind, q, tag, compat, sort, author, collection, featured, limit, offset })
 );
 
 const COVER_MIME = {
@@ -1913,7 +1986,6 @@ const COVER_MIME = {
 
 handle('assets:pick-cover', async () => {
   requireToken();
-
   const picked = await dialog.showOpenDialog({
     title: '选择资源封面（支持 GIF / 动态 WebP）',
     properties: ['openFile'],
@@ -1922,14 +1994,11 @@ handle('assets:pick-cover', async () => {
   if (picked.canceled || picked.filePaths.length === 0) {
     throw new api.ApiError('已取消选择', 'CANCELED');
   }
-
   const filePath = picked.filePaths[0];
   const stat = fs.statSync(filePath);
   if (stat.size > 8 * 1024 * 1024) throw new Error('封面不能超过 8MB');
-
   const mime = COVER_MIME[path.extname(filePath).toLowerCase()];
   if (!mime) throw new Error('封面只支持 png / jpg / webp / gif');
-
   return {
     name: path.basename(filePath),
     mime,
@@ -1938,134 +2007,299 @@ handle('assets:pick-cover', async () => {
   };
 });
 
-handle('assets:upload', async ({ kind, name, version, targetPath, description, coverBase64, coverName, coverMime } = {}) => {
+handle('assets:upload', async (payload = {}) => {
   requireToken();
+  const mode = payload.mode === 'folder' || payload.mode === 'zip' ? payload.mode : 'single';
+  const kind = payload.kind || 'other';
+  if (!ASSET_KIND_EXT[kind]) throw new Error('资源类型不合法');
 
-  const extensions = ASSET_KIND_EXT[kind];
-  if (!extensions) throw new Error('资源类型不合法');
-
-  const picked = await dialog.showOpenDialog({
-    title: kind === 'map' ? '选择要上传的地图（.bsp）' : '选择要上传的资源文件',
-    properties: ['openFile'],
-    filters: [{ name: kind === 'map' ? '地图 .bsp' : kind, extensions }],
-  });
-  if (picked.canceled || picked.filePaths.length === 0) {
-    throw new api.ApiError('已取消选择', 'CANCELED');
+  let files = [];
+  let tempDir = '';
+  if (mode === 'single') {
+    const picked = await dialog.showOpenDialog({
+      title: kind === 'map' ? '选择要上传的地图（.bsp）' : '选择要上传的资源文件',
+      properties: ['openFile'],
+      filters: [{ name: kind, extensions: ASSET_KIND_EXT[kind] }],
+    });
+    if (picked.canceled || picked.filePaths.length === 0) {
+      throw new api.ApiError('已取消选择', 'CANCELED');
+    }
+    const filePath = picked.filePaths[0];
+    const stat = fs.statSync(filePath);
+    if (stat.size > ASSET_FILE_MAX_BYTES) throw new Error('文件超过 64MB 上限');
+    let relative = String(payload.targetPath || path.basename(filePath)).replace(/\\/g, '/');
+    if (kind === 'map' && !relative.includes('/')) relative = 'maps/' + relative;
+    files = [{
+      path: relative,
+      size: stat.size,
+      name: path.basename(filePath),
+      buffer: fs.readFileSync(filePath),
+    }];
+  } else {
+    const collected = await collectPackageFiles(mode, kind);
+    files = collected.files;
+    tempDir = collected.tempDir;
   }
 
-  const filePath = picked.filePaths[0];
-  const stat = fs.statSync(filePath);
-  if (stat.size > 64 * 1024 * 1024) throw new Error('文件超过 64MB 上限');
-
-  const buffer = fs.readFileSync(filePath);
-  const cover = coverBase64
+  const cover = payload.coverBase64
     ? {
-        buffer: Buffer.from(coverBase64, 'base64'),
-        fileName: coverName || 'cover.png',
-        mime: coverMime || 'image/png',
+        buffer: Buffer.from(payload.coverBase64, 'base64'),
+        fileName: payload.coverName || 'cover.png',
+        mime: payload.coverMime || 'image/png',
       }
     : null;
 
-  const asset = await apiCall(
-    api.uploadAsset,
-    getSettings(),
-    requireToken(),
-    { kind, name, version, targetPath, description },
-    buffer,
-    path.basename(filePath),
-    cover
-  );
-
-  log(`📦 资源已提交: ${asset.name} ${asset.version} (${asset.status})`);
-  return asset;
+  try {
+    sendAssetProgress({ phase: 'prepare', current: 0, total: files.length });
+    const data = await apiCall(
+      api.uploadAssetPackage,
+      getSettings(),
+      requireToken(),
+      { ...payload, kind, mode },
+      files,
+      cover,
+      (progress) => sendAssetProgress(progress)
+    );
+    const asset = data.asset;
+    log('📦 资源已提交: ' + asset.name + ' ' + asset.version + ' (' + asset.status + ', ' + files.length + ' 个文件)');
+    return data;
+  } finally {
+    if (tempDir) await fsp.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
 });
 
-/** 下载 → 校验 sha256 → 备份旧文件 → 写进模组目录 */
-handle('assets:install', async ({ id }) => {
+function backupFile(modDir, relative, absolute) {
+  const backup = path.join(modDir, '.esf-backup', ...relative.split('/'));
+  const existed = fs.existsSync(absolute);
+  if (existed && !fs.existsSync(backup)) {
+    fs.mkdirSync(path.dirname(backup), { recursive: true });
+    fs.copyFileSync(absolute, backup);
+  }
+  return { existed, backedUp: existed, backup };
+}
+
+/** 下载 → 校验 sha256 → 逐文件备份 → 写进模组目录；失败回滚 */
+handle('assets:install', async ({ id } = {}) => {
   requireToken();
   checkGameDir();
-
   const detail = await apiCall(api.assetDetail, getSettings(), id);
   const asset = detail.asset;
-  const buffer = await apiCall(api.downloadAsset, getSettings(), requireToken(), id);
-
-  const digest = crypto.createHash('sha256').update(buffer).digest('hex');
-  if (digest !== asset.sha256) {
-    throw new Error('文件校验失败（sha256 不一致），请重试或联系资源作者');
-  }
-
   const modDir = getSettings().esfModDir;
-  const { relative, absolute } = core.resolveInstallPath(modDir, asset.targetPath);
-
-  let backedUp = false;
-  if (fs.existsSync(absolute)) {
-    // 只备份一次原文件，避免反复安装产生一堆备份
-    const backup = path.join(modDir, '.esf-backup', relative);
-    if (!fs.existsSync(backup)) {
-      fs.mkdirSync(path.dirname(backup), { recursive: true });
-      fs.copyFileSync(absolute, backup);
-    }
-    backedUp = true;
+  let files = Array.isArray(asset.files) ? asset.files : [];
+  if (!files.length) {
+    files = [{ id: 0, path: asset.targetPath, size: asset.fileSize, sha256: asset.sha256 }];
   }
 
-  fs.mkdirSync(path.dirname(absolute), { recursive: true });
-  fs.writeFileSync(absolute, buffer);
-
-  // 本地回执：让资源库能回答「我装过什么、是否有新版本、能不能恢复」。
+  const written = [];
   try {
-    store.saveAssetReceipt({
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      const resolved = core.resolveInstallPath(modDir, file.path);
+      const info = backupFile(modDir, resolved.relative, resolved.absolute);
+      sendAssetProgress({ phase: 'install', current: index, total: files.length, name: resolved.relative });
+
+      let buffer;
+      if (file.id) {
+        buffer = await apiCall(api.downloadAssetFile, getSettings(), requireToken(), id, file.id);
+      } else {
+        buffer = await apiCall(api.downloadAsset, getSettings(), requireToken(), id);
+      }
+      const digest = crypto.createHash('sha256').update(buffer).digest('hex');
+      if (file.sha256 && digest !== file.sha256) {
+        throw new Error('文件校验失败（' + resolved.relative + '），请重试或联系作者');
+      }
+
+      const temp = resolved.absolute + '.esf-tmp';
+      fs.mkdirSync(path.dirname(resolved.absolute), { recursive: true });
+      fs.writeFileSync(temp, buffer);
+      fs.renameSync(temp, resolved.absolute);
+      written.push({
+        path: resolved.relative,
+        size: buffer.length,
+        sha256: digest,
+        existed: info.existed,
+        backedUp: info.backedUp,
+      });
+    }
+
+    await apiCall(api.trackAssetDownload, getSettings(), requireToken(), id).catch(() => {});
+    const receipt = store.saveAssetReceipt({
       id: asset.id,
       slug: asset.slug,
       name: asset.name,
       version: asset.version,
-      targetPath: relative,
-      bytes: buffer.length,
-      backedUp,
+      files: written,
       installedAt: new Date().toISOString(),
     });
+    sendAssetProgress({ phase: 'done', current: files.length, total: files.length });
+    log('📥 资源已安装: ' + asset.name + ' ' + asset.version + '（' + written.length + ' 个文件）');
+    return { files: written, bytes: receipt ? receipt.bytes : 0, backedUp: written.some((file) => file.backedUp) };
   } catch (err) {
-    log(`⚠️ 资源安装回执写入失败: ${err.message}`);
+    for (const file of written.reverse()) {
+      const resolved = core.resolveInstallPath(modDir, file.path);
+      const backup = path.join(modDir, '.esf-backup', ...resolved.relative.split('/'));
+      if (file.existed && fs.existsSync(backup)) {
+        fs.copyFileSync(backup, resolved.absolute);
+      } else if (fs.existsSync(resolved.absolute)) {
+        fs.unlinkSync(resolved.absolute);
+      }
+    }
+    throw err;
   }
-
-  log(`📥 资源已安装: ${relative}（${buffer.length} bytes${backedUp ? '，已备份原文件' : ''}）`);
-  return { targetPath: relative, bytes: buffer.length, backedUp };
 });
 
 handle('assets:receipts', async () => {
   const modDir = getSettings().esfModDir;
+  const claims = new Map();
   const receipts = store.loadAssetReceipts().map((receipt) => {
-    let exists = false;
-    let backupAvailable = false;
-    if (modDir) {
-      try {
-        const resolved = core.resolveInstallPath(modDir, receipt.targetPath);
-        exists = fs.existsSync(resolved.absolute);
-        backupAvailable = fs.existsSync(path.join(modDir, '.esf-backup', resolved.relative));
-      } catch {
-        /* 路径失效时保留回执，但标记为不存在 */
+    const files = (receipt.files || []).map((file) => {
+      let exists = false;
+      let backupAvailable = false;
+      if (modDir) {
+        try {
+          const resolved = core.resolveInstallPath(modDir, file.path);
+          exists = fs.existsSync(resolved.absolute);
+          backupAvailable = fs.existsSync(path.join(modDir, '.esf-backup', ...resolved.relative.split('/')));
+        } catch {
+          /* 路径失效 */
+        }
       }
-    }
-    return { ...receipt, exists, backupAvailable };
+      const key = file.path.toLowerCase();
+      claims.set(key, (claims.get(key) || 0) + 1);
+      return { ...file, exists, backupAvailable };
+    });
+    return { ...receipt, files, exists: files.some((file) => file.exists), backupAvailable: files.some((file) => file.backupAvailable) };
   });
-  return { receipts, modDir };
+  return {
+    receipts,
+    modDir,
+    conflicts: Array.from(claims.entries()).filter(([, count]) => count > 1).map(([filePath]) => filePath),
+  };
 });
 
-handle('assets:restore', async ({ id } = {}) => {
+async function restoreReceiptFiles(receipt, removeReceipt) {
   checkGameDir();
+  const modDir = getSettings().esfModDir;
+  const restored = [];
+  for (const file of receipt.files || []) {
+    const resolved = core.resolveInstallPath(modDir, file.path);
+    const backup = path.join(modDir, '.esf-backup', ...resolved.relative.split('/'));
+    if (file.existed && fs.existsSync(backup)) {
+      fs.mkdirSync(path.dirname(resolved.absolute), { recursive: true });
+      fs.copyFileSync(backup, resolved.absolute);
+      restored.push(resolved.relative);
+    } else if (!file.existed && fs.existsSync(resolved.absolute)) {
+      fs.unlinkSync(resolved.absolute);
+      restored.push(resolved.relative);
+    }
+  }
+  if (removeReceipt) store.removeAssetReceipt(receipt.id);
+  return restored;
+}
+
+handle('assets:restore', async ({ id } = {}) => {
   const receipt = store.loadAssetReceipts().find((item) => Number(item.id) === Number(id));
   if (!receipt) throw new Error('没有这个资源的安装记录');
+  const restored = await restoreReceiptFiles(receipt, false);
+  log('↩️ 资源已恢复原文件: ' + receipt.name + '（' + restored.length + ' 个文件）');
+  return { files: restored };
+});
 
-  const modDir = getSettings().esfModDir;
-  const { relative, absolute } = core.resolveInstallPath(modDir, receipt.targetPath);
-  const backup = path.join(modDir, '.esf-backup', relative);
-  if (!fs.existsSync(backup)) {
-    throw new Error('没有找到原文件备份（安装前该文件可能不存在），无法恢复');
-  }
+handle('assets:uninstall', async ({ id } = {}) => {
+  const receipt = store.loadAssetReceipts().find((item) => Number(item.id) === Number(id));
+  if (!receipt) throw new Error('没有这个资源的安装记录');
+  const removed = await restoreReceiptFiles(receipt, true);
+  log('🗑️ 资源已卸载: ' + receipt.name + '（' + removed.length + ' 个文件）');
+  return { files: removed };
+});
 
-  fs.mkdirSync(path.dirname(absolute), { recursive: true });
-  fs.copyFileSync(backup, absolute);
-  log(`↩️ 资源已恢复原文件: ${relative}`);
-  return { targetPath: relative };
+handle('assets:detail', async ({ id } = {}) =>
+  apiCall(api.assetDetail, getSettings(), id)
+);
+
+handle('assets:tags', async () => apiCall(api.assetTags, getSettings()));
+handle('assets:collections', async () => apiCall(api.assetCollections, getSettings()));
+handle('assets:collection', async ({ slug } = {}) =>
+  apiCall(api.assetCollection, getSettings(), slug)
+);
+handle('assets:mine', async () => apiCall(api.myAssets, getSettings(), requireToken()));
+handle('assets:author', async ({ id } = {}) => apiCall(api.assetAuthor, getSettings(), id));
+
+handle('assets:rate', async ({ id, stars } = {}) => {
+  requireToken();
+  return apiCall(api.rateAsset, getSettings(), requireToken(), id, Number(stars));
+});
+
+handle('assets:comments', async ({ id, params } = {}) =>
+  apiCall(api.assetComments, getSettings(), id, params || {})
+);
+handle('assets:comment', async ({ id, body } = {}) => {
+  requireToken();
+  return apiCall(api.postAssetComment, getSettings(), requireToken(), id, body);
+});
+handle('assets:delete-comment', async ({ id, commentId } = {}) => {
+  requireToken();
+  return apiCall(api.deleteAssetComment, getSettings(), requireToken(), id, commentId);
+});
+handle('assets:report', async ({ id, reason } = {}) => {
+  requireToken();
+  return apiCall(api.reportAsset, getSettings(), requireToken(), id, reason);
+});
+
+handle('assets:update', async ({ id, patch } = {}) => {
+  requireToken();
+  return apiCall(api.updateAsset, getSettings(), requireToken(), id, patch || {});
+});
+handle('assets:remove', async ({ id } = {}) => {
+  requireToken();
+  const data = await apiCall(api.deleteAsset, getSettings(), requireToken(), id);
+  store.removeAssetReceipt(id);
+  return data;
+});
+handle('assets:set-featured', async ({ id, featured } = {}) => {
+  requireStaff();
+  return apiCall(api.setAssetFeatured, getSettings(), requireToken(), id, Boolean(featured));
+});
+handle('assets:set-version-status', async ({ id, version, status, note } = {}) => {
+  requireStaff();
+  return apiCall(api.setAssetVersionStatus, getSettings(), requireToken(), id, version, status, note);
+});
+
+handle('admin:asset-versions', async ({ status } = {}) => {
+  requireStaff();
+  return apiCall(api.adminAssetVersions, getSettings(), requireToken(), status || 'pending');
+});
+handle('admin:asset-reports', async ({ status } = {}) => {
+  requireStaff();
+  return apiCall(api.adminAssetReports, getSettings(), requireToken(), status || 'open');
+});
+handle('admin:resolve-report', async ({ id, status } = {}) => {
+  requireStaff();
+  return apiCall(api.resolveAssetReport, getSettings(), requireToken(), id, status);
+});
+handle('admin:collections', async () => {
+  requireStaff();
+  return apiCall(api.adminCollections, getSettings(), requireToken());
+});
+handle('admin:collection-create', async (body = {}) => {
+  requireStaff();
+  return apiCall(api.adminCreateCollection, getSettings(), requireToken(), body);
+});
+handle('admin:collection-update', async ({ id, patch } = {}) => {
+  requireStaff();
+  return apiCall(api.adminUpdateCollection, getSettings(), requireToken(), id, patch || {});
+});
+handle('admin:collection-delete', async ({ id } = {}) => {
+  requireStaff();
+  return apiCall(api.adminDeleteCollection, getSettings(), requireToken(), id);
+});
+handle('admin:collection-add', async ({ id, assetId, sort } = {}) => {
+  requireStaff();
+  return apiCall(api.adminAddCollectionItem, getSettings(), requireToken(), id, assetId, sort);
+});
+handle('admin:collection-remove', async ({ id, assetId } = {}) => {
+  requireStaff();
+  return apiCall(api.adminRemoveCollectionItem, getSettings(), requireToken(), id, assetId);
 });
 
 // ---- 管理台 ----

@@ -233,6 +233,60 @@ async function uploadAsset(settings, token, fields, fileBuffer, fileName, cover)
   }
 }
 
+/** 整包上传：files 为 [{ path, buffer, name }]，paths 与 files 顺序一致 */
+async function uploadAssetPackage(settings, token, fields, files, cover, onProgress) {
+  const base = normalizeBase(settings && settings.apiBaseUrl);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 300000);
+  const report = typeof onProgress === 'function' ? onProgress : () => {};
+
+  try {
+    report({ phase: 'prepare', current: 0, total: files.length });
+    const form = new FormData();
+    form.append('kind', fields.kind);
+    form.append('name', fields.name);
+    if (fields.version) form.append('version', fields.version);
+    if (fields.slug) form.append('slug', fields.slug);
+    if (fields.description) form.append('description', fields.description);
+    if (fields.tags) form.append('tags', fields.tags);
+    if (fields.compat) form.append('compat', fields.compat);
+    if (fields.changelog) form.append('changelog', fields.changelog);
+    if (fields.assetId) form.append('assetId', String(fields.assetId));
+    form.append('paths', JSON.stringify(files.map((file) => file.path)));
+    for (let i = 0; i < files.length; i += 1) {
+      const file = files[i];
+      form.append('files', new Blob([file.buffer]), file.name || file.path.split('/').pop());
+    }
+    if (cover && cover.buffer) {
+      form.append('cover', new Blob([cover.buffer], { type: cover.mime }), cover.fileName);
+    }
+
+    report({ phase: 'upload', current: 0, total: files.length });
+    const res = await fetch(`${base}/api/assets`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+      body: form,
+      signal: controller.signal,
+    });
+    const payload = await res.json().catch(() => null);
+    if (!res.ok || !payload || payload.ok !== true) {
+      throw new ApiError(
+        (payload && payload.message) || `上传失败（HTTP ${res.status}）`,
+        (payload && payload.code) || `HTTP_${res.status}`,
+        res.status
+      );
+    }
+    report({ phase: 'done', current: files.length, total: files.length });
+    return payload.data;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (err.name === 'AbortError') throw new ApiError('上传超时，请检查网络或文件大小', 'TIMEOUT');
+    throw new ApiError(`上传失败：${err.message}`, 'UPLOAD_FAILED');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** 下载资源为 Buffer，供主进程校验 sha256 后写入模组目录 */
 async function downloadAsset(settings, token, id) {
   const base = normalizeBase(settings && settings.apiBaseUrl);
@@ -265,6 +319,89 @@ async function downloadAsset(settings, token, id) {
     clearTimeout(timer);
   }
 }
+
+/** 下载整包里的单个文件 */
+async function downloadAssetFile(settings, token, id, fileId) {
+  const base = normalizeBase(settings && settings.apiBaseUrl);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 180000);
+  try {
+    const res = await fetch(`${base}/api/assets/${id}/files/${fileId}`, {
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      let message = `下载失败（HTTP ${res.status}）`;
+      try {
+        const payload = await res.json();
+        if (payload && payload.message) message = payload.message;
+      } catch {
+        /* 非 JSON */
+      }
+      throw new ApiError(message, `HTTP_${res.status}`, res.status);
+    }
+    return Buffer.from(await res.arrayBuffer());
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (err.name === 'AbortError') throw new ApiError('下载超时', 'TIMEOUT');
+    throw new ApiError(`下载失败：${err.message}`, 'DOWNLOAD_FAILED');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const trackAssetDownload = (settings, token, id) =>
+  request(settings, { method: 'POST', path: `/api/assets/${id}/downloads`, token });
+const assetTags = (settings) => request(settings, { path: '/api/assets/tags' });
+const assetCollections = (settings) => request(settings, { path: '/api/assets/collections' });
+const assetCollection = (settings, slug) => request(settings, { path: `/api/assets/collections/${encodeURIComponent(slug)}` });
+const myAssets = (settings, token) => request(settings, { path: '/api/assets/mine', token });
+const assetAuthor = (settings, id) => request(settings, { path: `/api/authors/${id}` });
+const rateAsset = (settings, token, id, stars) =>
+  request(settings, { method: 'POST', path: `/api/assets/${id}/rating`, token, body: { stars } });
+const assetComments = (settings, id, params) =>
+  request(settings, { path: `/api/assets/${id}/comments${queryString(params)}` });
+const postAssetComment = (settings, token, id, body) =>
+  request(settings, { method: 'POST', path: `/api/assets/${id}/comments`, token, body: { body } });
+const deleteAssetComment = (settings, token, id, commentId) =>
+  request(settings, { method: 'DELETE', path: `/api/assets/${id}/comments/${commentId}`, token });
+const reportAsset = (settings, token, id, reason) =>
+  request(settings, { method: 'POST', path: `/api/assets/${id}/reports`, token, body: { reason } });
+const updateAsset = (settings, token, id, patch) =>
+  request(settings, { method: 'PATCH', path: `/api/assets/${id}`, token, body: patch });
+const deleteAsset = (settings, token, id) =>
+  request(settings, { method: 'DELETE', path: `/api/assets/${id}`, token });
+const setAssetFeatured = (settings, token, id, featured) =>
+  request(settings, { method: 'PATCH', path: `/api/assets/${id}/featured`, token, body: { featured } });
+const setAssetVersionStatus = (settings, token, id, version, status, note) =>
+  request(settings, {
+    method: 'PATCH',
+    path: `/api/assets/${id}/versions/${encodeURIComponent(version)}/status`,
+    token,
+    body: { status, note },
+  });
+const adminAssetVersions = (settings, token, status) =>
+  request(settings, { path: `/api/admin/asset-versions${queryString({ status })}`, token });
+const adminAssetReports = (settings, token, status) =>
+  request(settings, { path: `/api/admin/asset-reports${queryString({ status })}`, token });
+const resolveAssetReport = (settings, token, id, status) =>
+  request(settings, { method: 'PATCH', path: `/api/admin/asset-reports/${id}`, token, body: { status } });
+const adminCollections = (settings, token) => request(settings, { path: '/api/admin/asset-collections', token });
+const adminCreateCollection = (settings, token, body) =>
+  request(settings, { method: 'POST', path: '/api/admin/asset-collections', token, body });
+const adminUpdateCollection = (settings, token, id, body) =>
+  request(settings, { method: 'PATCH', path: `/api/admin/asset-collections/${id}`, token, body });
+const adminDeleteCollection = (settings, token, id) =>
+  request(settings, { method: 'DELETE', path: `/api/admin/asset-collections/${id}`, token });
+const adminAddCollectionItem = (settings, token, id, assetId, sort) =>
+  request(settings, {
+    method: 'POST',
+    path: `/api/admin/asset-collections/${id}/items`,
+    token,
+    body: { assetId, sort },
+  });
+const adminRemoveCollectionItem = (settings, token, id, assetId) =>
+  request(settings, { method: 'DELETE', path: `/api/admin/asset-collections/${id}/items/${assetId}`, token });
 
 /* ---------------- 管理台 ---------------- */
 
@@ -466,7 +603,33 @@ module.exports = {
   assetDetail,
   setAssetStatus,
   uploadAsset,
+  uploadAssetPackage,
   downloadAsset,
+  downloadAssetFile,
+  trackAssetDownload,
+  assetTags,
+  assetCollections,
+  assetCollection,
+  myAssets,
+  assetAuthor,
+  rateAsset,
+  assetComments,
+  postAssetComment,
+  deleteAssetComment,
+  reportAsset,
+  updateAsset,
+  deleteAsset,
+  setAssetFeatured,
+  setAssetVersionStatus,
+  adminAssetVersions,
+  adminAssetReports,
+  resolveAssetReport,
+  adminCollections,
+  adminCreateCollection,
+  adminUpdateCollection,
+  adminDeleteCollection,
+  adminAddCollectionItem,
+  adminRemoveCollectionItem,
   adminOverview,
   adminOccupancy,
   adminInvites,

@@ -1226,7 +1226,7 @@ export default function Lobby({
               onOpenChallenge={() => setPage('challenges')}
             />
           ) : activePage === 'assets' ? (
-            <AssetLibrary toast={toast} settings={settings} onOpenSettings={() => setSettingsOpen(true)} />
+            <AssetLibrary user={user} toast={toast} settings={settings} onOpenSettings={() => setSettingsOpen(true)} />
           ) : activePage === 'admin' ? (
             <AdminPanel
               user={user}

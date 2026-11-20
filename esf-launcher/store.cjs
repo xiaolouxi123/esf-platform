@@ -231,19 +231,55 @@ function assetReceiptsPath() {
   return path.join(baseDir(), 'asset-receipts.json');
 }
 
+function normalizeReceiptFile(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const filePath = String(raw.path || '').replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!filePath || filePath.includes('..')) return null;
+  return {
+    path: filePath.slice(0, 512),
+    size: Math.max(0, Number(raw.size) || 0),
+    sha256: String(raw.sha256 || '').slice(0, 64),
+    existed: raw.existed === true,
+    backedUp: raw.backedUp === true,
+  };
+}
+
 function normalizeAssetReceipt(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const id = Number(raw.id);
-  const targetPath = String(raw.targetPath || '').replace(/\\/g, '/').replace(/^\/+/, '');
-  if (!Number.isFinite(id) || id <= 0 || !targetPath) return null;
+  if (!Number.isFinite(id) || id <= 0) return null;
+
+  let files = Array.isArray(raw.files) ? raw.files.map(normalizeReceiptFile).filter(Boolean) : [];
+  if (!files.length && raw.targetPath) {
+    const targetPath = String(raw.targetPath).replace(/\\/g, '/').replace(/^\/+/, '');
+    if (targetPath) {
+      files = [{
+        path: targetPath.slice(0, 512),
+        size: Math.max(0, Number(raw.bytes) || 0),
+        sha256: '',
+        existed: raw.backedUp === true,
+        backedUp: raw.backedUp === true,
+      }];
+    }
+  }
+  if (!files.length) return null;
+  const seen = new Set();
+  files = files.filter((file) => {
+    const key = file.path.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 300);
+
   return {
     id,
     slug: String(raw.slug || '').trim().slice(0, 80),
     name: String(raw.name || '').trim().slice(0, 80),
     version: String(raw.version || '').trim().slice(0, 24),
-    targetPath: targetPath.slice(0, 512),
-    bytes: Math.max(0, Number(raw.bytes) || 0),
-    backedUp: raw.backedUp === true,
+    targetPath: files[0].path,
+    files,
+    bytes: files.reduce((sum, file) => sum + file.size, 0),
+    backedUp: files.some((file) => file.backedUp),
     installedAt: String(raw.installedAt || new Date().toISOString()),
   };
 }
@@ -265,6 +301,13 @@ function saveAssetReceipt(receipt) {
   const next = [cleaned, ...list].slice(0, 200);
   fs.writeFileSync(assetReceiptsPath(), JSON.stringify(next, null, 2), 'utf8');
   return cleaned;
+}
+
+function removeAssetReceipt(id) {
+  const list = loadAssetReceipts();
+  const next = list.filter((item) => Number(item.id) !== Number(id));
+  fs.writeFileSync(assetReceiptsPath(), JSON.stringify(next, null, 2), 'utf8');
+  return next.length !== list.length;
 }
 
 function normalizeCustomServer(raw) {
@@ -317,6 +360,7 @@ module.exports = {
   saveCustomServers,
   loadAssetReceipts,
   saveAssetReceipt,
+  removeAssetReceipt,
   baseDir,
   settingsPath,
   sessionPath,

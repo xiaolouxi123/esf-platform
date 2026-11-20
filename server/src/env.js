@@ -59,6 +59,8 @@ const env = {
   // 资源库：模型 / 声音上传
   uploadDir: str(process.env.UPLOAD_DIR, path.join(__dirname, '..', 'uploads')),
   uploadMaxBytes: num(process.env.UPLOAD_MAX_MB, 64) * 1024 * 1024,
+  assetPackageMaxBytes: num(process.env.ASSET_PACKAGE_MAX_MB, 256) * 1024 * 1024,
+  assetPackageMaxFiles: num(process.env.ASSET_PACKAGE_MAX_FILES, 200),
 
   // 启动器更新源目录（放 latest.yml 与安装包，通过 /updates 静态提供）
   updateDir: str(process.env.UPDATE_DIR, path.join(__dirname, '..', 'updates')),

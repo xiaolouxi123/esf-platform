@@ -205,11 +205,45 @@ global.fetch = async (url, options = {}) => {
     return ok({ asset: { id: 7, status: body.status } });
   }
   if (/^\/api\/assets\/7$/.test(pathname)) {
-    return ok({ asset: { id: 7, sha256: assetSha, targetPath: 'sound/test/beep.wav' } });
+    return ok({
+      asset: {
+        id: 7,
+        slug: 'test-beep',
+        name: '测试音效',
+        version: '1.0.0',
+        targetPath: 'sound/test/beep.wav',
+        fileSize: assetBytes.length,
+        files: [{ id: 0, path: 'sound/test/beep.wav', size: assetBytes.length, sha256: assetSha }],
+      },
+    });
   }
+  if (/^\/api\/assets\/9$/.test(pathname)) {
+    return ok({
+      asset: {
+        id: 9,
+        slug: 'multi-pack',
+        name: '整包资源',
+        version: '1.0.0',
+        targetPath: 'sound/test/multi-a.wav',
+        fileSize: assetBytes.length,
+        files: [
+          { id: 1, path: 'sound/test/multi-a.wav', size: assetBytes.length, sha256: assetSha },
+          { id: 2, path: 'sound/test/multi-b.txt', size: assetBytes.length, sha256: assetSha },
+        ],
+      },
+    });
+  }
+  if (/^\/api\/assets\/9\/files\/\d+$/.test(pathname)) return binary(assetBytes);
   if (/^\/api\/assets\/8$/.test(pathname)) {
     // 故意给一个越界路径，验证客户端也会拦
-    return ok({ asset: { id: 8, sha256: assetSha, targetPath: '../../evil.wav' } });
+    return ok({
+      asset: {
+        id: 8,
+        name: '越界资源',
+        version: '1.0.0',
+        files: [{ id: 0, path: '../../evil.wav', size: assetBytes.length, sha256: assetSha }],
+      },
+    });
   }
   if (/^\/api\/assets\/\d+\/download$/.test(pathname)) return binary(assetBytes);
 
@@ -531,7 +565,7 @@ function ipc(channel, payload) {
   const install = await ipc('assets:install', { id: 7 });
   check('安装资源：写文件并校验 sha256', () => {
     assert.equal(install.ok, true, JSON.stringify(install));
-    assert.equal(install.data.targetPath, 'sound/test/beep.wav');
+    assert.equal(install.data.files[0].path, 'sound/test/beep.wav');
     assert.ok(fs.existsSync(installedPath), '文件应写入模组目录');
     assert.equal(fs.readFileSync(installedPath, 'utf8'), 'FAKE ASSET BYTES');
   });
@@ -550,6 +584,37 @@ function ipc(channel, payload) {
   check('恢复安装前原文件', () => {
     assert.equal(restore.ok, true, JSON.stringify(restore));
     assert.equal(fs.readFileSync(installedPath, 'utf8'), 'ORIGINAL BYTES');
+  });
+
+  const multiA = path.join(modDir, 'sound', 'test', 'multi-a.wav');
+  const multiB = path.join(modDir, 'sound', 'test', 'multi-b.txt');
+  fs.mkdirSync(path.dirname(multiA), { recursive: true });
+  fs.writeFileSync(multiA, 'ORIGINAL MULTI');
+  if (fs.existsSync(multiB)) fs.rmSync(multiB);
+
+  const multi = await ipc('assets:install', { id: 9 });
+  check('整包安装：逐文件写入并备份', () => {
+    assert.equal(multi.ok, true, JSON.stringify(multi));
+    assert.equal(multi.data.files.length, 2);
+    assert.equal(fs.readFileSync(multiA, 'utf8'), 'FAKE ASSET BYTES');
+    assert.equal(fs.readFileSync(multiB, 'utf8'), 'FAKE ASSET BYTES');
+    assert.equal(multi.data.files.find((file) => file.path.endsWith('multi-a.wav')).existed, true);
+    assert.equal(multi.data.files.find((file) => file.path.endsWith('multi-b.txt')).existed, false);
+  });
+
+  const multiReceipts = await ipc('assets:receipts');
+  check('整包回执：两个文件都可恢复', () => {
+    const receipt = multiReceipts.data.receipts.find((row) => row.id === 9);
+    assert.ok(receipt, '应有 id=9 的安装回执');
+    assert.equal(receipt.files.length, 2);
+    assert.equal(receipt.files.find((file) => file.path.endsWith('multi-a.wav')).backupAvailable, true);
+  });
+
+  const uninstall = await ipc('assets:uninstall', { id: 9 });
+  check('整包卸载：恢复备份并删除新增文件', () => {
+    assert.equal(uninstall.ok, true, JSON.stringify(uninstall));
+    assert.equal(fs.readFileSync(multiA, 'utf8'), 'ORIGINAL MULTI');
+    assert.equal(fs.existsSync(multiB), false);
   });
 
   const evil = await ipc('assets:install', { id: 8 });

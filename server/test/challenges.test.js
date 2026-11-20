@@ -15,7 +15,7 @@ const names = Array.from({ length: 4 }, (_, i) => `t_ch_${i}_${stamp}`);
 const serverKey = `t_ch_${stamp}`;
 const adminKey = `t_adm_${stamp}`;
 // 0.5.23 起约战只开放「单挑 1」（见 src/services/challenges.js CHALLENGE_SERVER_KEY）
-const challengeServerKey = 'fcx-1v1-1';
+const challengeServerKey = serverKey;
 const ids = [];
 const tokens = [];
 let server;
@@ -51,8 +51,8 @@ before(async () => {
     ids.push(result.insertId);
   }
   await q(
-    `INSERT INTO servers (server_key, name, ip, port, enabled, mode)
-     VALUES (?, '测试约战服', '127.0.0.1', 27097, 1, '混战')`,
+    `INSERT INTO servers (server_key, name, ip, port, enabled, mode, is_challenge)
+     VALUES (?, '测试约战服', '127.0.0.1', 27097, 1, '混战', 1)`,
     [serverKey]
   );
 
