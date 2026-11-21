@@ -1,10 +1,10 @@
 # 0.6.61 交付与验收单
 
 - 日期：2026-11-22
-- 状态：**待用户验收，未打 tag、未发布**
-- 范围：约战 P1–P2、发布链路服务端 bundle 自动部署、fresh DB 迁移修复、CI 日志
-- 候选 commit：`a6e3374`（已 push origin/main）
-- CI：run `44960458237`，server / launcher 两个 job 均 success
+- 状态：**用户已验收（2026-11-22 07:28），待发布**
+- 范围：约战 P1–P2、建房目标地图跟随服务器、发布链路服务端 bundle 自动部署、fresh DB 迁移修复、CI 日志
+- 候选 commit：`9a07b22`（验收基线 `a6e3374`，已 push origin/main）
+- CI：验收基线 run `44960458237` 两个 job 均 success；目标地图提交由发布脚本重跑 lint/test/build
 - 审核版：`C:\Users\Administrator\Desktop\ESF平台-审核版`
 
 ## 一、这一版做了什么
@@ -18,6 +18,7 @@
 - 结算弹层“再来一局”：复制模式/地图/赛制/密码，把仍在空闲的队友带进新房并置为已准备。
 - 最近 20 场约战战绩，含胜负、模式、地图、对手、比分、时间。
 - 等待房间表补 table/row/columnheader/cell 语义；搜索、全部/可加入/已满筛选；Esc/焦点循环/焦点归还。
+- 建房「目标地图」改为只读跟随所选服务器：显示 A2S 上报的当前地图，切换服务器即时更新；无在线约战服时显示「服务器未上报」并禁用创建，不再让人手填地图。
 
 ### 工程与发布
 
@@ -32,11 +33,11 @@
 | 服务端测试 | 114/114 通过（`cd server && npm.cmd test`，含新增候场登记测试） |
 | 启动器测试 | 11 个测试文件、44 项检查全过（`cd esf-launcher && npm.cmd test`） |
 | eslint | 通过 |
-| vite build | 通过；`dist/assets/index-ClKH98hZ.js` 584.66 kB |
+| vite build | 通过；`dist/assets/index-BUy3lrK-.js` 584.65 kB |
 | 版本一致性 | 12 PASS / 0 FAIL / 2 条本地历史 WARN（唯一来源 0.6.61） |
 | 服务端 bundle | 171,175 B，sha256 `deb787500cbf7d825c813e96a555e589b6c3c8df8e7e3555086102178dbb5a67`，87 文件 / 27 SQL / 19 路由 |
-| 审核版 | `resources/app/archive.cjs` 6,182 B；`dist/assets/index-ClKH98hZ.js` sha256 `8c3faf09ca759f98ffaceb595ef7bba549333d5228cb817a44932ed5ce809ac1`；package.json 0.6.61 |
-| 审核版 CDP 实测 | 2026-11-22 07:13，CDP `http://127.0.0.1:9223`；已登录 yun；底部 `v0.6.61`；从大厅进入「约战」；已有房间 #4 1v1 等待中 1/2 正常渲染；`Runtime.exceptionThrown`/`Log.entryAdded` 为空；未做写操作，未关闭该房间 |
+| 审核版 | `resources/app/archive.cjs` 6,182 B；`dist/assets/index-BUy3lrK-.js` 584,652 B，sha256 `765846a71b8b80ef45ab378d3357bbf67a843fe91211d8503f1dd7f10af0bb50`；package.json 0.6.61 |
+| 审核版 CDP 实测 | 2026-11-22 07:32，CDP `http://127.0.0.1:9223`；已登录 yun；底部 `v0.6.61`；进入「约战」建房区显示「目标地图 pkwlz_9 / 实时」；服务器选择器从 `[ESF-EVM]单挑房[2]` 切到 `[ESF-EVM]单挑房[3]` 后地图更新为 `pkylz_9`；`Runtime.exceptionThrown`/`Log.entryAdded` 为空；未做写操作 |
 
 ## 三、真人验收项与自动化覆盖
 
@@ -50,6 +51,7 @@
 | 最近 20 场战绩 | `约战：进行中列表、观战位与个人战绩` |
 | 表格语义/键盘 | 代码已有 `role=table/row/columnheader/cell`；需人工 Tab/读屏确认 |
 | 1180×780 不裁切 | 需人工确认 |
+| 目标地图跟随服务器 | 无前端单测；审核版 CDP 实测切服后地图同步，空服禁用逻辑在 `ChallengePage.jsx` 的 `selectedServerKey` 门禁 |
 
 ## 四、真人验收清单（逐项打勾）
 
@@ -61,6 +63,7 @@
 6. [ ] “战绩”弹层能看最近 20 场，点任意一场能看结算详情。
 7. [ ] 等待房间表：Tab 能聚焦房间行和操作按钮，回车/空格可加入；读屏能读出 `columnheader` / `cell` 语义；Esc 关闭弹层后焦点回到触发按钮。
 8. [ ] 1180×780 最小窗口下，约战页、房间页、结算弹层不裁切，按钮可点。
+9. [ ] 建房区「目标地图」只读，切换比赛服务器时地图跟着变；确认没有在线约战服时显示“服务器未上报”且创建按钮禁用。
 
 ## 五、验收通过后的发布命令
 
@@ -78,5 +81,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
 ## 六、已知限制
 
 - 候场只是顺序登记，不是自动排队进场；不要按“会自动开赛”验收。
+- 目标地图取自服务器 A2S 轮询结果（后端 15 秒一轮），刚换图时最多滞后一个轮询周期；这是“服务器当前地图”，不是建房者自选地图。
 - 0.6.61 的审核版和线上 0.6.60 共用同一个 API；审核版里的约战新功能依赖已部署到 217 的 0.6.61 服务端，客户端旧版看不到“再来一局”。
 - 真实 FCX 模型包安装、0.6.58→0.6.60 自动更新仍按 `docs/ACCEPTANCE-DEFERRED-2026-11-22.md` 暂缓，不计入本单通过。
