@@ -38,7 +38,20 @@
 | 审核版 | `resources/app/archive.cjs` 6,182 B；`dist/assets/index-ClKH98hZ.js` sha256 `8c3faf09ca759f98ffaceb595ef7bba549333d5228cb817a44932ed5ce809ac1`；package.json 0.6.61 |
 | 审核版 CDP 实测 | 2026-11-22 07:13，CDP `http://127.0.0.1:9223`；已登录 yun；底部 `v0.6.61`；从大厅进入「约战」；已有房间 #4 1v1 等待中 1/2 正常渲染；`Runtime.exceptionThrown`/`Log.entryAdded` 为空；未做写操作，未关闭该房间 |
 
-## 三、真人验收清单（逐项打勾）
+## 三、真人验收项与自动化覆盖
+
+| 验收项 | 自动化覆盖（server/test/challenges.test.js） |
+|---|---|
+| 2v2 转让/房主离开不散房 | `约战：房主可转让，房主离开不散房`；换队见 `约战：2v2 换队，换队取消准备，1v1 拒绝换队` |
+| 私密房密码 | `约战：私密房需要正确密码，列表不泄露密码哈希` |
+| 观战位 4 人 | `约战：进行中列表、观战位与个人战绩` |
+| 候场登记/取消/名次 | `约战：候场登记按先后排序，可查询与取消` |
+| 再来一局带队友 | `约战：房主再来一局会复制新房并带入原成员` |
+| 最近 20 场战绩 | `约战：进行中列表、观战位与个人战绩` |
+| 表格语义/键盘 | 代码已有 `role=table/row/columnheader/cell`；需人工 Tab/读屏确认 |
+| 1180×780 不裁切 | 需人工确认 |
+
+## 四、真人验收清单（逐项打勾）
 
 1. [ ] 2v2 房：4 人进房，房主把房主转给 B 队一人；房主离开后房间仍在，新房主可开赛。
 2. [ ] 私密房：建房设密码；错误密码被拒并显示行内错误；正确密码进房。
@@ -49,7 +62,7 @@
 7. [ ] 等待房间表：Tab 能聚焦房间行和操作按钮，回车/空格可加入；读屏能读出 `columnheader` / `cell` 语义；Esc 关闭弹层后焦点回到触发按钮。
 8. [ ] 1180×780 最小窗口下，约战页、房间页、结算弹层不裁切，按钮可点。
 
-## 四、验收通过后的发布命令
+## 五、验收通过后的发布命令
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
@@ -62,7 +75,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\release.ps1 `
 
 若服务端 bundle 部署失败，脚本会从 `C:\esf\backups\server-src-pre-0.6.61-<stamp>.zip` 回滚并重启旧版；先看 `C:\esf\logs\server-bundle-npm.log` / `server-bundle-migrate.log`。
 
-## 五、已知限制
+## 六、已知限制
 
 - 候场只是顺序登记，不是自动排队进场；不要按“会自动开赛”验收。
 - 0.6.61 的审核版和线上 0.6.60 共用同一个 API；审核版里的约战新功能依赖已部署到 217 的 0.6.61 服务端，客户端旧版看不到“再来一局”。
