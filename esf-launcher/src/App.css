@@ -14696,8 +14696,22 @@ select:focus {
   .challenge-side-invite {
     display: none;
   }
+  /* 1180 的侧栏高度只够「标题 + 选择 + 转让」，说明文字让位给操作。 */
+  .challenge-transfer-card .challenge-muted {
+    display: none;
+  }
+  .challenge-transfer-card {
+    padding-bottom: 8px;
+  }
   .challenge-room-search {
     flex-basis: 160px;
+  }
+}
+
+/* 780 高的最小窗口：房内三步引导让位给底部主按钮，避免开始约战被挤出视口。 */
+@media (max-height: 820px) {
+  .challenge-room-steps {
+    display: none;
   }
 }
 
@@ -14713,6 +14727,326 @@ select:focus {
 .challenge-victory-inline b,
 .challenge-victory-inline em {
   font-size: 10px;
+}
+
+/* ===== 约战 0.6.61：私密房 / 房主转让 / 正在进行 / 战绩 ===== */
+.challenge-quick-foot {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+.challenge-private {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.challenge-private-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 12, 18, 0.65);
+  color: var(--dim);
+  font-size: 10.5px;
+  cursor: pointer;
+  transition: color var(--dur-hover) var(--ease-out), border-color var(--dur-hover) var(--ease-out),
+    background var(--dur-hover) var(--ease-out);
+}
+.challenge-private-switch:hover {
+  color: var(--text);
+  border-color: rgba(255, 138, 31, 0.3);
+}
+.challenge-private-switch:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+.challenge-private-switch.is-active {
+  color: #ffd0a3;
+  border-color: rgba(255, 143, 64, 0.38);
+  background: rgba(255, 143, 64, 0.12);
+}
+.challenge-private-input {
+  width: 132px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 12, 18, 0.7);
+  color: var(--text);
+  font: inherit;
+  font-size: 10.5px;
+}
+.challenge-private-input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 2px rgba(255, 138, 31, 0.1);
+}
+.challenge-private-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 143, 64, 0.3);
+  background: rgba(255, 143, 64, 0.1);
+  color: #ffc08a;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+
+.challenge-live-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 11px 14px 12px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(63, 208, 255, 0.18);
+  background: linear-gradient(120deg, rgba(63, 208, 255, 0.055), rgba(12, 17, 24, 0.62));
+}
+.challenge-live-section .section-head {
+  margin: 0;
+}
+.challenge-live-section .section-head > .challenge-muted {
+  margin-left: auto;
+  font-size: 10px;
+}
+.challenge-live-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.challenge-live-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(8, 12, 18, 0.5);
+}
+.challenge-live-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #bdeaff;
+  background: rgba(63, 208, 255, 0.12);
+}
+.challenge-live-mode--22 {
+  color: #d9c4ff;
+  background: rgba(165, 128, 255, 0.14);
+}
+.challenge-live-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.challenge-live-card-main b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+}
+.challenge-live-card-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dim);
+  font-size: 10px;
+}
+.challenge-live-watch {
+  height: 28px;
+  padding: 0 9px;
+  font-size: 10.5px;
+  white-space: nowrap;
+  color: #bdeaff;
+  border-color: rgba(63, 208, 255, 0.24);
+}
+.challenge-live-watch:hover {
+  border-color: rgba(63, 208, 255, 0.45);
+  background: rgba(63, 208, 255, 0.08);
+}
+
+.challenge-transfer-card .challenge-muted {
+  margin: 0 0 7px;
+  font-size: 10px;
+  line-height: 1.55;
+}
+.challenge-transfer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.challenge-transfer-row .select-menu {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.challenge-transfer-row .select-menu-trigger {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 12, 18, 0.7);
+  color: var(--text);
+  font-size: 10.5px;
+}
+.challenge-transfer-row .btn {
+  flex: none;
+}
+
+.challenge-modal {
+  outline: none;
+}
+.challenge-modal--small {
+  width: min(400px, 100%);
+}
+.challenge-modal--history {
+  width: min(620px, 100%);
+  max-height: min(680px, 86vh);
+}
+.challenge-history-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+.challenge-history-summary .is-win {
+  color: #8fe3b0;
+}
+.challenge-history-summary .is-loss {
+  color: #ff9aa2;
+}
+.challenge-history-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.challenge-history-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 52px 88px;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.challenge-history-row:last-child {
+  border-bottom: none;
+}
+.challenge-history-result {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.challenge-history-row.is-win .challenge-history-result {
+  color: #8fe3b0;
+  background: rgba(81, 207, 138, 0.12);
+  border: 1px solid rgba(81, 207, 138, 0.22);
+}
+.challenge-history-row.is-loss .challenge-history-result {
+  color: #ff9aa2;
+  background: rgba(255, 95, 109, 0.1);
+  border: 1px solid rgba(255, 95, 109, 0.2);
+}
+.challenge-history-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.challenge-history-main b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+}
+.challenge-history-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dim);
+  font-size: 10px;
+}
+.challenge-history-score {
+  text-align: right;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: #eef1f7;
+}
+.challenge-history-time {
+  text-align: right;
+  color: var(--dim);
+  font-size: 10px;
+}
+.challenge-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.challenge-modal-form .challenge-field span {
+  font-size: 10.5px;
+}
+.challenge-modal-form .challenge-field input {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(6, 9, 14, 0.62);
+  color: var(--text);
+  font: inherit;
+  font-size: 11.5px;
+}
+.challenge-modal-form .challenge-field input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.12);
+}
+.challenge-modal-error {
+  margin: 0;
+  padding: 7px 9px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 95, 109, 0.28);
+  background: rgba(255, 95, 109, 0.08);
+  color: #ffc2c7;
+  font-size: 10.5px;
+}
+.challenge-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+@media (max-width: 1240px) {
+  .challenge-live-section .section-head > .challenge-muted {
+    display: none;
+  }
 }
 
 /* ===== 服务器页 v2：推荐进服 + 更紧的底栏 + 展开信息 ===== */

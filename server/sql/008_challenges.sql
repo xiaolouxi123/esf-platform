@@ -1,6 +1,6 @@
 -- =====================================================================
 -- 约战房间：玩家创建房间、邀请好友、准备、开赛
--- 和排位队列完全独立：不计分、不锁服，只负责把一局人约到一起。
+-- 和排位队列完全独立：不计分，开赛后锁服，只负责把一局人约到一起。
 -- =====================================================================
 
 USE esf_platform;
@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS challenge_rooms (
   server_key   VARCHAR(32) NULL COMMENT '可选的比赛服；为空则房间内自行协商',
   status       ENUM('waiting','live','closed') NOT NULL DEFAULT 'waiting',
   max_players  TINYINT UNSIGNED NOT NULL DEFAULT 2,
+  is_private   TINYINT(1) NOT NULL DEFAULT 0,
+  password_hash VARCHAR(255) NULL,
   created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   started_at   DATETIME NULL,
   closed_at    DATETIME NULL,

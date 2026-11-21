@@ -136,9 +136,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   challenges: {
     state: () => call('challenges:state'),
     create: (payload) => call('challenges:create', payload),
-    join: (id) => call('challenges:join', { id }),
+    join: (id, password) => call('challenges:join', { id, password }),
     leave: (id) => call('challenges:leave', { id }),
     close: (id) => call('challenges:close', { id }),
+    transfer: (id, userId) => call('challenges:transfer', { id, userId }),
+    history: (limit) => call('challenges:history', { limit }),
     invite: (id, userId) => call('challenges:invite', { id, userId }),
     respond: (id, action) => call('challenges:respond', { id, action }),
     ready: (id, ready = true) => call('challenges:ready', { id, ready }),

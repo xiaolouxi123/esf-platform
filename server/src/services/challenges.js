@@ -5,10 +5,12 @@
  *
  * 和排位是两套东西：
  *   - 排位由队列/评分/结算驱动，会锁服；
- *   - 约战只是“把一桌人约到一起”，不计分、不锁服，房主可以指定一张图/一台服。
+ *   - 约战只是“把一桌人约到一起”，不计分，但开赛后锁服；房主可以指定一张图/一台服。
  *
  * 所有写操作都用事务 + SELECT ... FOR UPDATE 防重复进房/超员。
  */
+
+const bcrypt = require('bcryptjs');
 
 const { pool, q, one } = require('../db');
 const { badRequest, forbidden, notFound, conflict } = require('../lib/errors');
@@ -58,6 +60,12 @@ function normalizeMap(map) {
 
 function normalizeBestOf(value) {
   return Number(value) === 1 ? 1 : 3;
+}
+
+function normalizeRoomPassword(value) {
+  const password = String(value || '');
+  if (password.length < 4 || password.length > 32) throw badRequest('私密房密码需要 4-32 位');
+  return password;
 }
 
 function normalizeVictoryType(type) {
@@ -166,6 +174,7 @@ function roomBase(row) {
     map: row.map || null,
     serverKey: row.server_key || null,
     server: serverOf(row),
+    isPrivate: Boolean(Number(row.is_private || 0)),
     status: row.status,
     roundNo: Number(row.round_no || 1),
     bestOf: Number(row.best_of || 3) === 1 ? 1 : 3,
@@ -393,6 +402,81 @@ async function listRooms() {
   }));
 }
 
+async function listLiveRooms() {
+  await expireStaleRooms();
+  const rows = await q(
+    `SELECT r.*, u.username AS host_username, u.game_name AS host_game_name,
+            u.avatar AS host_avatar, u.avatar_url AS host_avatar_url,
+            u.role AS host_role, u.combat_level AS host_combat_level,
+            s.name AS server_name, s.ip AS server_ip, s.port AS server_port,
+            c.victory_type, c.victory_limit,
+            (SELECT COUNT(*) FROM challenge_room_players p WHERE p.room_id = r.id) AS player_count,
+            (SELECT COUNT(*) FROM challenge_room_players p WHERE p.room_id = r.id AND p.ready = 1) AS ready_count,
+            (SELECT COUNT(*) FROM challenge_spectators sp WHERE sp.room_id = r.id) AS spectator_count
+       FROM challenge_rooms r
+       JOIN users u ON u.id = r.host_id
+       LEFT JOIN servers s ON s.server_key = r.server_key
+       LEFT JOIN challenge_configs c ON c.room_id = r.id
+      WHERE r.status = 'live'
+        AND r.updated_at > (NOW() - INTERVAL ? HOUR)
+      ORDER BY r.started_at DESC, r.id DESC
+      LIMIT 6`,
+    [STALE_HOURS]
+  );
+  return rows.map((row) => {
+    const spectators = Number(row.spectator_count || 0);
+    return {
+      ...roomBase(row),
+      playerCount: Number(row.player_count || 0),
+      readyCount: Number(row.ready_count || 0),
+      full: true,
+      spectatorCount: spectators,
+      spectatorLimit: SPECTATOR_LIMIT,
+      spectatorFull: spectators >= SPECTATOR_LIMIT,
+    };
+  });
+}
+
+/** 最近约战战绩：只统计已经结算、且当前用户确实入座的房间。 */
+async function historyOf(userId, limit = 20) {
+  const capped = Math.min(50, Math.max(1, Number(limit) || 20));
+  const rows = await q(
+    `SELECT res.room_id, res.winner, res.score_a, res.score_b, res.ended_at,
+            r.day_seq, r.title, r.mode, r.map, r.best_of, r.server_key,
+            s.name AS server_name,
+            st.team AS my_team,
+            (SELECT GROUP_CONCAT(u2.game_name ORDER BY u2.id SEPARATOR '、')
+               FROM challenge_player_stats p2
+               JOIN users u2 ON u2.id = p2.user_id
+              WHERE p2.room_id = res.room_id AND p2.team <> st.team) AS opponents
+       FROM challenge_results res
+       JOIN challenge_rooms r ON r.id = res.room_id
+       JOIN challenge_player_stats st ON st.room_id = res.room_id AND st.user_id = ?
+       LEFT JOIN servers s ON s.server_key = r.server_key
+      ORDER BY res.ended_at DESC, res.room_id DESC
+      LIMIT ?`,
+    [userId, capped]
+  );
+  return {
+    items: rows.map((row) => ({
+      roomId: Number(row.room_id),
+      displayNo: row.day_seq ? Number(row.day_seq) : Number(row.room_id),
+      title: row.title,
+      mode: row.mode,
+      map: row.map || null,
+      bestOf: Number(row.best_of || 3) === 1 ? 1 : 3,
+      serverName: row.server_name || row.server_key || null,
+      myTeam: row.my_team,
+      won: row.winner === row.my_team,
+      scoreA: Number(row.score_a || 0),
+      scoreB: Number(row.score_b || 0),
+      opponents: row.opponents || '',
+      endedAt: row.ended_at,
+    })),
+    limit: capped,
+  };
+}
+
 async function activeRoomOf(userId) {
   return one(
     `SELECT r.id
@@ -448,13 +532,14 @@ async function invitesOf(userId) {
 
 async function getState(userId) {
   const active = await activeRoomOf(userId);
-  const [myRoom, rooms, invites, lastResult] = await Promise.all([
+  const [myRoom, rooms, liveRooms, invites, lastResult] = await Promise.all([
     active ? getRoom(active.id, userId) : Promise.resolve(null),
     listRooms(),
+    listLiveRooms(),
     invitesOf(userId),
     latestResultOf(userId),
   ]);
-  return { myRoom, rooms, invites, lastResult };
+  return { myRoom, rooms, liveRooms, invites, lastResult };
 }
 
 /** 锁服查询：一台服务器同时只能有一个约战 live。 */
@@ -600,6 +685,8 @@ async function createRoom(user, fields = {}) {
   const victoryType = normalizeVictoryType(fields.victoryType);
   const victoryLimit = normalizeVictoryLimit(fields.victoryLimit);
   const bestOf = normalizeBestOf(fields.bestOf);
+  const isPrivate = Boolean(fields.private);
+  const passwordHash = isPrivate ? bcrypt.hashSync(normalizeRoomPassword(fields.password), 8) : null;
 
   if (!serverKey) throw badRequest('请选择一台服务器后再开房');
 
@@ -640,9 +727,21 @@ async function createRoom(user, fields = {}) {
       const daySeq = seqRows.length > 0 ? Number(seqRows[0].day_seq) + 1 : 1;
       try {
         const [inserted] = await conn.query(
-          `INSERT INTO challenge_rooms (host_id, day_date, day_seq, title, mode, map, server_key, max_players, best_of, time_limit_sec)
-           VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [user.id, daySeq, title, mode, map, serverKey, maxPlayers, bestOf, CHALLENGE_TIME_LIMIT_SEC]
+          `INSERT INTO challenge_rooms (host_id, day_date, day_seq, title, mode, map, server_key, max_players, best_of, time_limit_sec, is_private, password_hash)
+           VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            user.id,
+            daySeq,
+            title,
+            mode,
+            map,
+            serverKey,
+            maxPlayers,
+            bestOf,
+            CHALLENGE_TIME_LIMIT_SEC,
+            isPrivate ? 1 : 0,
+            passwordHash,
+          ]
         );
         result = inserted;
       } catch (err) {
@@ -665,10 +764,10 @@ async function createRoom(user, fields = {}) {
   return getRoom(roomId, user.id);
 }
 
-async function joinRoom(userId, roomId) {
+async function joinRoom(userId, roomId, password = '') {
   await withTransaction(async (conn) => {
     const [rooms] = await conn.query(
-      'SELECT id, status, max_players FROM challenge_rooms WHERE id = ? LIMIT 1 FOR UPDATE',
+      'SELECT id, status, max_players, is_private, password_hash FROM challenge_rooms WHERE id = ? LIMIT 1 FOR UPDATE',
       [roomId]
     );
     const room = rooms[0];
@@ -681,6 +780,14 @@ async function joinRoom(userId, roomId) {
     );
     if (members.some((member) => Number(member.user_id) === Number(userId))) {
       return;
+    }
+
+    if (Number(room.is_private)) {
+      const supplied = String(password || '');
+      if (!supplied) throw badRequest('这是私密房，请输入房间密码');
+      if (!room.password_hash || !bcrypt.compareSync(supplied, room.password_hash)) {
+        throw forbidden('房间密码不正确');
+      }
     }
 
     const active = await conn.query(
@@ -726,42 +833,91 @@ async function leaveRoom(userId, roomId) {
     if (!room) throw notFound('房间不存在');
 
     const [members] = await conn.query(
-      'SELECT user_id FROM challenge_room_players WHERE room_id = ? FOR UPDATE',
+      'SELECT user_id FROM challenge_room_players WHERE room_id = ? ORDER BY joined_at ASC, user_id ASC FOR UPDATE',
       [roomId]
     );
     if (!members.some((member) => Number(member.user_id) === Number(userId))) {
       throw badRequest('你不在这个房间里');
     }
 
-    if (room.status !== 'waiting') {
-      // 已开赛后只允许退出座位，房间本身留给其他人收尾
-      if (Number(room.host_id) === Number(userId)) {
-        await conn.query("UPDATE challenge_rooms SET status = 'closed', closed_at = NOW() WHERE id = ?", [roomId]);
-      }
-      await conn.query('DELETE FROM challenge_room_players WHERE room_id = ? AND user_id = ?', [
-        roomId,
-        userId,
-      ]);
-      return { closed: Number(room.host_id) === Number(userId) };
+    if (room.status === 'closed') {
+      await conn.query('DELETE FROM challenge_room_players WHERE room_id = ? AND user_id = ?', [roomId, userId]);
+      return { closed: true };
     }
 
-    if (Number(room.host_id) === Number(userId)) {
+    const others = members.filter((member) => Number(member.user_id) !== Number(userId));
+    const isHost = Number(room.host_id) === Number(userId);
+
+    // 房主离开时优先把房间交给最早加入的成员；只有房主独处才关房。
+    if (isHost && others.length > 0) {
+      const nextHost = Number(others[0].user_id);
+      await conn.query('UPDATE challenge_rooms SET host_id = ?, updated_at = NOW() WHERE id = ?', [
+        nextHost,
+        roomId,
+      ]);
+      if (room.status === 'waiting') {
+        await conn.query('UPDATE challenge_room_players SET ready = 1 WHERE room_id = ? AND user_id = ?', [
+          roomId,
+          nextHost,
+        ]);
+      }
+      await conn.query('DELETE FROM challenge_room_players WHERE room_id = ? AND user_id = ?', [roomId, userId]);
+      await conn.query(
+        "UPDATE challenge_invites SET status = 'cancelled', responded_at = NOW() WHERE room_id = ? AND from_user_id = ? AND status = 'pending'",
+        [roomId, userId]
+      );
+      return { closed: false, transferredTo: nextHost };
+    }
+
+    if (isHost) {
       await conn.query("UPDATE challenge_rooms SET status = 'closed', closed_at = NOW() WHERE id = ?", [roomId]);
       await conn.query(
         "UPDATE challenge_invites SET status = 'cancelled', responded_at = NOW() WHERE room_id = ? AND status = 'pending'",
         [roomId]
       );
+      await conn.query('DELETE FROM challenge_room_players WHERE room_id = ? AND user_id = ?', [roomId, userId]);
       return { closed: true };
     }
 
-    await conn.query('DELETE FROM challenge_room_players WHERE room_id = ? AND user_id = ?', [
-      roomId,
-      userId,
-    ]);
+    await conn.query('DELETE FROM challenge_room_players WHERE room_id = ? AND user_id = ?', [roomId, userId]);
     return { closed: false };
   });
 
   return result;
+}
+
+/** 等待中的房主可以把房间交给另一名成员，避免房主临时离开就散房。 */
+async function transferHost(user, roomId, targetId) {
+  const target = Number(targetId);
+  if (!Number.isSafeInteger(target) || target <= 0) throw badRequest('请选择要转让的玩家');
+
+  await withTransaction(async (conn) => {
+    const [rooms] = await conn.query(
+      'SELECT id, host_id, status FROM challenge_rooms WHERE id = ? LIMIT 1 FOR UPDATE',
+      [roomId]
+    );
+    const room = rooms[0];
+    if (!room) throw notFound('房间不存在');
+    if (Number(room.host_id) !== Number(user.id)) throw forbidden('只有房主可以转让房间');
+    if (room.status !== 'waiting') throw conflict('开赛后不能转让房主');
+    if (target === Number(user.id)) throw badRequest('你已经是房主了');
+
+    const [members] = await conn.query(
+      'SELECT user_id FROM challenge_room_players WHERE room_id = ? FOR UPDATE',
+      [roomId]
+    );
+    if (!members.some((member) => Number(member.user_id) === target)) {
+      throw badRequest('只能把房间转让给当前房间里的玩家');
+    }
+
+    await conn.query('UPDATE challenge_rooms SET host_id = ?, updated_at = NOW() WHERE id = ?', [target, roomId]);
+    await conn.query('UPDATE challenge_room_players SET ready = 1 WHERE room_id = ? AND user_id = ?', [
+      roomId,
+      target,
+    ]);
+  });
+
+  return { transferredTo: target, room: await getRoom(roomId, user.id) };
 }
 
 async function closeRoom(user, roomId) {
@@ -1061,9 +1217,12 @@ module.exports = {
   SPECTATOR_LIMIT,
   getState,
   getRoom,
+  listLiveRooms,
+  historyOf,
   createRoom,
   joinRoom,
   leaveRoom,
+  transferHost,
   closeRoom,
   finishRound,
   rematch,

@@ -35,6 +35,52 @@ function playerLabel(player) {
   return player?.gameName || player?.username || '玩家';
 }
 
+/**
+ * 弹层共用的键盘与焦点管理：Esc 关闭、Tab 循环、打开时聚焦、关闭后回到触发按钮。
+ * 传进来的 close 必须是稳定引用，避免每次渲染重绑 keydown。
+ */
+function useDialogFocus(open, close, dialogRef, returnRef) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const bodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusTimer = window.setTimeout(() => {
+      const preferred = dialogRef.current?.querySelector('[data-autofocus]') || dialogRef.current?.querySelector('[autofocus]');
+      (preferred || dialogRef.current)?.focus?.();
+    }, 0);
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = dialogRef.current?.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = bodyOverflow;
+      const target = returnRef.current;
+      returnRef.current = null;
+      window.setTimeout(() => target?.focus?.(), 0);
+    };
+  }, [open, close, dialogRef, returnRef]);
+}
+
 function TeamSeat({ player, hostId, selfId, emptyLabel, ranks = DEFAULT_RANKS, onInvite, canInvite = false }) {
   if (!player) {
     if (canInvite && onInvite) {
@@ -94,8 +140,15 @@ export default function ChallengePage({
   maps = [],
   ranks = DEFAULT_RANKS,
   onJoinServer,
+  onSpectateServer,
 }) {
-  const [state, setState] = useState({ myRoom: null, rooms: [], invites: [], lastResult: null });
+  const [state, setState] = useState({
+    myRoom: null,
+    rooms: [],
+    liveRooms: [],
+    invites: [],
+    lastResult: null,
+  });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [now, setNow] = useState(0);
@@ -110,6 +163,18 @@ export default function ChallengePage({
     return () => clearInterval(timer);
   }, []);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyData, setHistoryData] = useState({ items: [], limit: 20 });
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const historyDialogRef = useRef(null);
+  const historyReturnRef = useRef(null);
+  const [joinTarget, setJoinTarget] = useState(null);
+  const [joinPassword, setJoinPassword] = useState('');
+  const [joinError, setJoinError] = useState('');
+  const joinDialogRef = useRef(null);
+  const joinReturnRef = useRef(null);
+  const [transferTargetId, setTransferTargetId] = useState('');
   const [roomFilter, setRoomFilter] = useState('all');
   const [roomKeyword, setRoomKeyword] = useState('');
   const [members, setMembers] = useState([]);
@@ -123,6 +188,8 @@ export default function ChallengePage({
     victoryType: 'kills',
     victoryLimit: 10,
     bestOf: 3,
+    private: false,
+    password: '',
   });
 
   const refresh = useCallback(
@@ -135,6 +202,7 @@ export default function ChallengePage({
         setState({
           myRoom: data?.myRoom || null,
           rooms: Array.isArray(data?.rooms) ? data.rooms : [],
+          liveRooms: Array.isArray(data?.liveRooms) ? data.liveRooms : [],
           invites: Array.isArray(data?.invites) ? data.invites : [],
           lastResult: data?.lastResult || null,
         });
@@ -179,40 +247,19 @@ export default function ChallengePage({
     setInviteOpen(false);
   }, []);
 
-  useEffect(() => {
-    if (!inviteOpen) return undefined;
-    const bodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeInvite();
-        return;
-      }
-      if (event.key !== 'Tab') return;
-      const focusable = inviteDialogRef.current?.querySelectorAll(
-        'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
-      );
-      if (!focusable?.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = bodyOverflow;
-      const target = inviteReturnRef.current;
-      inviteReturnRef.current = null;
-      window.setTimeout(() => target?.focus?.(), 0);
-    };
-  }, [inviteOpen, closeInvite]);
+  const closeHistory = useCallback(() => {
+    setHistoryOpen(false);
+  }, []);
+
+  const closeJoinDialog = useCallback(() => {
+    setJoinTarget(null);
+    setJoinPassword('');
+    setJoinError('');
+  }, []);
+
+  useDialogFocus(inviteOpen, closeInvite, inviteDialogRef, inviteReturnRef);
+  useDialogFocus(historyOpen, closeHistory, historyDialogRef, historyReturnRef);
+  useDialogFocus(Boolean(joinTarget), closeJoinDialog, joinDialogRef, joinReturnRef);
 
   const myRoom = state.myRoom;
   const mode = MODE_META[myRoom?.mode || form.mode] || MODE_META['1v1'];
@@ -278,6 +325,10 @@ export default function ChallengePage({
       toast('当前没有在线的约战服务器，等服务器上线后再开房', 'error');
       return;
     }
+    if (form.private && form.password.trim().length < 4) {
+      toast('私密房密码至少 4 位', 'error');
+      return;
+    }
     return act(
       'create',
       () =>
@@ -289,13 +340,50 @@ export default function ChallengePage({
           victoryType: form.victoryType,
           victoryLimit: Number(form.victoryLimit) || 10,
           bestOf: form.bestOf,
+          private: form.private,
+          password: form.private ? form.password.trim() : undefined,
         }),
       '约战房间已创建，去邀请玩家吧'
     );
   };
 
-  const joinRoom = (room) =>
-    act(`join-${room.id}`, () => window.electronAPI.challenges.join(room.id), '已加入房间');
+  const openJoinDialog = (room, event) => {
+    joinReturnRef.current = event?.currentTarget || document.activeElement;
+    setJoinTarget(room);
+    setJoinPassword('');
+    setJoinError('');
+  };
+
+  const joinRoom = (room, event) => {
+    if (room.isPrivate) {
+      openJoinDialog(room, event);
+      return undefined;
+    }
+    return act(`join-${room.id}`, () => window.electronAPI.challenges.join(room.id), '已加入房间');
+  };
+
+  const submitJoin = async (event) => {
+    event?.preventDefault();
+    if (!joinTarget) return;
+    const password = joinPassword.trim();
+    if (password.length < 4) {
+      setJoinError('请输入房间密码（至少 4 位）');
+      return;
+    }
+    setBusy(`join-${joinTarget.id}`);
+    setJoinError('');
+    try {
+      await window.electronAPI.challenges.join(joinTarget.id, password);
+      await refresh({ silent: true });
+      window.dispatchEvent(new Event('esf:presence'));
+      toast('已加入房间', 'ok');
+      closeJoinDialog();
+    } catch (err) {
+      setJoinError(err?.message || '加入房间失败，请重试');
+    } finally {
+      setBusy('');
+    }
+  };
 
   const leaveRoom = () =>
     act('leave', () => window.electronAPI.challenges.leave(myRoom.id), '已离开房间');
@@ -332,6 +420,57 @@ export default function ChallengePage({
       `已邀请 ${playerLabel(member)}`
     );
 
+  const spectateRoom = async (room) => {
+    if (!onSpectateServer) {
+      toast('当前版本暂不支持启动观战', 'error');
+      return;
+    }
+    if (room.spectatorFull) {
+      toast('观战席位已满', 'error');
+      return;
+    }
+    setBusy(`spectate-${room.id}`);
+    try {
+      await onSpectateServer({ ...room.server, challenge: { id: room.id } });
+    } catch (err) {
+      toast(err?.message || '观战启动失败，请重试', 'error');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const transferHost = () => {
+    const target = Number(effectiveTransferTarget);
+    if (!target || !myRoom) return undefined;
+    return act(
+      'transfer',
+      () => window.electronAPI.challenges.transfer(myRoom.id, target),
+      '房主已转让，房间不会解散'
+    );
+  };
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const data = await window.electronAPI.challenges.history(20);
+      setHistoryData({
+        items: Array.isArray(data?.items) ? data.items : [],
+        limit: Number(data?.limit) || 20,
+      });
+    } catch (err) {
+      setHistoryError(err?.message || '战绩加载失败，请重试');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  const openHistory = (event) => {
+    historyReturnRef.current = event?.currentTarget || document.activeElement;
+    setHistoryOpen(true);
+    loadHistory();
+  };
+
   const copyRoom = async () => {
     const text = `【ESF 约战】${myRoom.title} · ${myRoom.mode} · 房间 #${myRoom.displayNo ?? myRoom.id}${
       myRoom.map ? ` · 地图 ${myRoom.map}` : ''
@@ -350,6 +489,16 @@ export default function ChallengePage({
   const otherTeamKey = myTeamKey === 'a' ? 'b' : 'a';
   const otherTeamCount = myRoom?.teams?.[otherTeamKey]?.length || 0;
   const canSwitchTeam = Boolean(myRoom && myRoom.mode === '2v2' && !isLive && otherTeamCount < slots);
+  const transferOptions = (myRoom?.members || [])
+    .filter((member) => Number(member.id) !== Number(user?.id))
+    .map((member) => ({ value: Number(member.id), label: playerLabel(member) }));
+  const effectiveTransferTarget = transferOptions.some(
+    (option) => String(option.value) === String(transferTargetId)
+  )
+    ? transferTargetId
+    : transferOptions[0]?.value || '';
+  const historyItems = historyData.items || [];
+  const historyWins = historyItems.filter((item) => item.won).length;
   const remainSec = useMemo(() => {
     if (!myRoom?.endsAt || !now) return null;
     return Math.max(0, Math.ceil((new Date(myRoom.endsAt).getTime() - now) / 1000));
@@ -483,6 +632,10 @@ export default function ChallengePage({
             </div>
           </div>
           <div className="hero-actions">
+            <button type="button" className="btn btn-ghost btn-lg challenge-history-open" onClick={openHistory}>
+              <Icon name="clock" size={15} />
+              战绩
+            </button>
             <button
               type="button"
               className="btn btn-ghost btn-lg challenge-refresh"
@@ -547,6 +700,43 @@ export default function ChallengePage({
                     拒绝
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!myRoom && state.liveRooms.length > 0 && (
+        <section className="challenge-live-section">
+          <div className="section-head">
+            <h2>
+              正在进行 <span className="pill">{state.liveRooms.length}</span>
+            </h2>
+            <span className="challenge-muted">观战最多 4 人，开赛中的服务器仅参赛与观战可进</span>
+          </div>
+          <div className="challenge-live-grid">
+            {state.liveRooms.map((room) => (
+              <div key={room.id} className="challenge-live-card">
+                <span className={'challenge-live-mode challenge-live-mode--' + room.mode.replace('v', '')}>
+                  {room.mode}
+                </span>
+                <div className="challenge-live-card-main">
+                  <b>{room.title}</b>
+                  <small>
+                    {room.server?.name || '比赛服'} · {room.map || '未指定地图'} · {room.playerCount}/
+                    {room.maxPlayers} 人
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost challenge-live-watch"
+                  onClick={() => spectateRoom(room)}
+                  disabled={Boolean(busy) || room.spectatorFull}
+                  title={room.spectatorFull ? '观战席位已满' : '进入服务器观战'}
+                >
+                  <Icon name="eye" size={13} />
+                  {room.spectatorFull ? '观战已满' : `观战 ${room.spectatorCount}/${room.spectatorLimit}`}
+                </button>
               </div>
             ))}
           </div>
@@ -751,6 +941,31 @@ export default function ChallengePage({
                 </dl>
               </div>
 
+              {myRoom.isHost && !isLive && myRoom.playerCount > 1 && (
+                <div className="challenge-side-card challenge-transfer-card">
+                  <h3>房主操作</h3>
+                  <p className="challenge-muted">
+                    你离开时房间会自动交给最早加入的队友，也可以现在手动转让。
+                  </p>
+                  <div className="challenge-transfer-row">
+                    <SelectMenu
+                      value={effectiveTransferTarget}
+                      options={transferOptions}
+                      onChange={setTransferTargetId}
+                      ariaLabel="选择新房主"
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost"
+                      onClick={transferHost}
+                      disabled={Boolean(busy) || !effectiveTransferTarget}
+                    >
+                      转让
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="challenge-side-card challenge-side-invite">
                 <h3>
                   邀请 <span className="pill">{myRoom.pendingInvites?.length || 0}</span>
@@ -953,8 +1168,38 @@ export default function ChallengePage({
                 </div>
                 <em>次</em>
               </span>
+              <span className="challenge-private">
+                <button
+                  type="button"
+                  className={'challenge-private-switch' + (form.private ? ' is-active' : '')}
+                  aria-pressed={form.private}
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      private: !prev.private,
+                      password: prev.private ? '' : prev.password,
+                    }))
+                  }
+                >
+                  <Icon name="shield" size={12} />
+                  私密房
+                </button>
+                {form.private && (
+                  <input
+                    type="password"
+                    className="challenge-private-input"
+                    value={form.password}
+                    minLength={4}
+                    maxLength={32}
+                    autoComplete="off"
+                    aria-label="房间密码"
+                    placeholder="4–32 位密码"
+                    onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                  />
+                )}
+              </span>
               <span className="challenge-victory-hint">
-                达到条件即结束 · 不结算排位分 · 结束后 5 秒自动退出
+                达到条件即结束 · 不结算排位分 · 开赛锁服
               </span>
             </div>
           </section>
@@ -1052,47 +1297,58 @@ export default function ChallengePage({
                 </button>
               </div>
             ) : (
-              <div className="challenge-table">
-                <div className="challenge-table-head">
-                  <span>模式</span>
-                  <span>房间</span>
-                  <span>人数</span>
-                  <span>准备</span>
-                  <span>房主</span>
-                  <span />
+              <div className="challenge-table" role="table" aria-label="等待中的约战房间">
+                <div className="challenge-table-head" role="row">
+                  <span role="columnheader">模式</span>
+                  <span role="columnheader">房间</span>
+                  <span role="columnheader">人数</span>
+                  <span role="columnheader">准备</span>
+                  <span role="columnheader">房主</span>
+                  <span role="columnheader" aria-label="操作" />
                 </div>
                 {roomsView.map((room) => (
-                  <div key={room.id} className={'challenge-row' + (room.full ? ' is-full' : '')}>
-                    <span className={'challenge-row-mode challenge-row-mode--' + room.mode.replace('v', '')}>
+                  <div
+                    key={room.id}
+                    className={'challenge-row' + (room.full ? ' is-full' : '')}
+                    role="row"
+                  >
+                    <span
+                      className={'challenge-row-mode challenge-row-mode--' + room.mode.replace('v', '')}
+                      role="cell"
+                    >
                       {room.mode}
                     </span>
-                    <span className="challenge-row-title">
-                      <b>{room.title}</b>
+                    <span className="challenge-row-title" role="cell">
+                      <b>
+                        {room.title}
+                        {room.isPrivate && <em className="challenge-private-tag">私密</em>}
+                      </b>
                       <small>
                         {timeLabel(room.createdAt)} · {room.map || '未指定地图'} ·{' '}
                         {room.server?.name || '未指定服务器'}
                       </small>
                     </span>
-                    <span className="challenge-row-count">
+                    <span className="challenge-row-count" role="cell">
                       {room.playerCount}
                       <em>/{room.maxPlayers}</em>
                     </span>
-                    <span className="challenge-row-ready">
+                    <span className="challenge-row-ready" role="cell">
                       <span className={'challenge-ready-dot' + (room.readyCount > 0 ? ' is-ready' : '')} />
                       {room.readyCount}/{room.playerCount}
                     </span>
-                    <span className="challenge-row-host">
+                    <span className="challenge-row-host" role="cell">
                       <Avatar user={room.host} size="xs" />
                       {playerLabel(room.host)}
                     </span>
-                    <span className="challenge-row-ops">
+                    <span className="challenge-row-ops" role="cell">
                       <button
                         type="button"
                         className="btn btn-sm btn-ghost challenge-join"
-                        onClick={() => joinRoom(room)}
+                        onClick={(event) => joinRoom(room, event)}
                         disabled={room.full || Boolean(busy)}
+                        aria-label={`加入房间 ${room.title}`}
                       >
-                        {busy === 'join-' + room.id ? '加入中…' : room.full ? '已满员' : '加入'}
+                        {busy === 'join-' + room.id ? '加入中…' : room.full ? '已满员' : room.isPrivate ? '输入密码' : '加入'}
                       </button>
                     </span>
                   </div>
@@ -1111,6 +1367,7 @@ export default function ChallengePage({
             role="dialog"
             aria-modal="true"
             aria-labelledby="challenge-invite-title"
+            tabIndex={-1}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="challenge-modal-head">
@@ -1132,6 +1389,7 @@ export default function ChallengePage({
               <input
                 type="text"
                 value={memberQuery}
+                data-autofocus
                 autoFocus
                 aria-label="搜索要邀请的成员"
                 placeholder="搜索游戏名 / 账号"
@@ -1167,6 +1425,148 @@ export default function ChallengePage({
                 ))
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {historyOpen && (
+        <div className="challenge-modal-backdrop" onClick={closeHistory}>
+          <div
+            ref={historyDialogRef}
+            className="challenge-modal challenge-modal--history"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="challenge-history-title"
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="challenge-modal-head">
+              <div>
+                <h3 id="challenge-history-title">约战战绩</h3>
+                <small>最近 {historyData.limit} 场 · 只有参赛局会出现在这里</small>
+              </div>
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={closeHistory}
+                aria-label="关闭约战战绩"
+              >
+                <Icon name="close" size={15} />
+              </button>
+            </div>
+
+            {historyLoading ? (
+              <div className="empty empty--inline">
+                <span className="spinner" />
+                <p>正在读取战绩…</p>
+              </div>
+            ) : historyError ? (
+              <div className="empty empty--inline">
+                <Icon name="alert" size={22} />
+                <p>{historyError}</p>
+                <button type="button" className="btn btn-sm btn-ghost" onClick={loadHistory}>
+                  重试
+                </button>
+              </div>
+            ) : historyItems.length === 0 ? (
+              <div className="empty empty--inline">
+                <Icon name="clock" size={22} />
+                <p>还没有约战战绩，打完第一场就会出现在这里。</p>
+              </div>
+            ) : (
+              <>
+                <div className="challenge-history-summary">
+                  <span>共 {historyItems.length} 场</span>
+                  <span className="is-win">胜 {historyWins}</span>
+                  <span className="is-loss">负 {historyItems.length - historyWins}</span>
+                </div>
+                <div className="challenge-history-list">
+                  {historyItems.map((item) => (
+                    <div
+                      key={`${item.roomId}-${item.endedAt}`}
+                      className={'challenge-history-row' + (item.won ? ' is-win' : ' is-loss')}
+                    >
+                      <span className="challenge-history-result">{item.won ? '胜' : '负'}</span>
+                      <div className="challenge-history-main">
+                        <b>{item.title}</b>
+                        <small>
+                          {item.mode} · {item.map || '未指定地图'} · 对手 {item.opponents || '—'}
+                        </small>
+                      </div>
+                      <b className="challenge-history-score">
+                        {item.scoreA}:{item.scoreB}
+                      </b>
+                      <small className="challenge-history-time">{timeLabel(item.endedAt)}</small>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {joinTarget && (
+        <div className="challenge-modal-backdrop" onClick={closeJoinDialog}>
+          <div
+            ref={joinDialogRef}
+            className="challenge-modal challenge-modal--small"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="challenge-join-title"
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="challenge-modal-head">
+              <div>
+                <h3 id="challenge-join-title">加入私密房</h3>
+                <small>「{joinTarget.title}」需要房间密码才能加入。</small>
+              </div>
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={closeJoinDialog}
+                aria-label="关闭加入私密房"
+              >
+                <Icon name="close" size={15} />
+              </button>
+            </div>
+            <form className="challenge-modal-form" onSubmit={submitJoin}>
+              <label className="challenge-field">
+                <span>房间密码</span>
+                <input
+                  type="password"
+                  value={joinPassword}
+                  data-autofocus
+                  autoFocus
+                  minLength={4}
+                  maxLength={32}
+                  autoComplete="off"
+                  placeholder="请输入房主给的密码"
+                  onChange={(event) => {
+                    setJoinPassword(event.target.value);
+                    if (joinError) setJoinError('');
+                  }}
+                />
+              </label>
+              {joinError && (
+                <p className="challenge-modal-error" role="alert">
+                  {joinError}
+                </p>
+              )}
+              <div className="challenge-modal-actions">
+                <button type="button" className="btn btn-ghost" onClick={closeJoinDialog}>
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={busy === `join-${joinTarget.id}`}
+                >
+                  {busy === `join-${joinTarget.id}` ? '加入中…' : '加入房间'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

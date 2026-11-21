@@ -29,6 +29,15 @@ router.get('/challenges', async (req, res, next) => {
   }
 });
 
+router.get('/challenges/history', async (req, res, next) => {
+  try {
+    const data = await challenges.historyOf(req.user.id, req.query.limit);
+    res.json({ ok: true, data });
+  } catch (err) {
+    fail(err, next);
+  }
+});
+
 const createSchema = z.object({
   title: z.string().trim().max(48).optional(),
   mode: z.enum(challenges.MODES),
@@ -37,6 +46,8 @@ const createSchema = z.object({
   victoryType: z.enum(['kills', 'deaths']).default('kills'),
   victoryLimit: z.coerce.number().int().min(3).max(50).default(10),
   bestOf: z.union([z.literal(1), z.literal(3)]).default(3),
+  private: z.boolean().optional(),
+  password: z.string().max(32).optional(),
 });
 
 router.post('/challenges', async (req, res, next) => {
@@ -52,9 +63,14 @@ router.post('/challenges', async (req, res, next) => {
   }
 });
 
+const joinSchema = z.object({
+  password: z.string().max(32).optional(),
+});
+
 router.post('/challenges/:id/join', async (req, res, next) => {
   try {
-    const room = await challenges.joinRoom(req.user.id, idOf(req.params.id));
+    const body = joinSchema.parse(req.body || {});
+    const room = await challenges.joinRoom(req.user.id, idOf(req.params.id), body.password);
     res.json({ ok: true, data: { room, state: await challenges.getState(req.user.id) } });
   } catch (err) {
     fail(err, next);
@@ -63,8 +79,23 @@ router.post('/challenges/:id/join', async (req, res, next) => {
 
 router.post('/challenges/:id/leave', async (req, res, next) => {
   try {
-    await challenges.leaveRoom(req.user.id, idOf(req.params.id));
-    res.json({ ok: true, data: await challenges.getState(req.user.id) });
+    const leave = await challenges.leaveRoom(req.user.id, idOf(req.params.id));
+    const state = await challenges.getState(req.user.id);
+    res.json({ ok: true, data: { ...state, leave } });
+  } catch (err) {
+    fail(err, next);
+  }
+});
+
+const transferSchema = z.object({
+  userId: z.coerce.number().int().positive(),
+});
+
+router.post('/challenges/:id/transfer', async (req, res, next) => {
+  try {
+    const body = transferSchema.parse(req.body || {});
+    const data = await challenges.transferHost(req.user, idOf(req.params.id), body.userId);
+    res.json({ ok: true, data: { ...data, state: await challenges.getState(req.user.id) } });
   } catch (err) {
     fail(err, next);
   }

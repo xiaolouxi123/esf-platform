@@ -1191,6 +1191,7 @@ export default function Lobby({
               maps={maps}
               ranks={combatRanks}
               onJoinServer={joinServer}
+              onSpectateServer={spectateServer}
             />
           ) : activePage === 'plugins' ? (
             <PluginsPage settings={settings} toast={toast} />

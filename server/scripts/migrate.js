@@ -293,6 +293,10 @@ async function main() {
     await ensureColumn(conn, env.db.name, 'challenge_rooms', 'round_no', 'INT UNSIGNED NOT NULL DEFAULT 1');
     await ensureColumn(conn, env.db.name, 'challenge_rooms', 'best_of', 'TINYINT UNSIGNED NOT NULL DEFAULT 3');
 
+    // 0.6.61 私密房：密码哈希只存在服务端，列表只暴露 is_private
+    await ensureColumn(conn, env.db.name, 'challenge_rooms', 'is_private', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER best_of');
+    await ensureColumn(conn, env.db.name, 'challenge_rooms', 'password_hash', 'VARCHAR(255) NULL AFTER is_private');
+
     // 0.6.56 比赛服池：只在列首次创建时写入种子，之后由管理台决定，避免迁移覆盖配置
     const addedIsMatch = await ensureColumn(conn, env.db.name, 'servers', 'is_match', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER mode');
     const addedIsChallenge = await ensureColumn(

@@ -1399,14 +1399,20 @@ handle('challenges:state', async () =>
 handle('challenges:create', async (payload = {}) =>
   apiCall(api.challengeCreate, getSettings(), requireToken(), payload)
 );
-handle('challenges:join', async ({ id } = {}) =>
-  apiCall(api.challengeJoin, getSettings(), requireToken(), id)
+handle('challenges:join', async ({ id, password } = {}) =>
+  apiCall(api.challengeJoin, getSettings(), requireToken(), id, password)
 );
 handle('challenges:leave', async ({ id } = {}) =>
   apiCall(api.challengeLeave, getSettings(), requireToken(), id)
 );
 handle('challenges:close', async ({ id } = {}) =>
   apiCall(api.challengeClose, getSettings(), requireToken(), id)
+);
+handle('challenges:transfer', async ({ id, userId } = {}) =>
+  apiCall(api.challengeTransfer, getSettings(), requireToken(), id, userId)
+);
+handle('challenges:history', async ({ limit } = {}) =>
+  apiCall(api.challengeHistory, getSettings(), requireToken(), limit)
 );
 handle('challenges:invite', async ({ id, userId } = {}) =>
   apiCall(api.challengeInvite, getSettings(), requireToken(), id, userId)

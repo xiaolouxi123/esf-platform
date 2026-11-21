@@ -516,12 +516,21 @@ const rankedSettle = (settings, token, payload) =>
 const challengeState = (settings, token) => request(settings, { path: '/api/challenges', token });
 const challengeCreate = (settings, token, body) =>
   request(settings, { method: 'POST', path: '/api/challenges', token, body });
-const challengeJoin = (settings, token, id) =>
-  request(settings, { method: 'POST', path: `/api/challenges/${id}/join`, token });
+const challengeJoin = (settings, token, id, password) =>
+  request(settings, {
+    method: 'POST',
+    path: `/api/challenges/${id}/join`,
+    token,
+    body: password ? { password } : undefined,
+  });
 const challengeLeave = (settings, token, id) =>
   request(settings, { method: 'POST', path: `/api/challenges/${id}/leave`, token });
 const challengeClose = (settings, token, id) =>
   request(settings, { method: 'POST', path: `/api/challenges/${id}/close`, token });
+const challengeTransfer = (settings, token, id, userId) =>
+  request(settings, { method: 'POST', path: `/api/challenges/${id}/transfer`, token, body: { userId } });
+const challengeHistory = (settings, token, limit) =>
+  request(settings, { path: `/api/challenges/history?limit=${encodeURIComponent(limit || 20)}`, token });
 const challengeInvite = (settings, token, id, userId) =>
   request(settings, { method: 'POST', path: `/api/challenges/${id}/invite`, token, body: { userId } });
 const challengeRespond = (settings, token, id, action) =>
@@ -677,6 +686,8 @@ module.exports = {
   challengeJoin,
   challengeLeave,
   challengeClose,
+  challengeTransfer,
+  challengeHistory,
   challengeInvite,
   challengeRespond,
   challengeReady,
