@@ -111,6 +111,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings, user }) 
   const [uploading, setUploading] = useState(false);
   const [uploadMode, setUploadMode] = useState('single');
   const [uploadProgress, setUploadProgress] = useState(null);
+  const [formError, setFormError] = useState(null);
   const [form, setForm] = useState({
     kind: 'model',
     name: '',
@@ -125,6 +126,9 @@ export default function AssetLibrary({ toast, settings, onOpenSettings, user }) 
   const [cover, setCover] = useState(null);
   const uploadRef = useRef(null);
   const lastFocusRef = useRef(null);
+  const nameRef = useRef(null);
+  const targetPathRef = useRef(null);
+  const versionRef = useRef(null);
 
   const assetUrl = (url) => {
     if (!url) return '';
@@ -460,6 +464,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings, user }) 
     lastFocusRef.current =
       trigger instanceof HTMLElement ? trigger : document.activeElement;
     setForm((prev) => ({ ...prev, assetId: null, changelog: '' }));
+    setFormError(null);
     setUploadMode('single');
     setUploadProgress(null);
     setUploadOpen(true);
@@ -470,6 +475,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings, user }) 
 
   const closeUpload = () => {
     if (uploading) return;
+    setFormError(null);
     setUploadOpen(false);
     window.setTimeout(() => {
       if (lastFocusRef.current instanceof HTMLElement) lastFocusRef.current.focus();
@@ -515,6 +521,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings, user }) 
     });
     setUploadMode('folder');
     setUploadProgress(null);
+    setFormError(null);
     setUploadOpen(true);
   };
 
@@ -586,12 +593,23 @@ export default function AssetLibrary({ toast, settings, onOpenSettings, user }) 
 
   const submit = async () => {
     if (uploading) return;
-    if (!form.name.trim()) return toast('请填写资源名称', 'error');
-    if (uploadMode === 'single' && !form.targetPath.trim() && form.kind !== 'map') {
-      return toast('请填写落地路径', 'error');
+    if (!form.name.trim()) {
+      setFormError({ field: 'name', message: '请填写资源名称后再提交' });
+      nameRef.current?.focus();
+      return;
     }
-    if (form.assetId && !form.version.trim()) return toast('请填写新版本号', 'error');
+    if (uploadMode === 'single' && !form.targetPath.trim() && form.kind !== 'map') {
+      setFormError({ field: 'targetPath', message: '请填写落地路径后再提交' });
+      targetPathRef.current?.focus();
+      return;
+    }
+    if (form.assetId && !form.version.trim()) {
+      setFormError({ field: 'version', message: '请填写新版本号后再提交' });
+      versionRef.current?.focus();
+      return;
+    }
 
+    setFormError(null);
     setUploading(true);
     setUploadProgress({ phase: 'prepare', current: 0, total: 0 });
     try {
@@ -618,6 +636,7 @@ export default function AssetLibrary({ toast, settings, onOpenSettings, user }) 
           : `已提交审核：${asset.name}，等管理员通过后其他玩家可见`,
         'ok'
       );
+      setFormError(null);
       setUploadOpen(false);
       window.setTimeout(() => {
         if (lastFocusRef.current instanceof HTMLElement) lastFocusRef.current.focus();
@@ -1376,23 +1395,36 @@ export default function AssetLibrary({ toast, settings, onOpenSettings, user }) 
 
                   <label className="field">
                     <span className="field-label">名称</span>
-                    <div className="field-input">
+                    <div className={`field-input${formError?.field === 'name' ? ' has-error' : ''}`}>
                       <input
+                        ref={nameRef}
                         type="text"
                         value={form.name}
                         placeholder={form.kind === 'map' ? '例如：猿影森林' : '悟空新模型'}
+                        aria-invalid={formError?.field === 'name'}
+                        aria-describedby={formError?.field === 'name' ? 'asset-upload-error' : undefined}
+                        onChange={(event) => {
+                          setForm((prev) => ({ ...prev, name: event.target.value }));
+                          if (formError?.field === 'name') setFormError(null);
+                        }}
                       />
                     </div>
                   </label>
 
                   <label className="field">
                     <span className="field-label">版本</span>
-                    <div className="field-input">
+                    <div className={`field-input${formError?.field === 'version' ? ' has-error' : ''}`}>
                       <input
+                        ref={versionRef}
                         type="text"
                         value={form.version}
                         placeholder="1.0.0"
-                        onChange={(event) => setForm((prev) => ({ ...prev, version: event.target.value }))}
+                        aria-invalid={formError?.field === 'version'}
+                        aria-describedby={formError?.field === 'version' ? 'asset-upload-error' : undefined}
+                        onChange={(event) => {
+                          setForm((prev) => ({ ...prev, version: event.target.value }));
+                          if (formError?.field === 'version') setFormError(null);
+                        }}
                       />
                     </div>
                   </label>
@@ -1400,13 +1432,19 @@ export default function AssetLibrary({ toast, settings, onOpenSettings, user }) 
                   {uploadMode === 'single' ? (
                     <label className="field asset-upload-span">
                       <span className="field-label">落地路径（相对模组目录）</span>
-                      <div className="field-input">
+                      <div className={`field-input${formError?.field === 'targetPath' ? ' has-error' : ''}`}>
                         <Icon name="folder" size={15} />
                         <input
+                          ref={targetPathRef}
                           type="text"
                           value={form.targetPath}
                           placeholder={assetPathPlaceholder(form.kind)}
-                          onChange={(event) => setForm((prev) => ({ ...prev, targetPath: event.target.value }))}
+                          aria-invalid={formError?.field === 'targetPath'}
+                          aria-describedby={formError?.field === 'targetPath' ? 'asset-upload-error' : undefined}
+                          onChange={(event) => {
+                            setForm((prev) => ({ ...prev, targetPath: event.target.value }));
+                            if (formError?.field === 'targetPath') setFormError(null);
+                          }}
                         />
                       </div>
                       <span className="field-hint">
@@ -1499,21 +1537,28 @@ export default function AssetLibrary({ toast, settings, onOpenSettings, user }) 
                         ? '正在准备上传…'
                         : `正在上传 ${Math.min(uploadProgress.current + 1, uploadProgress.total)}/${uploadProgress.total}${uploadProgress.name ? ' · ' + uploadProgress.name : ''}`
                       : uploadMode === 'single'
-                      ? form.kind === 'map'
-                        ? '点右侧按钮选 .bsp；路径留空会自动用文件名，安装后进游戏换图即可。'
-                        : '点右侧按钮选文件并提交，单文件上限 64MB。'
-                      : uploadMode === 'folder'
-                        ? '选择整个文件夹，客户端会保留相对路径并逐个上传。'
-                        : '选择 ZIP，客户端会先安全解压再逐文件上传；不接受加密或分卷。'}
+                        ? form.kind === 'map'
+                          ? '点右侧按钮选 .bsp；路径留空会自动用文件名，安装后进游戏换图即可。'
+                          : '点右侧按钮选文件并提交，单文件上限 64MB。'
+                        : uploadMode === 'folder'
+                          ? '选择整个文件夹，客户端会保留相对路径并逐个上传。'
+                          : '选择 ZIP，客户端会先安全解压再逐文件上传；不接受加密或分卷。'}
                   </span>
-                  <div className="admin-actions">
-                    <button type="button" className="btn btn-ghost" onClick={closeUpload} disabled={uploading}>
-                      取消
-                    </button>
-                    <button type="button" className="btn btn-primary" onClick={submit} disabled={uploading}>
-                      {uploading ? <span className="spinner" /> : <Icon name="folder" size={15} />}
-                      {uploading ? '上传中…' : uploadMode === 'single' ? '选择文件并提交' : uploadMode === 'folder' ? '选择文件夹并提交' : '选择 ZIP 并提交'}
-                    </button>
+                  <div className="asset-upload-actions">
+                    {formError ? (
+                      <span id="asset-upload-error" className="asset-upload-error" role="alert">
+                        {formError.message}
+                      </span>
+                    ) : null}
+                    <div className="admin-actions">
+                      <button type="button" className="btn btn-ghost" onClick={closeUpload} disabled={uploading}>
+                        取消
+                      </button>
+                      <button type="button" className="btn btn-primary" onClick={submit} disabled={uploading}>
+                        {uploading ? <span className="spinner" /> : <Icon name="folder" size={15} />}
+                        {uploading ? '上传中…' : uploadMode === 'single' ? '选择文件并提交' : uploadMode === 'folder' ? '选择文件夹并提交' : '选择 ZIP 并提交'}
+                      </button>
+                    </div>
                   </div>
                 </footer>
               </section>
