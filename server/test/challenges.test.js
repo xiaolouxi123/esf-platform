@@ -21,6 +21,7 @@ const tokens = [];
 let server;
 let base;
 let roomId;
+let challengeServerId;
 
 async function api(method, path, { token, body } = {}) {
   const headers = {};
@@ -50,10 +51,16 @@ before(async () => {
     );
     ids.push(result.insertId);
   }
-  await q(
+  const inserted = await q(
     `INSERT INTO servers (server_key, name, ip, port, enabled, mode, is_challenge)
      VALUES (?, '测试约战服', '127.0.0.1', 27097, 1, '混战', 1)`,
     [serverKey]
+  );
+  challengeServerId = inserted.insertId;
+  await q(
+    `INSERT INTO server_status (server_id, name, map, players, max_players, ping_ms, online)
+     VALUES (?, '测试约战服', 'esf_cell', 0, 12, 8, 1)`,
+    [challengeServerId]
   );
 
   server = app.listen(0);
@@ -130,6 +137,15 @@ test('约战：建房、邀请、接受、准备、开赛、关闭', async () =>
   });
   assert.equal(invalid.status, 400);
 
+  await q('UPDATE server_status SET online = 0 WHERE server_id = ?', [challengeServerId]);
+  const offline = await api('POST', '/api/challenges', {
+    token: tokens[1],
+    body: { mode: '1v1', title: '离线约战服', serverKey: challengeServerKey },
+  });
+  assert.equal(offline.status, 400);
+  assert.match(offline.body.message, /离线/);
+  await q('UPDATE server_status SET online = 1 WHERE server_id = ?', [challengeServerId]);
+
   const created = await api('POST', '/api/challenges', {
     token: tokens[1],
     body: { mode: '1v1', title: '测试约战', map: 'esf_cell', serverKey: challengeServerKey },
@@ -204,4 +220,48 @@ test('约战：建房、邀请、接受、准备、开赛、关闭', async () =>
 
   const row = await one('SELECT status FROM challenge_rooms WHERE id = ?', [roomId]);
   assert.equal(row.status, 'closed');
+});
+
+test('约战：2v2 换队，换队取消准备，1v1 拒绝换队', async () => {
+  const created = await api('POST', '/api/challenges', {
+    token: tokens[1],
+    body: { mode: '2v2', title: '换队测试', map: 'esf_cell', serverKey: challengeServerKey },
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const teamRoomId = created.body.data.room.id;
+  assert.equal(created.body.data.room.maxPlayers, 4);
+  assert.equal(created.body.data.room.teams.a.length, 1);
+
+  const switched = await api('POST', `/api/challenges/${teamRoomId}/team`, {
+    token: tokens[1],
+    body: { team: 'b' },
+  });
+  assert.equal(switched.status, 200, JSON.stringify(switched.body));
+  assert.equal(switched.body.data.room.teams.b.length, 1);
+  assert.equal(switched.body.data.room.teams.a.length, 0);
+  assert.equal(switched.body.data.room.teams.b[0].ready, false);
+
+  const again = await api('POST', `/api/challenges/${teamRoomId}/team`, {
+    token: tokens[1],
+    body: { team: 'b' },
+  });
+  assert.equal(again.status, 200, JSON.stringify(again.body));
+  assert.equal(again.body.data.room.teams.b.length, 1);
+
+  await api('POST', `/api/challenges/${teamRoomId}/close`, { token: tokens[1] });
+
+  const duel = await api('POST', '/api/challenges', {
+    token: tokens[1],
+    body: { mode: '1v1', title: '单挑换队测试', map: 'esf_cell', serverKey: challengeServerKey },
+  });
+  assert.equal(duel.status, 201, JSON.stringify(duel.body));
+  const duelId = duel.body.data.room.id;
+  const rejected = await api('POST', `/api/challenges/${duelId}/team`, {
+    token: tokens[1],
+    body: { team: 'b' },
+  });
+  assert.equal(rejected.status, 400);
+  assert.match(rejected.body.message, /1v1/);
+
+  await api('POST', `/api/challenges/${duelId}/close`, { token: tokens[1] });
 });

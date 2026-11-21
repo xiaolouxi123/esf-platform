@@ -27,6 +27,24 @@ export default function SelectMenu({
     options.findIndex((option) => option.value === value)
   );
   const selected = options[selectedIndex] || options[0];
+  const firstEnabledIndex = Math.max(
+    0,
+    options.findIndex((option) => !option.disabled)
+  );
+  const lastEnabledIndex = Math.max(
+    firstEnabledIndex,
+    options.reduce((last, option, index) => (option.disabled ? last : index), firstEnabledIndex)
+  );
+
+  const nextEnabled = (from, step) => {
+    if (options.length === 0) return 0;
+    let index = from;
+    for (let count = 0; count < options.length; count += 1) {
+      index = (index + step + options.length) % options.length;
+      if (!options[index]?.disabled) return index;
+    }
+    return from;
+  };
 
   useEffect(() => {
     if (!open) return undefined;
@@ -55,14 +73,14 @@ export default function SelectMenu({
 
   const commit = (index) => {
     const option = options[index];
-    if (!option) return;
+    if (!option || option.disabled) return;
     onChange(option.value);
     close();
   };
 
   const openMenu = () => {
     if (disabled) return;
-    setActiveIndex(selectedIndex);
+    setActiveIndex(options[selectedIndex]?.disabled ? firstEnabledIndex : selectedIndex);
     setOpen(true);
   };
 
@@ -90,17 +108,17 @@ export default function SelectMenu({
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       const step = event.key === 'ArrowDown' ? 1 : -1;
-      setActiveIndex((index) => (index + step + options.length) % options.length);
+      setActiveIndex((index) => nextEnabled(index, step));
       return;
     }
     if (event.key === 'Home') {
       event.preventDefault();
-      setActiveIndex(0);
+      setActiveIndex(firstEnabledIndex);
       return;
     }
     if (event.key === 'End') {
       event.preventDefault();
-      setActiveIndex(options.length - 1);
+      setActiveIndex(lastEnabledIndex);
       return;
     }
     if (event.key === 'Enter' || event.key === ' ') {
@@ -152,11 +170,15 @@ export default function SelectMenu({
               data-index={index}
               className={`select-menu-option${index === activeIndex ? ' is-active' : ''}${
                 option.value === value ? ' is-selected' : ''
-              }`}
+              }${option.disabled ? ' is-disabled' : ''}`}
               role="option"
               aria-selected={option.value === value}
+              aria-disabled={option.disabled || undefined}
+              disabled={option.disabled}
               onMouseDown={(event) => event.preventDefault()}
-              onMouseEnter={() => setActiveIndex(index)}
+              onMouseEnter={() => {
+                if (!option.disabled) setActiveIndex(index);
+              }}
               onClick={() => commit(index)}
             >
               {option.label}

@@ -605,11 +605,16 @@ async function createRoom(user, fields = {}) {
 
   if (serverKey) {
     const server = await one(
-      'SELECT server_key, is_challenge FROM servers WHERE server_key = ? AND enabled = 1 LIMIT 1',
+      `SELECT s.server_key, s.is_challenge, COALESCE(st.online, 0) AS online
+         FROM servers s
+         LEFT JOIN server_status st ON st.server_id = s.id
+        WHERE s.server_key = ? AND s.enabled = 1
+        LIMIT 1`,
       [serverKey]
     );
     if (!server) throw badRequest('指定的服务器不存在或已停用');
     if (!Number(server.is_challenge)) throw badRequest('这台服务器不是约战服，不能开约战');
+    if (!Number(server.online)) throw badRequest('这台约战服当前离线，等它上线后再开房');
   }
 
   await expireStaleRooms();
@@ -916,6 +921,41 @@ async function setReady(userId, roomId, ready) {
   return getRoom(roomId, userId);
 }
 
+async function switchTeam(userId, roomId, team) {
+  const target = team === 'b' ? 'b' : 'a';
+  await withTransaction(async (conn) => {
+    const [rooms] = await conn.query(
+      'SELECT id, status, max_players FROM challenge_rooms WHERE id = ? LIMIT 1 FOR UPDATE',
+      [roomId]
+    );
+    const room = rooms[0];
+    if (!room) throw notFound('房间不存在');
+    if (room.status !== 'waiting') throw conflict('开赛后不能换队');
+    if (Number(room.max_players) < 4) throw badRequest('1v1 房间不需要换队');
+
+    const [members] = await conn.query(
+      'SELECT user_id, team FROM challenge_room_players WHERE room_id = ? FOR UPDATE',
+      [roomId]
+    );
+    const me = members.find((member) => Number(member.user_id) === Number(userId));
+    if (!me) throw forbidden('你不在这个房间里');
+    if (me.team === target) return;
+
+    const slots = Math.floor(Number(room.max_players) / 2);
+    const count = members.filter((member) => member.team === target).length;
+    if (count >= slots) throw conflict('目标队伍已经满了');
+
+    await conn.query('UPDATE challenge_room_players SET team = ?, ready = 0 WHERE room_id = ? AND user_id = ?', [
+      target,
+      roomId,
+      userId,
+    ]);
+    await conn.query('UPDATE challenge_rooms SET updated_at = NOW() WHERE id = ?', [roomId]);
+  });
+
+  return getRoom(roomId, userId);
+}
+
 async function startRoom(user, roomId) {
   await withTransaction(async (conn) => {
     const [rooms] = await conn.query(
@@ -932,6 +972,19 @@ async function startRoom(user, roomId) {
       [roomId]
     );
     if (!configs[0]) throw badRequest('房间缺少胜利条件，请重新开房');
+
+    const [serverRows] = await conn.query(
+      `SELECT s.server_key, s.is_challenge, COALESCE(st.online, 0) AS online
+         FROM servers s
+         LEFT JOIN server_status st ON st.server_id = s.id
+        WHERE s.server_key = ? AND s.enabled = 1
+        LIMIT 1`,
+      [room.server_key]
+    );
+    const server = serverRows[0];
+    if (!server) throw badRequest('约战服务器不存在或已停用，换一台再开');
+    if (!Number(server.is_challenge)) throw badRequest('这台服务器不是约战服，换一台再开');
+    if (!Number(server.online)) throw conflict('这台约战服已离线，暂时不能开赛');
 
     const [members] = await conn.query(
       'SELECT user_id, ready FROM challenge_room_players WHERE room_id = ?',
@@ -1017,6 +1070,7 @@ module.exports = {
   invite,
   respond,
   setReady,
+  switchTeam,
   startRoom,
   spectatorCount,
   joinSpectate,

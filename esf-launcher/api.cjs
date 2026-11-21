@@ -533,6 +533,8 @@ const challengeRespond = (settings, token, id, action) =>
   });
 const challengeReady = (settings, token, id, ready = true) =>
   request(settings, { method: 'POST', path: `/api/challenges/${id}/ready`, token, body: { ready } });
+const challengeTeam = (settings, token, id, team) =>
+  request(settings, { method: 'POST', path: `/api/challenges/${id}/team`, token, body: { team } });
 const challengeStart = (settings, token, id) =>
   request(settings, { method: 'POST', path: `/api/challenges/${id}/start`, token });
 const challengeSpectate = (settings, token, id) =>
@@ -678,6 +680,7 @@ module.exports = {
   challengeInvite,
   challengeRespond,
   challengeReady,
+  challengeTeam,
   challengeStart,
   challengeSpectate,
   challengeQueueJoin,

@@ -14444,6 +14444,277 @@ select:focus {
 .crm-round.is-a { border-color: rgba(255, 143, 64, 0.3); }
 .crm-round.is-b { border-color: rgba(63, 208, 255, 0.3); }
 
+/* ===== 约战 0.6.61：在线服 / 邀请可达性 / 层级收口 ===== */
+.challenge-mode-switch.is-compact button {
+  flex-direction: row;
+  justify-content: center;
+  gap: 6px;
+  padding: 3px 11px;
+}
+.challenge-create .challenge-mode-switch.is-compact button[data-mode].is-active {
+  border-color: transparent;
+  background: linear-gradient(120deg, #ffb877, #ff5d1f);
+  color: #1a0d04;
+  box-shadow: none;
+}
+.challenge-create .challenge-mode-switch.is-compact button[data-mode].is-active b,
+.challenge-create .challenge-mode-switch.is-compact button[data-mode].is-active small {
+  color: #1a0d04;
+}
+
+.challenge-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 95, 109, 0.32);
+  background: rgba(255, 95, 109, 0.08);
+  color: #ffc2c7;
+  font-size: 11px;
+}
+.challenge-alert > svg {
+  flex: none;
+  color: #ff8d96;
+}
+.challenge-alert > span {
+  min-width: 0;
+  flex: 1;
+}
+.challenge-alert .btn {
+  flex: none;
+  height: 26px;
+  color: #ffd7da;
+  border-color: rgba(255, 141, 150, 0.28);
+}
+
+.challenge-select {
+  display: flex;
+  min-width: 0;
+}
+.challenge-select .select-menu {
+  width: 100%;
+}
+.challenge-select .select-menu-trigger {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(6, 9, 14, 0.62);
+  color: var(--text);
+  font-size: 11.5px;
+}
+.challenge-select .select-menu-trigger:hover {
+  border-color: rgba(255, 138, 31, 0.26);
+}
+.challenge-select .select-menu-trigger[aria-expanded="true"] {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px rgba(255, 138, 31, 0.12);
+}
+.challenge-select .select-menu-list {
+  min-width: 100%;
+  max-width: 320px;
+}
+.challenge-quick .challenge-select .select-menu-trigger {
+  height: 34px;
+  font-size: 11.5px;
+}
+.challenge-select--victory .select-menu-trigger {
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 7px;
+  font-size: 10.5px;
+}
+.challenge-select--limit .select-menu-trigger {
+  width: 48px;
+  height: 26px;
+  justify-content: center;
+  padding: 0 5px;
+  font-size: 10.5px;
+}
+.challenge-select--limit .select-menu-trigger svg {
+  display: none;
+}
+.challenge-select--limit .select-menu-list {
+  min-width: 64px;
+}
+
+.challenge-seat--action {
+  width: 100%;
+  justify-content: flex-start;
+  font: inherit;
+  font-size: 11px;
+  color: var(--dim);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-hover) var(--ease-out), background var(--dur-hover) var(--ease-out),
+    color var(--dur-hover) var(--ease-out);
+}
+.challenge-seat--action .challenge-seat-plus {
+  flex: none;
+}
+.challenge-seat--action .challenge-seat-action-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+}
+.challenge-seat--action small {
+  color: #ffc08a;
+  font-size: 10px;
+}
+.challenge-seat .rank-badge {
+  font-size: 10px;
+}
+.challenge-seat--action:hover {
+  border-color: rgba(255, 138, 31, 0.4);
+  background: rgba(255, 138, 31, 0.08);
+  color: var(--text);
+}
+.challenge-seat--action:focus-visible {
+  outline: 2px solid rgba(255, 138, 31, 0.55);
+  outline-offset: 2px;
+}
+
+.challenge-row-ops .challenge-join {
+  color: #ffd0a3;
+  border-color: rgba(255, 143, 64, 0.34);
+  background: rgba(255, 143, 64, 0.08);
+}
+.challenge-row-ops .challenge-join:hover {
+  border-color: rgba(255, 143, 64, 0.55);
+  background: rgba(255, 143, 64, 0.16);
+}
+
+.challenge-room-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 210px;
+  min-width: 0;
+  height: 28px;
+  margin-left: 12px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  background: rgba(6, 9, 14, 0.55);
+  color: var(--dim);
+}
+.challenge-room-search:focus-within {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 2px rgba(255, 138, 31, 0.1);
+}
+.challenge-room-search > svg {
+  flex: none;
+}
+.challenge-room-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+}
+.challenge-room-search input::placeholder {
+  color: var(--dim);
+}
+.challenge-room-search input::-webkit-search-cancel-button {
+  display: none;
+}
+.challenge-room-search-clear {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--dim);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.challenge-room-search-clear:hover {
+  color: var(--text);
+  background: rgba(255, 138, 31, 0.24);
+}
+.challenge-list-section .challenge-list-filters {
+  margin-left: auto;
+}
+.challenge-list-section .section-head .challenge-updated {
+  margin-left: 12px;
+}
+
+.challenge-updated {
+  font-size: 10px;
+  white-space: nowrap;
+}
+.challenge-nowrap {
+  white-space: nowrap;
+}
+.challenge-list-section .empty .btn {
+  margin-top: 8px;
+}
+
+.select-menu-option:disabled,
+.select-menu-option.is-disabled {
+  opacity: 0.42;
+  color: var(--dim);
+  cursor: default;
+}
+.select-menu-option:disabled:hover,
+.select-menu-option.is-disabled:hover {
+  background: transparent;
+  color: var(--dim);
+}
+
+/* 小屏：把房内邀请入口保留在底栏，侧栏只做信息与邀请状态 */
+@media (max-width: 1240px) {
+  .challenge-room-foot {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .challenge-room-actions {
+    flex: 1 1 auto;
+  }
+  .challenge-room-code {
+    flex: 0 0 auto;
+  }
+  .challenge-side {
+    overflow: auto;
+  }
+  .challenge-side-note {
+    display: none;
+  }
+  .challenge-side-invite {
+    display: none;
+  }
+  .challenge-room-search {
+    flex-basis: 160px;
+  }
+}
+
+/* 约战页字号底线：不再出现 8.5 / 9 / 9.5px */
+.challenge-create-head .tag,
+.challenge-mode-switch.is-compact button small,
+.challenge-list-filters button em,
+.challenge-room-steps span i,
+.challenge-side-card h3 .pill,
+.challenge-host-tag,
+.challenge-self-tag,
+.challenge-invited em,
+.challenge-victory-inline b,
+.challenge-victory-inline em {
+  font-size: 10px;
+}
+
 /* ===== 服务器页 v2：推荐进服 + 更紧的底栏 + 展开信息 ===== */
 .servers-page .servers-hero {
   min-height: 184px;

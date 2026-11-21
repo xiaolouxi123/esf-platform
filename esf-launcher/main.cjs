@@ -1417,6 +1417,9 @@ handle('challenges:respond', async ({ id, action } = {}) =>
 handle('challenges:ready', async ({ id, ready } = {}) =>
   apiCall(api.challengeReady, getSettings(), requireToken(), id, ready !== false)
 );
+handle('challenges:team', async ({ id, team } = {}) =>
+  apiCall(api.challengeTeam, getSettings(), requireToken(), id, team)
+);
 handle('challenges:start', async ({ id } = {}) =>
   apiCall(api.challengeStart, getSettings(), requireToken(), id)
 );

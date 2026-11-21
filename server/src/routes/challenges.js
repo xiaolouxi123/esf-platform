@@ -121,6 +121,20 @@ router.post('/challenges/:id/ready', async (req, res, next) => {
   }
 });
 
+const teamSchema = z.object({
+  team: z.enum(['a', 'b']),
+});
+
+router.post('/challenges/:id/team', async (req, res, next) => {
+  try {
+    const body = teamSchema.parse(req.body || {});
+    const room = await challenges.switchTeam(req.user.id, idOf(req.params.id), body.team);
+    res.json({ ok: true, data: { room } });
+  } catch (err) {
+    fail(err, next);
+  }
+});
+
 router.post('/challenges/:id/start', async (req, res, next) => {
   try {
     const room = await challenges.startRoom(req.user, idOf(req.params.id));

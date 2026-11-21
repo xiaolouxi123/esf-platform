@@ -142,6 +142,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     invite: (id, userId) => call('challenges:invite', { id, userId }),
     respond: (id, action) => call('challenges:respond', { id, action }),
     ready: (id, ready = true) => call('challenges:ready', { id, ready }),
+    team: (id, team) => call('challenges:team', { id, team }),
     start: (id) => call('challenges:start', { id }),
     spectate: (id) => call('challenges:spectate', { id }),
     queueJoin: (serverKey, kind) => call('challenges:queue-join', { serverKey, kind }),
