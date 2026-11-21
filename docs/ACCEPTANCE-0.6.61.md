@@ -3,8 +3,8 @@
 - 日期：2026-11-22
 - 状态：**待用户验收，未打 tag、未发布**
 - 范围：约战 P1–P2、发布链路服务端 bundle 自动部署、fresh DB 迁移修复、CI 日志
-- 候选 commit：`2dd4904`（已 push origin/main）
-- CI：run `44959467441`，server / launcher 两个 job 均 success
+- 候选 commit：`a6e3374`（已 push origin/main）
+- CI：run `44960458237`，server / launcher 两个 job 均 success
 - 审核版：`C:\Users\Administrator\Desktop\ESF平台-审核版`
 
 ## 一、这一版做了什么
@@ -36,6 +36,7 @@
 | 版本一致性 | 12 PASS / 0 FAIL / 2 条本地历史 WARN（唯一来源 0.6.61） |
 | 服务端 bundle | 171,175 B，sha256 `deb787500cbf7d825c813e96a555e589b6c3c8df8e7e3555086102178dbb5a67`，87 文件 / 27 SQL / 19 路由 |
 | 审核版 | `resources/app/archive.cjs` 6,182 B；`dist/assets/index-ClKH98hZ.js` sha256 `8c3faf09ca759f98ffaceb595ef7bba549333d5228cb817a44932ed5ce809ac1`；package.json 0.6.61 |
+| 审核版 CDP 实测 | 2026-11-22 07:13，CDP `http://127.0.0.1:9223`；已登录 yun；底部 `v0.6.61`；从大厅进入「约战」；已有房间 #4 1v1 等待中 1/2 正常渲染；`Runtime.exceptionThrown`/`Log.entryAdded` 为空；未做写操作，未关闭该房间 |
 
 ## 三、真人验收清单（逐项打勾）
 
