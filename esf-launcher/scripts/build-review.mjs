@@ -18,11 +18,20 @@ const APP_FILES = [
   'main.cjs',
   'preload.js',
   'api.cjs',
+  'archive.cjs',
   'store.cjs',
   'launcher-core.cjs',
   'package.json',
   'build/icon.ico'
 ];
+
+// 防止 electron-builder 的 files 清单新增运行期文件、审核版却漏拷。
+const pkgJson = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8'));
+const declaredRuntimeFiles = (pkgJson.build?.files || []).filter((rel) => /^[^/]+\.(cjs|js)$/.test(rel));
+const missingRuntimeFiles = declaredRuntimeFiles.filter((rel) => !APP_FILES.includes(rel));
+if (missingRuntimeFiles.length) {
+  throw new Error('build-review APP_FILES 缺少运行期文件: ' + missingRuntimeFiles.join(', '));
+}
 
 // 只带运行期依赖，不把 vite / electron-builder 拷进审核版。
 const APP_MODULES = [
