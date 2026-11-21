@@ -73,6 +73,7 @@ after(async () => {
   await new Promise((resolve) => server.close(resolve));
   if (roomId) await q('DELETE FROM challenge_rooms WHERE id = ?', [roomId]);
   if (ids.length) await q('DELETE FROM challenge_rooms WHERE host_id IN (?, ?, ?, ?)', ids);
+  if (ids.length) await q('DELETE FROM challenge_queue WHERE user_id IN (?, ?, ?, ?)', ids);
   await q('DELETE FROM servers WHERE server_key IN (?, ?)', [serverKey, adminKey]);
   if (ids.length) await q('DELETE FROM users WHERE id IN (?, ?, ?, ?)', ids);
   await close();
@@ -449,6 +450,43 @@ test('约战：房主再来一局会复制新房并带入原成员', async () =>
 
   await api('POST', `/api/challenges/${partial.body.data.room.id}/close`, { token: tokens[1] });
   await api('POST', `/api/challenges/${blockingRoomId}/close`, { token: tokens[2] });
+});
+
+test('约战：候场登记按先后排序，可查询与取消', async () => {
+  await q('DELETE FROM challenge_queue WHERE user_id IN (?, ?)', [ids[2], ids[3]]);
+
+  const first = await api('POST', '/api/queue', {
+    token: tokens[2],
+    body: { serverKey: challengeServerKey, kind: 'challenge' },
+  });
+  assert.equal(first.status, 201, JSON.stringify(first.body));
+  assert.equal(first.body.data.count, 1);
+  assert.equal(first.body.data.entries[0].mine, true);
+  assert.equal(first.body.data.entries[0].position, 1);
+
+  const second = await api('POST', '/api/queue', {
+    token: tokens[3],
+    body: { serverKey: challengeServerKey, kind: 'challenge' },
+  });
+  assert.equal(second.status, 201, JSON.stringify(second.body));
+  assert.equal(second.body.data.count, 2);
+  assert.equal(second.body.data.entries.find((entry) => entry.mine).position, 2);
+  assert.equal(second.body.data.entries.find((entry) => !entry.mine).position, 1);
+
+  const listed = await api('GET', `/api/queue?serverKey=${challengeServerKey}`, { token: tokens[2] });
+  assert.equal(listed.status, 200, JSON.stringify(listed.body));
+  assert.equal(listed.body.data.count, 2);
+  assert.equal(listed.body.data.entries.find((entry) => entry.mine).position, 1);
+
+  const left = await api('DELETE', `/api/queue?serverKey=${challengeServerKey}`, { token: tokens[2] });
+  assert.equal(left.status, 200, JSON.stringify(left.body));
+  assert.equal(left.body.data.count, 1);
+  assert.equal(left.body.data.entries.some((entry) => entry.mine), false);
+
+  const denied = await api('GET', '/api/queue');
+  assert.equal(denied.status, 401);
+
+  await api('DELETE', `/api/queue?serverKey=${challengeServerKey}`, { token: tokens[3] });
 });
 
 test('约战：2v2 换队，换队取消准备，1v1 拒绝换队', async () => {

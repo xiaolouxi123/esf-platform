@@ -29,7 +29,7 @@
 
 | 项目 | 结果 |
 |---|---|
-| 服务端测试 | 113/113 通过（`cd server && npm.cmd test`） |
+| 服务端测试 | 114/114 通过（`cd server && npm.cmd test`，含新增候场登记测试） |
 | 启动器测试 | 11 个测试文件、44 项检查全过（`cd esf-launcher && npm.cmd test`） |
 | eslint | 通过 |
 | vite build | 通过；`dist/assets/index-ClKH98hZ.js` 584.66 kB |
