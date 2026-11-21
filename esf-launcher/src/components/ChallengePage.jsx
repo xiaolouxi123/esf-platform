@@ -137,7 +137,6 @@ export default function ChallengePage({
   user,
   toast,
   servers = [],
-  maps = [],
   ranks = DEFAULT_RANKS,
   onJoinServer,
   onSpectateServer,
@@ -192,7 +191,6 @@ export default function ChallengePage({
   const [form, setForm] = useState({
     mode: '1v1',
     title: '',
-    map: '',
     serverKey: '',
     victoryType: 'kills',
     victoryLimit: 10,
@@ -395,7 +393,7 @@ export default function ChallengePage({
         window.electronAPI.challenges.create({
           mode: form.mode,
           title: form.title.trim() || undefined,
-          map: form.map.trim() || undefined,
+          map: selectedServer?.map || undefined,
           serverKey: selectedServerKey,
           victoryType: form.victoryType,
           victoryLimit: Number(form.victoryLimit) || 10,
@@ -677,12 +675,6 @@ export default function ChallengePage({
 
   return (
     <div className="challenge-page">
-      <datalist id="challenge-maps">
-        {maps.slice(0, 300).map((map) => (
-          <option key={map} value={map} />
-        ))}
-      </datalist>
-
       <header className="hero challenge-hero hero--dragon">
         <DragonHeroBackdrop />
         <div className="hero-content">
@@ -1189,7 +1181,7 @@ export default function ChallengePage({
                   </button>
                 ))}
               </div>
-              <span className="challenge-create-note">选好模式和地图，创建后把邀请发给队友</span>
+              <span className="challenge-create-note">选好模式和服务器，地图跟随服务器当前地图</span>
             </div>
 
             <div className="challenge-quick">
@@ -1203,17 +1195,17 @@ export default function ChallengePage({
                   onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
                 />
               </label>
-              <label className="challenge-field">
-                <span>地图（可选）</span>
-                <input
-                  type="text"
-                  maxLength={64}
-                  list="challenge-maps"
-                  value={form.map}
-                  placeholder="esf_cell_games2"
-                  onChange={(event) => setForm((prev) => ({ ...prev, map: event.target.value }))}
-                />
-              </label>
+              <div className="challenge-field">
+                <span>目标地图</span>
+                <div
+                  className={'challenge-map-live' + (selectedServer?.map ? '' : ' is-empty')}
+                  title={selectedServer?.map || '服务器暂未上报地图'}
+                >
+                  <Icon name="map" size={13} />
+                  <b>{selectedServer?.map || '服务器未上报'}</b>
+                  <small>{selectedServer?.online ? '实时' : '离线'}</small>
+                </div>
+              </div>
               <div className="challenge-field">
                 <span>比赛服务器</span>
                 <div className="challenge-select">

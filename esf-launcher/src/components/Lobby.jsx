@@ -1210,7 +1210,6 @@ export default function Lobby({
               user={user}
               toast={toast}
               servers={servers}
-              maps={maps}
               ranks={combatRanks}
               onJoinServer={joinServer}
               onSpectateServer={spectateServer}
