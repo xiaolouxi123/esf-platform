@@ -3,6 +3,8 @@
 - 日期：2026-11-22
 - 状态：**待用户验收，未打 tag、未发布**
 - 范围：约战 P1–P2、发布链路服务端 bundle 自动部署、fresh DB 迁移修复、CI 日志
+- 候选 commit：`2dd4904`（已 push origin/main）
+- CI：run `44959467441`，server / launcher 两个 job 均 success
 - 审核版：`C:\Users\Administrator\Desktop\ESF平台-审核版`
 
 ## 一、这一版做了什么

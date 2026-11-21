@@ -15,7 +15,7 @@ updated: 2026-11-22T07:10:00+08:00
 | 项 | 值 |
 |---|---|
 | 启动器线上版本 | **0.6.60**（tag `v0.6.60`，commit `87f3743`；安装包 129,193,474 B） |
-| 启动器候选版本 | **0.6.61**（约战 P1–P2、房主转让/再来一局/私密房/观战候场；审核版已构建，**未打 tag、未发布**） |
+| 启动器候选版本 | **0.6.61**（commit `2dd4904`；约战 P1–P2、房主转让/再来一局/私密房/观战候场；审核版已构建，**未打 tag、未发布**） |
 | 服务端线上 bundle | 0.6.61 的 rematch/queue 版本已手工部署到 217；之后由 `release.ps1` 随版本自动部署 |
 | AMXX 插件 | **0.65**（自动排队、观战保留、赛后不踢人；仅 114 `fcx-1v1-1` 为比赛服） |
 | 更新源 | https://119.29.82.217/updates/ |
@@ -61,7 +61,7 @@ updated: 2026-11-22T07:10:00+08:00
 
 1. **0.6.61 真人验收**：2v2 房主转让/离开、私密房密码、观战/候场、结算「再来一局」、约战战绩；通过后才 `release.ps1 -Version 0.6.61 -Approved`。
 2. 首发 0.6.61 时验证新的服务端 bundle 自动部署与迁移回滚（`C:\esf\backups\server-src-pre-*.zip`）。
-3. CI server job 已修复 fresh DB 迁移（status_text / ranked_match_players.afk 顺序），需下一次 push 后确认 Actions 变绿。
+3. CI 已变绿：run `44959467441` 的 server / launcher 两个 job 均 success；后续保持。
 4. 真人 1v1/2v2 全链路、真实 FCX 模型包安装、0.6.58→0.6.60 自动更新仍按 `docs/ACCEPTANCE-DEFERRED-2026-11-22.md` 暂缓，不算通过。
 5. 老 119 清理 `esfops`、`LocalAccountTokenFilterPolicy`、一次性安装脚本；114 残留 0.2.1 对齐。
 6. 217 Node 18 与 `engines>=20` 不一致；下次维护窗口评估升到 Node 20/22。
