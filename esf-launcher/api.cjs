@@ -548,6 +548,9 @@ const challengeStart = (settings, token, id) =>
   request(settings, { method: 'POST', path: `/api/challenges/${id}/start`, token });
 const challengeSpectate = (settings, token, id) =>
   request(settings, { method: 'POST', path: `/api/challenges/${id}/spectate`, token });
+
+const challengeRematch = (settings, token, id) =>
+  request(settings, { method: 'POST', path: `/api/challenges/${id}/rematch`, token });
 const challengeQueueJoin = (settings, token, serverKey, kind = 'challenge') =>
   request(settings, { method: 'POST', path: '/api/queue', token, body: { serverKey, kind } });
 const challengeQueueLeave = (settings, token, serverKey) =>
@@ -694,6 +697,7 @@ module.exports = {
   challengeTeam,
   challengeStart,
   challengeSpectate,
+  challengeRematch,
   challengeQueueJoin,
   challengeQueueLeave,
   challengeQueue,

@@ -252,7 +252,7 @@ router.post('/challenges/:id/rounds', requireAuth, async (req, res, next) => {
 
 router.post('/challenges/:id/rematch', requireAuth, async (req, res, next) => {
   try {
-    const data = await challenges.rematch(Number(req.params.id), req.user.id);
+    const data = await challenges.rematch(Number(req.params.id), req.user);
     res.json({ ok: true, data });
   } catch (err) { fail(err, next); }
 });

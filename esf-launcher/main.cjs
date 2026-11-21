@@ -1432,6 +1432,10 @@ handle('challenges:start', async ({ id } = {}) =>
 handle('challenges:spectate', async ({ id } = {}) =>
   apiCall(api.challengeSpectate, getSettings(), requireToken(), id)
 );
+
+handle('challenges:rematch', async ({ id } = {}) =>
+  apiCall(api.challengeRematch, getSettings(), requireToken(), id)
+);
 handle('challenges:queue-join', async ({ serverKey, kind } = {}) =>
   apiCall(api.challengeQueueJoin, getSettings(), requireToken(), serverKey, kind)
 );

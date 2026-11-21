@@ -10,8 +10,10 @@
     2. eslint + node test + vite build
     3. git commit + tag + push (main)
     4. wait for GitHub release assets, download, verify sha512 against latest.yml
-    5. deploy to both API boxes over WinRM (assets + .env + notice + restart)
+    5. deploy to both API boxes over WinRM (assets + server bundle + migrate + .env + restart)
     6. verify public endpoints (latest.yml / HEAD / Range / both /api/config)
+
+  Use -SkipServerDeploy to keep the live server code untouched.
 
   Secrets are read from:
     %TEMP%\esf-newbox.pwd           new box administrator password
@@ -25,6 +27,7 @@ param(
 
 
   [switch]$SkipDeploy,
+  [switch]$SkipServerDeploy,
   [switch]$SkipWait,
   [switch]$Approved
 )
@@ -93,6 +96,28 @@ if ($LASTEXITCODE -ne 0) { Pop-Location; throw "build failed" }
 Mark "lint + tests + vite build"
 Pop-Location
 
+# server bundle built in step 1; verify it before touching the live API.
+$serverBundle = Join-Path $root 'deploy\esf-server-bundle.zip'
+$serverBundleManifest = Join-Path $root 'deploy\esf-server-bundle.manifest.json'
+$bundleSha = ''
+$bundleSize = 0
+$remoteBundle = ''
+if (-not $SkipServerDeploy) {
+  if (-not (Test-Path $serverBundle)) { throw "Missing $serverBundle (build-server-bundle.cjs did not run)" }
+  if (-not (Test-Path $serverBundleManifest)) { throw "Missing $serverBundleManifest" }
+  $mf = Get-Content -Raw -Path $serverBundleManifest | ConvertFrom-Json
+  $bundleItem = Get-Item $serverBundle
+  $bundleSha = (Get-FileHash $serverBundle -Algorithm SHA256).Hash.ToLower()
+  $bundleSize = [int64]$bundleItem.Length
+  if ([string]$mf.launcherVersion -ne $Version) { throw "server bundle is for $($mf.launcherVersion), not $Version" }
+  if ($bundleSha -ne ([string]$mf.sha256).ToLower()) { throw "server bundle sha256 mismatch: $bundleSha vs $($mf.sha256)" }
+  if ($bundleSize -ne [int64]$mf.size) { throw "server bundle size mismatch: $bundleSize vs $($mf.size)" }
+  $remoteBundle = "C:\esf\server-bundles\esf-server-bundle-$Version.zip"
+  Write-Host "server bundle $([math]::Round($bundleSize/1KB,1)) KB sha256=$($bundleSha.Substring(0,12)) files=$($mf.fileCount)"
+} else {
+  Write-Host 'server bundle deploy skipped' -ForegroundColor Yellow
+}
+
 # ---------------------------------------------------------------- 3. commit
 Step "commit + tag + push"
 $files = @(
@@ -121,7 +146,8 @@ $files = @(
   'docs/kb',
   'docs/design',
   'website',
-  'deploy'
+  'deploy',
+  '.github'
 )
 git add -A -- $files
 $msg = "release: v$Version`n`n$Notes"
@@ -326,8 +352,89 @@ function Deploy-NewBox {
     }
     Copy-Item -ToSession $s -Path $releasePath -Destination 'C:\esf\server\scripts\release-settings.js' -Force
 
-    $text = Invoke-Command -Session $s -ArgumentList $notesB64, $Version -ScriptBlock {
-      param($b64, $ver)
+    if (-not $SkipServerDeploy) {
+      Invoke-Command -Session $s -ScriptBlock {
+        param($dir)
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+      } -ArgumentList 'C:\esf\server-bundles'
+      Copy-Item -ToSession $s -Path $serverBundle -Destination $remoteBundle -Force
+    }
+
+    $text = Invoke-Command -Session $s -ArgumentList $notesB64, $Version, $remoteBundle, $bundleSha, $bundleSize, [bool]$SkipServerDeploy -ScriptBlock {
+      param($b64, $ver, $bundlePath, $bundleSha, $bundleSize, $skipServer)
+      $nodeDir = 'C:\esf\node'
+      $nodeExe = Join-Path $nodeDir 'node.exe'
+      $npmCmd = Join-Path $nodeDir 'npm.cmd'
+      if (-not (Test-Path $nodeExe)) { $nodeExe = (Get-Command node.exe).Source }
+      if (-not (Test-Path $npmCmd)) { $npmCmd = (Get-Command npm.cmd).Source }
+      $env:Path = "$nodeDir;$env:Path"
+
+      $serverDeployed = $false
+      $backupPath = ''
+      if (-not $skipServer) {
+        if (-not (Test-Path $bundlePath)) { throw "server bundle missing on host: $bundlePath" }
+        $actualSha = (Get-FileHash $bundlePath -Algorithm SHA256).Hash.ToLower()
+        if ($actualSha -ne $bundleSha) { throw 'uploaded server bundle sha256 mismatch' }
+        if ((Get-Item $bundlePath).Length -ne [int64]$bundleSize) { throw 'uploaded server bundle size mismatch' }
+
+        $serverDir = 'C:\esf\server'
+        $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $backupPath = "C:\esf\backups\server-src-pre-$ver-$stamp.zip"
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backupPath) | Out-Null
+        $stageBackup = 'C:\esf\server-backup-stage'
+        Remove-Item $stageBackup -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force -Path $stageBackup | Out-Null
+        foreach ($name in @('package.json', 'package-lock.json', 'src', 'sql', 'scripts', 'test')) {
+          $src = Join-Path $serverDir $name
+          if (Test-Path $src) { Copy-Item $src -Destination $stageBackup -Recurse -Force }
+        }
+        Compress-Archive -Path (Join-Path $stageBackup '*') -DestinationPath $backupPath -Force
+        Remove-Item $stageBackup -Recurse -Force -ErrorAction SilentlyContinue
+
+        Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue |
+          ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+        Start-Sleep -Seconds 1
+
+        $stage = 'C:\esf\server-staging'
+        Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+        Expand-Archive -Path $bundlePath -DestinationPath $stage -Force
+        Copy-Item (Join-Path $stage '*') $serverDir -Recurse -Force
+        Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+
+        $deployError = ''
+        Push-Location $serverDir
+        try {
+          New-Item -ItemType Directory -Force -Path 'C:\esf\logs' | Out-Null
+          $npmLog = 'C:\esf\logs\server-bundle-npm.log'
+          & $npmCmd install --omit=dev --no-audit --no-fund --registry=https://registry.npmmirror.com *> $npmLog
+          $npmCode = $LASTEXITCODE
+          Get-Content $npmLog -Tail 30 -ErrorAction SilentlyContinue | ForEach-Object { "npm: $_" }
+          if ($npmCode -ne 0) { throw "npm install failed with exit $npmCode" }
+
+          $migrateLog = 'C:\esf\logs\server-bundle-migrate.log'
+          & $nodeExe 'scripts\migrate.js' *> $migrateLog
+          $migrateCode = $LASTEXITCODE
+          Get-Content $migrateLog -Tail 40 -ErrorAction SilentlyContinue | ForEach-Object { "migrate: $_" }
+          if ($migrateCode -ne 0) { throw "migrate failed with exit $migrateCode" }
+        } catch {
+          $deployError = $_.Exception.Message
+        } finally {
+          Pop-Location
+        }
+
+        if ($deployError) {
+          foreach ($name in @('src', 'sql', 'scripts', 'test', 'package.json', 'package-lock.json')) {
+            $target = Join-Path $serverDir $name
+            if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+          }
+          Expand-Archive -Path $backupPath -DestinationPath $serverDir -Force
+          schtasks /run /tn ESFAPI | Out-Null
+          throw "server bundle deploy failed, rolled back to ${backupPath}: ${deployError}"
+        }
+        $serverDeployed = $true
+        "server bundle applied, backup $backupPath"
+      }
+
       $notesText = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)).Trim()
       $envPath = 'C:\esf\server\.env'
       $enc = New-Object System.Text.UTF8Encoding($false)
@@ -340,9 +447,11 @@ function Deploy-NewBox {
       }
       [System.IO.File]::WriteAllText($envPath, ($lines -join "`r`n"), $enc)
 
-      Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue |
-        ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
-      Start-Sleep -Seconds 1
+      if (-not $serverDeployed) {
+        Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue |
+          ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+        Start-Sleep -Seconds 1
+      }
       schtasks /run /tn ESFAPI | Out-Null
       $h = $null
       for ($i = 0; $i -lt 20; $i++) {
@@ -354,7 +463,6 @@ function Deploy-NewBox {
       }
       if (-not $h) { throw 'API did not become healthy within 40s' }
 
-      $nodeExe = if (Test-Path 'C:\esf\node\node.exe') { 'C:\esf\node\node.exe' } else { (Get-Command node.exe).Source }
       $dl = "https://119.29.82.217/updates/ESF-Platform-Setup-$ver.exe"
       $settingsOut = & $nodeExe 'C:\esf\server\scripts\release-settings.js' $ver $b64 $dl 2>&1
       $c = Invoke-RestMethod 'http://127.0.0.1:3000/api/config' -TimeoutSec 10

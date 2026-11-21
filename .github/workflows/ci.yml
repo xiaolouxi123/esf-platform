@@ -64,18 +64,24 @@ jobs:
           cache: npm
           cache-dependency-path: server/package-lock.json
       - run: npm ci
-      - run: npm run migrate
+      - name: Run database migrations
+        run: |
+          set -o pipefail
+          npm run migrate 2>&1 | tee /tmp/server-migrate.log
       - name: Run server tests
         run: |
           set -o pipefail
           npm test 2>&1 | tee /tmp/server-tests.log
-      - name: Surface server test failures
+      - name: Surface server failures
         if: failure()
         run: |
-          if [ -f /tmp/server-tests.log ]; then
-            tail -n 80 /tmp/server-tests.log | while IFS= read -r line; do
-              line="${line//'%'/'%25'}"
-              line="${line//$'\r'/}"
-              echo "::error title=server-test::${line}"
-            done
-          fi
+          for log in /tmp/server-migrate.log /tmp/server-tests.log; do
+            if [ -f "$log" ]; then
+              echo "::group::$(basename "$log")"
+              tail -n 80 "$log" | while IFS= read -r line; do
+                line="${line//'%'/'%25'}"
+                echo "::error title=$(basename "$log")::${line}"
+              done
+              echo "::endgroup::"
+            fi
+          done

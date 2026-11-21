@@ -83,6 +83,7 @@ export default function Lobby({
   const [queueBusy, setQueueBusy] = useState('');
   const [localOpen, setLocalOpen] = useState(false);
   const [challengeResult, setChallengeResult] = useState(null);
+  const [rematchBusy, setRematchBusy] = useState(false);
   const autoJoinRef = useRef(null);
   const joinServerRef = useRef(null);
   const [updateInfo, setUpdateInfo] = useState(null);
@@ -204,6 +205,27 @@ export default function Lobby({
       localStorage.setItem('esf:seenChallengeResult', String(challengeResult.roomId));
     }
     setChallengeResult(null);
+  };
+
+  const rematchChallenge = async () => {
+    if (!challengeResult?.roomId || rematchBusy) return;
+    setRematchBusy(true);
+    try {
+      const data = await window.electronAPI.challenges.rematch(challengeResult.roomId);
+      const skipped = Array.isArray(data?.skipped) ? data.skipped : [];
+      dismissChallengeResult();
+      setPage('challenges');
+      toast(
+        skipped.length > 0
+          ? `已开新房间；${skipped.join('、')} 正在别的房间，没有带过来`
+          : '已开新房间，等队友进来就能开打',
+        'ok'
+      );
+    } catch (err) {
+      toast(err?.message || '再来一局失败，请稍后重试', 'error');
+    } finally {
+      setRematchBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -2054,6 +2076,9 @@ export default function Lobby({
       <ChallengeResultModal
         result={challengeResult}
         onClose={dismissChallengeResult}
+        canRematch={Boolean(challengeResult?.hostId && user?.id && Number(challengeResult.hostId) === Number(user.id))}
+        onRematch={rematchChallenge}
+        rematchBusy={rematchBusy}
         onOpenChallenges={() => {
           dismissChallengeResult();
           setPage('challenges');

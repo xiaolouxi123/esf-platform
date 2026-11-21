@@ -177,6 +177,15 @@ export default function ChallengePage({
   const [transferTargetId, setTransferTargetId] = useState('');
   const [roomFilter, setRoomFilter] = useState('all');
   const [roomKeyword, setRoomKeyword] = useState('');
+  const [queueBusy, setQueueBusy] = useState('');
+  const [queuedServers, setQueuedServers] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('esf:challengeQueue') || '{}');
+      return raw && typeof raw === 'object' ? raw : {};
+    } catch {
+      return {};
+    }
+  });
   const [members, setMembers] = useState([]);
   const [memberQuery, setMemberQuery] = useState('');
   const [membersLoading, setMembersLoading] = useState(false);
@@ -237,6 +246,57 @@ export default function ChallengePage({
       refreshSeq.current += 1;
     };
   }, [refresh]);
+
+  // 启动时校对本地排队缓存：服务器队列已不存在时清掉，避免按钮一直显示「排队中」。
+  const queuedServersRef = useRef(queuedServers);
+  useEffect(() => {
+    const keys = Object.keys(queuedServersRef.current || {});
+    if (!keys.length) return undefined;
+    let alive = true;
+    Promise.all(
+      keys.map(async (serverKey) => {
+        try {
+          const data = await window.electronAPI.challenges.queue(serverKey);
+          const mine = Array.isArray(data?.entries) ? data.entries.find((entry) => entry.mine) : null;
+          return [serverKey, mine ? { position: mine.position, count: data.count } : null];
+        } catch {
+          // 网络失败时保留本地状态，不能把用户刚排的队误删。
+          return [serverKey, undefined];
+        }
+      })
+    ).then((entries) => {
+      if (!alive) return;
+      setQueuedServers((current) => {
+        let changed = false;
+        const next = { ...current };
+        for (const [serverKey, value] of entries) {
+          if (value === undefined) continue;
+          if (!value) {
+            if (next[serverKey]) {
+              delete next[serverKey];
+              changed = true;
+            }
+            continue;
+          }
+          const previous = next[serverKey];
+          if (!previous || previous.position !== value.position || previous.count !== value.count) {
+            next[serverKey] = value;
+            changed = true;
+          }
+        }
+        if (!changed) return current;
+        try {
+          localStorage.setItem('esf:challengeQueue', JSON.stringify(next));
+        } catch {
+          /* 本地缓存失败不影响排队 */
+        }
+        return next;
+      });
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const openInvite = useCallback((event) => {
     inviteReturnRef.current = event?.currentTarget || document.activeElement;
@@ -419,6 +479,35 @@ export default function ChallengePage({
       () => window.electronAPI.challenges.invite(myRoom.id, member.id),
       `已邀请 ${playerLabel(member)}`
     );
+
+  const toggleQueue = async (room) => {
+    const serverKey = room?.server?.serverKey;
+    if (!serverKey) {
+      toast('这间房没有绑定服务器，暂时不能排队', 'error');
+      return;
+    }
+    if (queueBusy) return;
+    const queued = Boolean(queuedServers[serverKey]);
+    setQueueBusy(serverKey);
+    try {
+      const data = queued
+        ? await window.electronAPI.challenges.queueLeave(serverKey)
+        : await window.electronAPI.challenges.queueJoin(serverKey, 'challenge');
+      const mine = Array.isArray(data?.entries) ? data.entries.find((entry) => entry.mine) : null;
+      setQueuedServers((current) => {
+        const next = { ...current };
+        if (mine) next[serverKey] = { position: mine.position, count: data.count };
+        else delete next[serverKey];
+        try { localStorage.setItem('esf:challengeQueue', JSON.stringify(next)); } catch { /* 本地缓存失败不影响排队 */ }
+        return next;
+      });
+      toast(mine ? `已登记候场，当前第 ${mine.position} 位` : '已取消候场', 'ok');
+    } catch (err) {
+      toast(err?.message || (queued ? '取消排队失败，请重试' : '排队失败，请重试'), 'error');
+    } finally {
+      setQueueBusy('');
+    }
+  };
 
   const spectateRoom = async (room) => {
     if (!onSpectateServer) {
@@ -727,16 +816,34 @@ export default function ChallengePage({
                     {room.maxPlayers} 人
                   </small>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost challenge-live-watch"
-                  onClick={() => spectateRoom(room)}
-                  disabled={Boolean(busy) || room.spectatorFull}
-                  title={room.spectatorFull ? '观战席位已满' : '进入服务器观战'}
-                >
-                  <Icon name="eye" size={13} />
-                  {room.spectatorFull ? '观战已满' : `观战 ${room.spectatorCount}/${room.spectatorLimit}`}
-                </button>
+                <div className="challenge-live-actions">
+                  {room.server?.serverKey && (
+                    <button
+                      type="button"
+                      className={'btn btn-sm btn-ghost challenge-live-queue' + (queuedServers[room.server.serverKey] ? ' is-queued' : '')}
+                      onClick={() => toggleQueue(room)}
+                      disabled={Boolean(busy) || Boolean(queueBusy)}
+                      title={queuedServers[room.server.serverKey] ? '再点一次取消候场' : '登记候场顺序，等这台服务器空出下一场（不自动进场）'}
+                    >
+                      <Icon name="clock" size={12} />
+                      {queueBusy === room.server.serverKey
+                        ? '处理中…'
+                        : queuedServers[room.server.serverKey]
+                          ? `排队中 · 第 ${queuedServers[room.server.serverKey].position} 位`
+                          : '排队'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost challenge-live-watch"
+                    onClick={() => spectateRoom(room)}
+                    disabled={Boolean(busy) || room.spectatorFull}
+                    title={room.spectatorFull ? '观战席位已满' : '进入服务器观战'}
+                  >
+                    <Icon name="eye" size={13} />
+                    {room.spectatorFull ? '观战已满' : `观战 ${room.spectatorCount}/${room.spectatorLimit}`}
+                  </button>
+                </div>
               </div>
             ))}
           </div>

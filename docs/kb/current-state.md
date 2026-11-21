@@ -2,82 +2,66 @@
 title: 线上现状
 category: state
 tags: [state, versions, deployment]
-updated: 2026-11-17T05:55:00+08:00
+updated: 2026-11-22T07:10:00+08:00
 ---
 
-# 线上现状（2026-11-16）
+# 线上现状（2026-11-22）
 
 只放"现在是什么"，决策理由见 [[migration]]、[[launcher-updater]]、[[ranked-challenge]]、[[amxx-plugins]]、[[lobby-presence-sound]]、[[account-security]]、[[maintenance-channel]]。
 任何数字变化后**直接改这里**，不要留下旧值。
+
+## 版本
+
+| 项 | 值 |
+|---|---|
+| 启动器线上版本 | **0.6.60**（tag `v0.6.60`，commit `87f3743`；安装包 129,193,474 B） |
+| 启动器候选版本 | **0.6.61**（约战 P1–P2、房主转让/再来一局/私密房/观战候场；审核版已构建，**未打 tag、未发布**） |
+| 服务端线上 bundle | 0.6.61 的 rematch/queue 版本已手工部署到 217；之后由 `release.ps1` 随版本自动部署 |
+| AMXX 插件 | **0.65**（自动排队、观战保留、赛后不踢人；仅 114 `fcx-1v1-1` 为比赛服） |
+| 更新源 | https://119.29.82.217/updates/ |
 
 ## 服务端
 
 | 项 | 值 |
 |---|---|
-| 平台 API / 更新源 | https://119.29.82.217 （Caddy 反代 → 127.0.0.1:3000） |
+| 平台 API / 更新源 | https://119.29.82.217（Caddy 反代 → 127.0.0.1:3000） |
 | 新服务器 | 119.29.82.217，Windows Server 2022，主机名 10_1_0_13 |
-| 老服务器（待下线） | 119.91.99.176，Windows Server 2012 R2，主机名 172_16_0_9 |
-| 游戏服 | 114.132.84.150，Windows Server 2016，主机名 10_1_0_8，端口 27016 / 27017 |
-| 数据库 | 新机 MySQL 8.0.29，库 `esf_platform`，端口 3306，字符集 utf8mb4 |
-| 服务端代码 | `C:\esf\server`（API）、`C:\esf\updates`（更新 feed）、`C:\esf\caddy` |
-| 计划任务 | `ESFMySQL`、`ESFAPI`、`ESFCaddy`（开机自启） |
+| 老服务器（待下线） | 119.91.99.176，Windows Server 2012 R2，主机名 172_16_0_9；只读共享库 |
+| 游戏服 | 114.132.84.150，Windows Server 2016，端口 27016 / 27017 |
+| 数据库 | 217 本机 MySQL 8.0.29，库 `esf_platform`，端口 3306，utf8mb4 |
+| 服务端代码 | `C:\esf\server`（API）、`C:\esf\updates`（更新 feed / AMXX）、`C:\esf\caddy` |
+| 运行时 | `C:\esf\node\node.exe` 18.20.8、npm 10.8.2（不在 PATH）；`package.json` engines 写 node>=20，实际 18 仅警告 |
+| 计划任务 | `ESFMySQL`、`ESFAPI`、`ESFCaddy`（开机自启）；另有 5 分钟看护任务 |
 
-## 启动器
+## 发布链路
 
-| 项 | 值 |
-|---|---|
-| 最新版本 | **0.6.2**（提交 2d50b3d，tag v0.6.2；邀请注册 + 更新体验 + 画面与渲染设置） |
-| 更新源 | https://119.29.82.217/updates/ |
-| 安装包 | ESF-Platform-Setup-0.6.2.exe（128,770,021 B，blockmap 135,372 B） |
-| 差量基线 | 0.6.1 → 0.6.2：36 个操作，下载 7,414,151 B；0.6.0 → 0.6.1：36 个操作，下载 7,426,389 B；0.5.23 → 0.6.0：41 个操作，下载 9,103,896 B；0.5.21 → 0.5.23：22 个操作，下载 1,697,637 B；0.5.1 → 0.5.2：36 个操作，下载 7,365,460 B；0.5.0 → 0.5.1：22 个操作，下载 1,685,174 B；0.4.16 → 0.5.0：27 个操作，下载 3,480,839 B；0.4.15 → 0.4.16：30 个操作，下载 7,357,162 B；0.4.14 → 0.4.15：30 个操作，下载 7,625,781 B；0.4.13 → 0.4.14：18 个操作，下载 1,867,465 B |
-| 新引擎支持 | 0.4.14 起识别 `ESF.exe + engine\engine.cfg`（ESF Engine 1.0），启动参数写入 `Launcher=` 行，退出还原 |
-| 账号安全 | 0.4.15：邮箱绑定 / 忘记密码 / 管理台重置 + 10 次锁定；0.4.16：TOTP 两步验证（含 10 个一次性备用码）、登录设备列表与撤销、密码强度（≥10 位且 ≥3 类）、接口安全响应头 |
-| 地图记忆 | 0.5.2：本地 `settings.lastMap` 记录上次选图，进大厅自动选中（换图/随机都写入）；文件里找不到时退回第一张 |
-| 启动兼容 | 0.5.1：启动失败自动重试 2 次；15s/25s 窗口检测，无窗口可一键直接启动 `no_hl.exe`；兼容模式（窗口化 800×600 + `-gl` + `-heapsize 262144`）；`launcher.log` 与一键诊断包 |
-| 约战限制 | 0.5.23：只开放「单挑 1」（fcx-1v1-1），单局 15 分钟，到点按击杀比分结算；服务端 180 秒宽限自动关闭僵尸房间 |
-| 界面 | 0.5.0：P0–P9 全站 UI 重做（令牌、外壳、大厅、排位、约战、服务器、资源库、管理台、设置、登录、频道），交接单 `docs/design/HANDOFF-ui-redesign.md`；0.5.2：管理台栏目折叠（默认只展开玩家管理）；0.5.21：左侧栏新增「插件中心」独立页，不再放设置抽屉 |
-| 插件可观测性 | 0.5.21：`GET /api/plugins/observability` 返回本地四插件版本/大小/哈希、cvar、auth/lock/test_ranked 心跳与日志入口；测试 profile 用 `--test-profile` 在 Chromium 启动前切 `userData`，登录态独立 |
-| 比赛结束 | 0.5.21：AMXX 写 `esf_match_end.flag`，启动器 2.5 秒轮询后只强杀本次启动捕获的 PID（`hl.exe` 壳优先），不再按镜像名全杀 |
-| 结算兜底 | 0.6.1：插件结算失败写 `esf_pending_result.json`，启动器启动/赛后自动补交 `POST /api/ranked/settle`，失败按 30s / 2min / 10min 重试；接口幂等，走 DB 过程保留 AFK −30 |
-| 排位无服 | 0.6.1：`/api/servers` 返回的服务器全部 locked/offline 时，开始匹配按钮禁用并提示「暂无可用服务器」 |
-| 约战模式 | 0.6.1：1v1 青蓝、2v2 紫色，文字居中；胜利条件固定 3 / 5 / 10；插件 0.51 起修正 2v2 列索引 |
+`scripts\release.ps1`（PS 5.1，必须 `-Approved`）：
+
+1. bump `esf-launcher/package.json` + lock；更新 `releases.json`、官网、部署脚本、KB；
+2. 重建 `deploy\esf-server-bundle.zip`，跑 `check-versions`（应 12 PASS）；
+3. eslint、启动器测试、vite build；
+4. 校验服务端 bundle 的 sha256/size 与 manifest，再 commit + tag + push；
+5. 等 GitHub Actions 产物，下载并校验 exe sha512；
+6. WinRM 部署 217：客户端资产 + 服务端 bundle（备份 → 停 API → 解压 → `npm install` → `migrate.js` → 失败回滚）+ .env + 重启；
+7. 验证 latest.yml / HEAD / Range / 双端 `/api/config`。
+
+逃生开关：`-SkipServerDeploy` 只发客户端；`-SkipDeploy` 只准备产物；`-SkipWait` 不等待 Actions。
 
 ## AMXX 插件
 
 | 项 | 值 |
 |---|---|
-| 当前线上插件包 | **0.53**（自动分边；两台服 4 个受管插件哈希与 manifest 0.53 完全一致，2026-11-16 通过 ops 核实） |
-| 更新源已上传 | **0.53**（`esf-challenge-plugins-0.53.zip`，37,908 B，sha256 `b8d8a480…`；114 已自动更新并回报 0.53）。0.54 仅本地产物，未上传生产 |
-| 当前源码 BUILD | **0.54**（追加本地 listen server 开房放行，见 [[known-issues]] 第 9 条；已编译并装入**本机游戏目录**，zip + manifest 已本地产出，**未上传生产**——生产是 dedicated server，不触发该问题） |
-| 本地测试包 | `test_ranked 1.3.4-teamtest`（test15，38,392 B，SHA256 `0e81b6f6...`）；仅本地验证，未发布到游戏服 |
-| 分发位置 | `C:\esf\updates\amxx\manifest.json` + `esf-challenge-plugins-0.53.zip` |
+| 当前源码 BUILD | **0.65**（`esf_platform_auth.sma` / `esf_ranked_lock.sma`） |
 | 受管插件 | esf_gamemode / esf_platform_auth / esf_ranked_lock / test_ranked |
-| 114 更新任务 | `ESFAmxxUpdate`，SYSTEM，每 10 分钟 |
-| 114 更新脚本 | `C:\esf-agent\amxx-updater.ps1`，版本记录 `C:\esf-agent\amxx-version.txt` |
-| 线上构建心跳 | 表 `amxx_builds`；fcx-1v1-1 于 2026-11-15 15:03 上报 0.53（platform_auth / ranked_lock） |
-| 源码基线 | **main**（2026-11-11 合并自 `fix/amxx-ascii-logs`，含 0.49–0.52 全部增量；该分支保留但不再作为基线） |
-| 版本一致性 | 线上 0.53 已统一（心跳 0.53、两服哈希一致）；本地源码 `BUILD` = `"0.54"`（含 listen server 放行），未上传。构建方式 amxxpc 1.10.0.5392 + `-d1` + UTF-8 无 BOM 直编 |
-| 功能缺口 | 开局不会自动分边：`autoPlayerStart()` 只统计引擎队伍，未下发 `jointeam`；平台队伍已在 `g_challengeTeam` / `g_rankedTeam`，但未写回引擎。见待办 9 |
+| 分发 | `scripts\publish-amxx.ps1` → 217 `C:\esf\updates\amxx` → 114 `ESFAmxxUpdate` 计划任务 |
+| 比赛服 | 仅 114 `fcx-1v1-1`；217 两台 EVM 为约战服/公开服，不参与排位 |
+| 本地编译 | amxxpc 1.10.0.5392 + `-d1` + UTF-8 无 BOM（`amxx\tools\build-current.ps1`） |
 
-## 游戏服配置
+## 当前待办
 
-- `amxx.cfg`：`platform_sql_host` / `ranked_sql_host` = 119.29.82.217，`platform_allow_guest 1`（测试期放行非平台玩家）。
-- HLSM 2.4 监控两台服，`taskkill /f /im rehlds.exe` 后会自动拉起。
-- 后端看护：`ESFAPI` 计划任务无执行时限（PT0S）+ 失败重试；`ESFAPIWatch` 每 5 分钟检查 3000 端口并拉起；`ESFCaddyWatch` 每 5 分钟检查 443。2026-11-16 修复过 ESFAPI 72 小时执行上限导致的 5 天 502。
-
-## 待办
-
-1. 0.6.1 验收：**API 层 9 项本机模拟已全部通过**（2026-11-11，`server/scripts/acceptance-sim.cjs` → `npm run test:acceptance`，记录见 `docs/ACCEPTANCE-SIM-2026-11-11.md`）：观战 4 人上限与空位复用、锁服排队排位优先、AFK −30 结算与战绩公开标记、结算补交幂等与鉴权。仍待真人/双开 hl.exe 验证：游戏侧 AFK 计时提醒、赛后 10 秒退出与 PID 强杀、观战 Token 实际进服、开局自动分边。
-2. 0.5.0/0.6.0 客户端实机复测：全站新 UI、2FA、设备会话、忘记密码全链路。
-2. 新手房（27017）未上报 `amxx_builds` 心跳，疑似 `amxx.cfg` 未配 `platform_server_key` / `ranked_server_key`，待查。
-3. 启动器侧把 token 直接写进命令行参数（`+setinfo`），不再依赖 launcher.cfg，随下一版发布。
-4. 迁移收尾：真人 1v1/2v2 验收；老 119 的 `esfops` 与 `LocalAccountTokenFilterPolicy` 回滚时点待定（回滚会断老机 WinRM 部署通道，建议 7 天后再清）。
-5. 清理一次性安装脚本 `C:\esf\updates\ops\install-*.ps1`。
-6. ops agent 任务输出的中文乱码（cmd 以 UTF-8 输出、agent 按 GBK 读回），改 `[IO.File]::ReadAllText(..., UTF8)`。
-7. 老 114 仍有 0.2.1 版本残留，待与现网版本对齐。
-8. 发布提速：`release.ps1` 仍用 PSSession 逐机拷 125 MB 安装包（约 4–5 分钟/台）；下一步改成两台机自行从 `https://119.29.82.217/updates/` 下载并校验 sha512。
-9. **验收 0.53，择机发布 0.54**：0.53（自动分边）已上传更新源；114 心跳 2026-11-15 15:03 已回报 0.53，两台服 4 个受管插件哈希 2026-11-16 核实与 manifest 一致（r14 旧副本仅在桌面备份目录）。仍待真机双开验收。
-   源码已升 **0.54**（追加本地 listen server 开房放行，见 [[known-issues]] 第 9 条），产物已本地打包并装入本机游戏目录，
-   **未上传生产**（生产 dedicated 服不受该问题影响），留到下次常规发布一并上线。
-   生产 `.env` 仍显式写 `AMXX_EXPECTED_*=0.53`，与线上一致；仓库默认值已升 0.54，
-   **不要因此误判为 drift**；真正发布 0.54 时需同步改这三项并重启 API。
+1. **0.6.61 真人验收**：2v2 房主转让/离开、私密房密码、观战/候场、结算「再来一局」、约战战绩；通过后才 `release.ps1 -Version 0.6.61 -Approved`。
+2. 首发 0.6.61 时验证新的服务端 bundle 自动部署与迁移回滚（`C:\esf\backups\server-src-pre-*.zip`）。
+3. CI server job 已修复 fresh DB 迁移（status_text / ranked_match_players.afk 顺序），需下一次 push 后确认 Actions 变绿。
+4. 真人 1v1/2v2 全链路、真实 FCX 模型包安装、0.6.58→0.6.60 自动更新仍按 `docs/ACCEPTANCE-DEFERRED-2026-11-22.md` 暂缓，不算通过。
+5. 老 119 清理 `esfops`、`LocalAccountTokenFilterPolicy`、一次性安装脚本；114 残留 0.2.1 对齐。
+6. 217 Node 18 与 `engines>=20` 不一致；下次维护窗口评估升到 Node 20/22。

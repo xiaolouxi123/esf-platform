@@ -51,6 +51,15 @@ async function createAccount(conn, user, host, password) {
  * 所以结构演进要靠这里（MySQL 8 的 ADD COLUMN 没有 IF NOT EXISTS）。
  */
 async function ensureColumn(conn, dbName, table, column, definition) {
+  // Fresh installs create some legacy tables later in this script; skip the
+  // early column patch instead of failing on a table that does not exist yet.
+  const [tables] = await conn.query(
+    `SELECT 1 FROM information_schema.tables
+      WHERE table_schema = ? AND table_name = ? LIMIT 1`,
+    [dbName, table]
+  );
+  if (tables.length === 0) return false;
+
   const [rows] = await conn.query(
     `SELECT 1 FROM information_schema.columns
       WHERE table_schema = ? AND table_name = ? AND column_name = ? LIMIT 1`,
@@ -115,13 +124,6 @@ async function main() {
       'users',
       'game_name_updated_at',
       "DATETIME NULL COMMENT '游戏昵称最近修改时间（自然日限改一次）' AFTER game_name"
-    );
-    await ensureColumn(
-      conn,
-      env.db.name,
-      'users',
-      'status_text',
-      "VARCHAR(48) NULL COMMENT '自定义状态（Discord 式，最多 48 字）' AFTER combat_level"
     );
     // 资源封面（支持动图，原样保存）
     const coverColumns = [
@@ -239,6 +241,15 @@ async function main() {
       'users',
       'combat_level',
       "TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '格斗等级，0=未定级' AFTER title_id"
+    );
+
+    // 自定义状态依赖 combat_level，必须等上面的列补完再加。
+    await ensureColumn(
+      conn,
+      env.db.name,
+      'users',
+      'status_text',
+      "VARCHAR(48) NULL COMMENT '自定义状态（Discord 式，最多 48 字）' AFTER combat_level"
     );
 
     // 0.4.15 账号安全：邮箱绑定 / 登录锁定 / 强制改密
@@ -427,6 +438,7 @@ async function main() {
          team ENUM('a','b') NOT NULL,
          slot TINYINT UNSIGNED NOT NULL,
          ready TINYINT NOT NULL DEFAULT 0,
+         afk TINYINT(1) NOT NULL DEFAULT 0,
          rating_before INT NOT NULL DEFAULT 1000,
          rating_after INT NULL,
          PRIMARY KEY (match_id, user_id),

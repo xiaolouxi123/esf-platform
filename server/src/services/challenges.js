@@ -593,7 +593,7 @@ async function challengeAccess(userId, serverKey) {
 
 async function resultOf(roomId) {
   const row = await one(
-    `SELECT r.id, r.title, r.mode, r.server_key, r.status, r.map, r.started_at, r.day_seq, r.best_of,
+    `SELECT r.id, r.host_id, r.title, r.mode, r.server_key, r.status, r.map, r.started_at, r.day_seq, r.best_of,
             res.winner, res.score_a, res.score_b, res.victory_type,
             res.victory_limit, res.ended_at,
             s.name AS server_name
@@ -627,6 +627,7 @@ async function resultOf(roomId) {
     bestOf: Number(row.best_of || 3) === 1 ? 1 : 3,
     serverKey: row.server_key || null,
     serverName: row.server_name || null,
+    hostId: Number(row.host_id),
     winner: row.winner || null,
     scoreA: Number(row.score_a || 0),
     scoreB: Number(row.score_b || 0),
@@ -686,7 +687,10 @@ async function createRoom(user, fields = {}) {
   const victoryLimit = normalizeVictoryLimit(fields.victoryLimit);
   const bestOf = normalizeBestOf(fields.bestOf);
   const isPrivate = Boolean(fields.private);
-  const passwordHash = isPrivate ? bcrypt.hashSync(normalizeRoomPassword(fields.password), 8) : null;
+  // 仅连续房间（rematch）内部复用旧房哈希；外部建房不会传这个字段。
+  const passwordHash = isPrivate
+    ? (fields.passwordHash || bcrypt.hashSync(normalizeRoomPassword(fields.password), 8))
+    : null;
 
   if (!serverKey) throw badRequest('请选择一台服务器后再开房');
 
@@ -1199,16 +1203,61 @@ async function finishRound(roomId, { winner, scoreA, scoreB, userId } = {}) {
   return { roundNo, maxRounds, winner: w };
 }
 
-async function rematch(roomId, userId) {
-  const room = await one('SELECT * FROM challenge_rooms WHERE id = ?', [roomId]);
-  if (!room) throw notFound('房间不存在');
-  const member = await one('SELECT user_id FROM challenge_room_players WHERE room_id = ? AND user_id = ?', [roomId, userId]);
-  if (!member) throw forbidden('只有参赛玩家可以再来一局');
-  const maxRounds = Number(room.best_of || MAX_ROUNDS) === 1 ? 1 : MAX_ROUNDS;
-  const next = Number(room.round_no || 1) + 1;
-  if (next > maxRounds) throw conflict(`本房间已达到 ${maxRounds} 局上限`);
-  await q('UPDATE challenge_rooms SET round_no = ?, status = ?, started_at = NOW(), updated_at = NOW() WHERE id = ?', [next, 'live', roomId]);
-  return { roundNo: next, maxRounds };
+async function rematch(roomId, user) {
+  const callerId = Number(user && typeof user === 'object' ? user.id : user);
+  const old = await roomRow(roomId);
+  if (!old) throw notFound('房间不存在');
+  if (Number(old.host_id) !== callerId) throw forbidden('只有房主可以再来一局');
+  if (old.status !== 'closed') throw conflict('本局还没结束，结束后才能再来一局');
+  const settled = await one('SELECT room_id FROM challenge_results WHERE room_id = ? LIMIT 1', [roomId]);
+  if (!settled) throw conflict('本局还没有结算，暂时不能再来一局');
+
+  const members = await roomMembers(roomId);
+  const hostMember = members.find((item) => item.id === callerId);
+  const baseTitle = String(old.title || '约战').replace(/\s*·\s*再来一局\s*$/, '').slice(0, 40);
+  const actor = (user && typeof user === 'object')
+    ? user
+    : { id: callerId, username: old.host_username, game_name: old.host_game_name };
+
+  const created = await createRoom(actor, {
+    mode: old.mode,
+    title: `${baseTitle} · 再来一局`,
+    map: old.map,
+    serverKey: old.server_key,
+    victoryType: old.victory_type || 'kills',
+    victoryLimit: old.victory_limit || 10,
+    bestOf: old.best_of || 3,
+    private: Boolean(Number(old.is_private || 0)),
+    passwordHash: old.password_hash || undefined,
+  });
+
+  // 新房默认把调用者放在 A 队；如果旧房房主在 B 队，按原队伍修正。
+  if (hostMember && hostMember.team === 'b') {
+    await q(
+      "UPDATE challenge_room_players SET team = 'b' WHERE room_id = ? AND user_id = ?",
+      [created.id, callerId]
+    );
+  }
+
+  const skipped = [];
+  for (const member of members) {
+    if (member.id === callerId) continue;
+    // 条件插入：成员此刻若已进入别的 waiting/live 房间，就跳过，避免一人两房。
+    const inserted = await q(
+      `INSERT INTO challenge_room_players (room_id, user_id, team, ready)
+       SELECT ?, ?, ?, 1 FROM DUAL
+        WHERE NOT EXISTS (
+          SELECT 1 FROM challenge_room_players p
+            JOIN challenge_rooms r ON r.id = p.room_id
+           WHERE p.user_id = ? AND r.status IN ('waiting', 'live')
+        )`,
+      [created.id, member.id, member.team === 'b' ? 'b' : 'a', member.id]
+    );
+    if (!inserted.affectedRows) skipped.push(member.gameName || member.username);
+  }
+
+  const room = await getRoom(created.id, callerId);
+  return { room, skipped };
 }
 
 module.exports = {

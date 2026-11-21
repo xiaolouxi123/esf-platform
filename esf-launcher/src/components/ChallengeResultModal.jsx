@@ -64,7 +64,7 @@ function TeamColumn({ label, players, winner }) {
   );
 }
 
-export default function ChallengeResultModal({ result, onClose, onOpenChallenges }) {
+export default function ChallengeResultModal({ result, onClose, onOpenChallenges, canRematch, onRematch, rematchBusy }) {
   if (!result) return null;
   const winnerA = result.winner === 'a';
   const winnerB = result.winner === 'b';
@@ -154,7 +154,13 @@ export default function ChallengeResultModal({ result, onClose, onOpenChallenges
         </p>
 
         <div className="update-modal-actions">
-          <button type="button" className="btn btn-primary" onClick={onOpenChallenges}>
+          {canRematch && (
+            <button type="button" className="btn btn-primary" onClick={onRematch} disabled={rematchBusy}>
+              {rematchBusy ? <span className="spinner" /> : <Icon name="refresh" size={14} />}
+              {rematchBusy ? '正在开房…' : '再来一局'}
+            </button>
+          )}
+          <button type="button" className={canRematch ? 'btn btn-ghost' : 'btn btn-primary'} onClick={onOpenChallenges}>
             查看约战大厅
           </button>
           <button type="button" className="btn btn-ghost" onClick={onClose}>

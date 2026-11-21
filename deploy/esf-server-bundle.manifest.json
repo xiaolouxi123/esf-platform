@@ -1,12 +1,12 @@
 {
   "launcherVersion": "0.6.61",
   "serverVersion": "0.1.0",
-  "sha256": "2794cf2689297d09356e58fe1da2a746abada5c8763296dd3110851a61e4fd2b",
-  "size": 170331,
+  "sha256": "deb787500cbf7d825c813e96a555e589b6c3c8df8e7e3555086102178dbb5a67",
+  "size": 171175,
   "fileCount": 87,
   "sqlCount": 27,
   "routeCount": 19,
   "envTemplateVars": 53,
   "hasSettlementProcedures": true,
-  "builtAt": "2026-11-21T22:13:02.521Z"
+  "builtAt": "2026-11-21T22:55:18.188Z"
 }

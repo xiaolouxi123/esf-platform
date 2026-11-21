@@ -387,6 +387,69 @@ test('约战：进行中列表、观战位与个人战绩', async () => {
   const lost = loserHistory.body.data.items.find((row) => row.roomId === liveRoomId);
   assert.equal(lost.won, false);
 });
+test('约战：房主再来一局会复制新房并带入原成员', async () => {
+  const created = await api('POST', '/api/challenges', {
+    token: tokens[1],
+    body: { mode: '1v1', title: '连续房间测试', map: 'esf_cell', serverKey: challengeServerKey },
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const oldRoomId = created.body.data.room.id;
+
+  await api('POST', `/api/challenges/${oldRoomId}/join`, { token: tokens[2] });
+  await api('POST', `/api/challenges/${oldRoomId}/ready`, {
+    token: tokens[2],
+    body: { ready: true },
+  });
+  const started = await api('POST', `/api/challenges/${oldRoomId}/start`, { token: tokens[1] });
+  assert.equal(started.status, 200, JSON.stringify(started.body));
+
+  await q(
+    `INSERT INTO challenge_results (room_id, winner, score_a, score_b, victory_type, victory_limit)
+     VALUES (?, 'a', 2, 1, 'series', 2)`,
+    [oldRoomId]
+  );
+  await q("UPDATE challenge_rooms SET status = 'closed', closed_at = NOW() WHERE id = ?", [oldRoomId]);
+
+  const result = await api('GET', `/api/challenges/${oldRoomId}/result`, { token: tokens[1] });
+  assert.equal(result.status, 200, JSON.stringify(result.body));
+  assert.equal(result.body.data.result.hostId, ids[1]);
+
+  const denied = await api('POST', `/api/challenges/${oldRoomId}/rematch`, { token: tokens[2] });
+  assert.equal(denied.status, 403);
+
+  const rematched = await api('POST', `/api/challenges/${oldRoomId}/rematch`, { token: tokens[1] });
+  assert.equal(rematched.status, 200, JSON.stringify(rematched.body));
+  const nextRoom = rematched.body.data.room;
+  assert.notEqual(nextRoom.id, oldRoomId);
+  assert.equal(nextRoom.status, 'waiting');
+  assert.equal(nextRoom.playerCount, 2);
+  assert.equal(nextRoom.allReady, true);
+  assert.match(nextRoom.title, /再来一局/);
+  assert.deepEqual(rematched.body.data.skipped, []);
+
+  const state = await api('GET', '/api/challenges', { token: tokens[2] });
+  assert.equal(state.body.data.myRoom.id, nextRoom.id);
+  assert.equal(state.body.data.myRoom.isHost, false);
+
+  await api('POST', `/api/challenges/${nextRoom.id}/close`, { token: tokens[1] });
+
+  // 旧成员已在别的房间时，再来一局应跳过他，而不是把一个人拉进两间房。
+  const blocking = await api('POST', '/api/challenges', {
+    token: tokens[2],
+    body: { mode: '1v1', title: '占用中的房间', map: 'esf_cell', serverKey: challengeServerKey },
+  });
+  assert.equal(blocking.status, 201, JSON.stringify(blocking.body));
+  const blockingRoomId = blocking.body.data.room.id;
+
+  const partial = await api('POST', `/api/challenges/${oldRoomId}/rematch`, { token: tokens[1] });
+  assert.equal(partial.status, 200, JSON.stringify(partial.body));
+  assert.equal(partial.body.data.room.playerCount, 1);
+  assert.equal(partial.body.data.skipped.length, 1);
+  assert.equal(partial.body.data.skipped[0], '约战2');
+
+  await api('POST', `/api/challenges/${partial.body.data.room.id}/close`, { token: tokens[1] });
+  await api('POST', `/api/challenges/${blockingRoomId}/close`, { token: tokens[2] });
+});
 
 test('约战：2v2 换队，换队取消准备，1v1 拒绝换队', async () => {
   const created = await api('POST', '/api/challenges', {

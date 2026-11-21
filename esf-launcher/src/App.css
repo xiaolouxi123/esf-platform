@@ -14880,6 +14880,31 @@ select:focus {
   border-color: rgba(63, 208, 255, 0.45);
   background: rgba(63, 208, 255, 0.08);
 }
+.challenge-live-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.challenge-live-queue {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 10.5px;
+  white-space: nowrap;
+  color: #d7e6f3;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.challenge-live-queue:hover {
+  border-color: rgba(63, 208, 255, 0.4);
+  background: rgba(63, 208, 255, 0.07);
+}
+.challenge-live-queue.is-queued {
+  color: #bdeaff;
+  border-color: rgba(63, 208, 255, 0.34);
+  background: rgba(63, 208, 255, 0.1);
+}
+@media (max-width: 1240px) {
+  .challenge-live-actions { flex-wrap: wrap; justify-content: flex-end; }
+}
 
 .challenge-transfer-card .challenge-muted {
   margin: 0 0 7px;
