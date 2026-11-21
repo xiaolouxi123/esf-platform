@@ -30,8 +30,9 @@
 | 0.6.60 安装包 | exe 129,193,474 B；sha512 与 latest.yml 一致 | `C:/esf/updates`、GitHub Release |
 | 资源库服务端 | 045 迁移已执行；`/api/assets` 返回 stats，`/api/assets/:id` 返回 files/versions | 217 生产库 |
 | 地图名称输入修复 | 空名称提交显示行内错误并把焦点拉回名称；输入“猿影森林”后 value 正确 | `shots/mock/113-upload-name-empty.png`、`114-upload-name-map.png` |
+| 审核版漏打包 archive.cjs | 已补入并增加运行期文件校验，审核版已重建 | commit `01bb111`，`C:/Users/Administrator/Desktop/ESF平台-审核版` |
 
-> 名称输入修复当前只在工作区，未提交、未发版；按“先解决阻塞、统一发版”的节奏并入下一版。
+> 名称输入修复已提交 `936ca84` 并推送 main；按“先解决阻塞、统一发版”的节奏并入下一版，不单独发 0.6.61。
 
 ## 三、仍待真人验证（P0，保持打开）
 
