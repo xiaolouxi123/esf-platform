@@ -198,26 +198,36 @@ $base = "https://github.com/xiaolouxi123/esf-platform/releases/download/v$Versio
 $mirrorBase = "https://ghfast.top/$base"
 $exeName = "ESF-Platform-Setup-$Version.exe"
 
-# small files first (fast), then the exe in parallel chunks through a mirror
+# small files first: fetch metadata from GitHub with a cache-busting query.
+# A mirror can keep serving the previous latest.yml for the same version, which
+# makes the release script accept a stale installer (0.6.61 incident).
+$cacheBust = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 foreach ($name in @("ESF-Platform-Setup-$Version.exe.blockmap", 'latest.yml')) {
   $dest = Join-Path $out $name
+  Remove-Item $dest -Force -ErrorAction SilentlyContinue
   $ok = $false
   for ($try = 1; $try -le 6; $try++) {
-    & curl.exe -sL --retry 2 --max-time 60 -o $dest "$mirrorBase/$name" | Out-Null
+    & curl.exe -sL --retry 2 --max-time 60 -o $dest "$base/$($name)?t=$cacheBust-$try" | Out-Null
     if ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 0)) { $ok = $true; break }
     Start-Sleep -Seconds 2
   }
   if (-not $ok) {
-    & curl.exe -sL --retry 3 --max-time 120 -o $dest "$base/$name"
-    if ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 0)) { $ok = $true }
+    for ($try = 1; $try -le 3; $try++) {
+      & curl.exe -sL --retry 2 --max-time 60 -o $dest "$mirrorBase/$($name)?t=$cacheBust-$try" | Out-Null
+      if ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 0)) { $ok = $true; break }
+      Start-Sleep -Seconds 2
+    }
   }
   if (-not $ok) { throw "download failed: $name" }
   Write-Host "asset $name $((Get-Item $dest).Length)"
 }
 
 $yml = Get-Content (Join-Path $out 'latest.yml') -Raw
+$gotVersion = ([regex]::Match($yml, 'version:\s*(\S+)')).Groups[1].Value
+if ($gotVersion -ne $Version) { throw "latest.yml version mismatch: $gotVersion" }
 $expected = ([regex]::Match($yml, 'sha512:\s*(\S+)')).Groups[1].Value
 $size = [int64]([regex]::Match($yml, 'size:\s*(\d+)')).Groups[1].Value
+if (-not $expected -or $size -le 0) { throw "latest.yml missing sha512 or size" }
 
 $exe = Join-Path $out $exeName
 $needDownload = $true
@@ -236,7 +246,7 @@ if ($needDownload) {
 
   $n = 12
   $chunk = [int64][math]::Ceiling($size / $n)
-  $mirrors = @("$mirrorBase/$exeName", "https://gh-proxy.com/$base/$exeName", "$base/$exeName")
+  $mirrors = @("$mirrorBase/$($exeName)?t=$cacheBust", "https://gh-proxy.com/$base/$($exeName)?t=$cacheBust", "$base/$($exeName)?t=$cacheBust")
 
   $block = {
     param($u1, $u2, $u3, $start, $end, $dest)
